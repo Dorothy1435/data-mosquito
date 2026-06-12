@@ -510,6 +510,167 @@ select {
   background: linear-gradient(180deg, rgba(255, 248, 241, 0.96), #ffffff);
 }
 
+/* 시간대별 예보 - 위험/안전 시간대 요약 카드 */
+.peak-time-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.peak-card {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+}
+
+.peak-card.peak-danger {
+  border-color: rgba(217, 76, 69, 0.28);
+  background: linear-gradient(180deg, rgba(255, 244, 243, 0.96), #ffffff);
+}
+
+.peak-card.peak-safe {
+  border-color: rgba(45, 135, 214, 0.24);
+  background: linear-gradient(180deg, rgba(240, 248, 255, 0.96), #ffffff);
+}
+
+.peak-label {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.peak-time {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.peak-note {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* 시간대별 예보 - 차트 영역 (maintainAspectRatio:false라서 높이를 직접 지정) */
+.chart-area {
+  position: relative;
+  height: 320px;
+  width: 100%;
+}
+
+.forecast-source {
+  margin-top: 12px;
+}
+
+/* 전국 지역 순위 목록 */
+.ranking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ranking-item {
+  display: grid;
+  grid-template-columns: 34px 64px minmax(0, 1fr) 56px 80px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.ranking-item:hover,
+.ranking-item:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(15, 107, 87, 0.35);
+  box-shadow: 0 8px 18px rgba(16, 40, 36, 0.1);
+  outline: none;
+}
+
+.ranking-item:focus-visible {
+  outline: 3px solid rgba(15, 107, 87, 0.25);
+  outline-offset: 2px;
+}
+
+.ranking-rank {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-align: center;
+}
+
+.ranking-name {
+  font-weight: 700;
+}
+
+.ranking-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(22, 48, 45, 0.08);
+  overflow: hidden;
+}
+
+.ranking-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.ranking-score {
+  font-weight: 800;
+  text-align: right;
+}
+
+.ranking-stage {
+  justify-self: end;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* 순위 막대와 단계 배지에 위험 단계별 색상 적용 */
+.ranking-bar-fill.stage-safe,
+.ranking-stage.stage-safe {
+  background: var(--safe);
+}
+
+.ranking-bar-fill.stage-good,
+.ranking-stage.stage-good {
+  background: var(--good);
+}
+
+.ranking-bar-fill.stage-normal,
+.ranking-stage.stage-normal {
+  background: var(--normal);
+}
+
+.ranking-bar-fill.stage-risk,
+.ranking-stage.stage-risk {
+  background: var(--risk);
+}
+
+.ranking-bar-fill.stage-danger,
+.ranking-stage.stage-danger {
+  background: var(--danger);
+}
+
 .footer-note {
   padding: 18px 6px 0;
   text-align: center;
@@ -547,6 +708,12 @@ select {
 
   .info-grid,
   .about-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .peak-time-box {
     grid-template-columns: 1fr;
   }
 }
@@ -612,5 +779,19 @@ select {
   .panel-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .chart-area {
+    height: 260px;
+  }
+
+  /* 좁은 화면에서는 막대를 숨기고 핵심 정보만 한 줄로 보여준다. */
+  .ranking-item {
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    gap: 10px;
+  }
+
+  .ranking-bar {
+    display: none;
   }
 }

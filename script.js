@@ -1,3 +1,18 @@
+/*
+ * 모기제로 메인 스크립트
+ *
+ * 이 파일은 크게 다음 순서로 구성되어 있습니다.
+ *  1) 기본 데이터(샘플 지역, 위험 단계 정보)와 화면 요소 참조
+ *  2) 날씨 API 호출 및 응답 가공 (open-meteo)
+ *  3) 모기지수 계산 (기온·습도·강수·바람·시간·계절·지역 밀도를 점수화)
+ *  4) 화면 렌더링 (게이지, 날씨 카드, 시간대별 예보 차트, 분석 근거, 전국 순위)
+ *  5) 지도(Leaflet) 표시와 마커
+ *  6) 이벤트 연결 및 초기화(init)
+ *
+ * 외부 데이터가 없거나 실패해도 멈추지 않도록, 실패 시 샘플 데이터로 대체합니다.
+ */
+
+// 날씨 API를 불러오지 못했을 때 사용하는 기본 지역 샘플 데이터
 const defaultRegionData = {
   updatedAt: '2026-06-12T09:00:00+09:00',
   regions: [
@@ -114,6 +129,14 @@ const locationSourceBadge = document.getElementById('locationSourceBadge');
 const weatherGrid = document.getElementById('weatherGrid');
 const analysisList = document.getElementById('analysisList');
 const gauge = document.getElementById('gauge');
+const forecastChartCanvas = document.getElementById('forecastChart');
+const forecastSourceText = document.getElementById('forecastSourceText');
+const peakDangerTime = document.getElementById('peakDangerTime');
+const peakDangerNote = document.getElementById('peakDangerNote');
+const peakSafeTime = document.getElementById('peakSafeTime');
+const peakSafeNote = document.getElementById('peakSafeNote');
+const rankingList = document.getElementById('rankingList');
+const rankingSourceText = document.getElementById('rankingSourceText');
 
 let map;
 let regionMarkers = [];
@@ -124,6 +147,7 @@ let currentRegion = null;
 let activeWeatherData = null;
 let dataUpdatedAt = defaultRegionData.updatedAt;
 let weatherCache = new Map();
+let forecastChart = null;
 
 async function loadJsonWithFallback(path, fallbackData) {
   try {
@@ -146,7 +170,7 @@ function getWeatherUrl(lat, lng) {
     current_weather: 'true',
     hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode',
     past_days: '1',
-    forecast_days: '1',
+    forecast_days: '2',
     timezone: 'Asia/Seoul',
     temperature_unit: 'celsius',
     wind_speed_unit: 'ms',
@@ -201,12 +225,18 @@ function getSeasonScore(month) {
   return 36;
 }
 
-function getNearestRegionByLocation(lat, lng) {
+// 위도/경도와 가장 가까운 등록 지역을 찾는다. (지도 클릭, 현재 위치 모두 사용)
+function findNearestRegion(lat, lng) {
   return regionData.reduce((nearest, region) => {
     const distance = Math.hypot(region.lat - lat, region.lng - lng);
     const nearestDistance = Math.hypot(nearest.lat - lat, nearest.lng - lng);
     return distance < nearestDistance ? region : nearest;
   }, regionData[0]);
+}
+
+// ISO 시간 문자열을 "오후 7:30" 형식의 한국어 시각으로 변환한다.
+function formatTime(isoString) {
+  return new Date(isoString).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatCoordinateLabel(lat, lng, accuracy) {
@@ -230,6 +260,87 @@ function createFallbackWeather(region) {
   };
 }
 
+// 실제 날씨 API의 시간별 데이터로 앞으로 24시간 모기지수 예보를 만든다.
+function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
+  const points = [];
+  const temps = hourly.temperature_2m || [];
+  const humidities = hourly.relative_humidity_2m || [];
+  const precipitations = hourly.precipitation || [];
+  const probabilities = hourly.precipitation_probability || [];
+  const winds = hourly.windspeed_10m || [];
+  const codes = hourly.weathercode || [];
+  const end = Math.min(currentIndex + 24, times.length);
+
+  for (let i = currentIndex; i < end; i += 1) {
+    const time = times[i];
+    if (!time) {
+      continue;
+    }
+
+    const date = new Date(time);
+    // 해당 시각 직전 24시간 강수량 합계 (고인 물 판단에 사용)
+    const recentRain = precipitations.slice(Math.max(0, i - 23), i + 1);
+    const rainfall24h = recentRain.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const code = codes[i];
+    const precipitationNow = Number(precipitations[i] ?? 0);
+
+    const index = computeIndexFromFactors({
+      temperature: Number(temps[i] ?? region.temperature),
+      humidity: Number(humidities[i] ?? region.humidity),
+      rainfall24h,
+      currentRain: precipitationNow > 0.1 || isRainWeatherCode(code),
+      windSpeed: Number(winds[i] ?? region.windSpeed),
+      hour: date.getHours(),
+      month: date.getMonth() + 1,
+      regionalDensity: region.mosquitoDensity,
+    });
+
+    points.push({
+      time,
+      hourLabel: `${date.getHours()}시`,
+      index,
+      temperature: Number(temps[i] ?? region.temperature),
+      weatherText: getWeatherText(code),
+      precipProbability: probabilities[i] ?? null,
+    });
+  }
+
+  return points;
+}
+
+// 실제 날씨를 불러오지 못했을 때, 샘플 날씨를 고정값으로 두고 시간대 변화만 반영한 예상 예보를 만든다.
+function buildFallbackHourlyForecast(region) {
+  const points = [];
+  const base = new Date();
+  base.setMinutes(0, 0, 0);
+
+  for (let hourOffset = 0; hourOffset < 24; hourOffset += 1) {
+    const date = new Date(base.getTime() + hourOffset * 3600000);
+    const index = computeIndexFromFactors({
+      temperature: region.temperature,
+      humidity: region.humidity,
+      rainfall24h: region.rainfall24h,
+      currentRain: region.currentRain,
+      windSpeed: region.windSpeed,
+      hour: date.getHours(),
+      month: date.getMonth() + 1,
+      regionalDensity: region.mosquitoDensity,
+    });
+
+    points.push({
+      time: date.toISOString(),
+      hourLabel: `${date.getHours()}시`,
+      index,
+      temperature: region.temperature,
+      weatherText: region.weatherText,
+      precipProbability: null,
+    });
+  }
+
+  return points;
+}
+
+// open-meteo API 응답을 화면에서 쓰기 쉬운 형태로 가공한다. (현재 값 + 오늘 요약 + 24시간 예보)
 function normalizeWeatherData(apiData, fallbackRegion) {
   const current = apiData.current_weather;
   const hourly = apiData.hourly || {};
@@ -244,8 +355,12 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   const rainfall24h = recentValues.reduce((sum, value) => sum + (Number(value) || 0), 0);
   const dailyIndex = 0;
 
+  // 현재 시각부터 앞으로 24시간 동안의 시간대별 예보 데이터를 만든다.
+  const hourlyForecast = buildLiveHourlyForecast(hourly, times, currentIndex, fallbackRegion);
+
   return {
     isLive: true,
+    hourlyForecast,
     sourceLabel: '실제 날씨',
     temperature: current.temperature,
     feelsLike: apparentTemperature,
@@ -269,6 +384,7 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   };
 }
 
+// 좌표로 실제 날씨를 불러온다. 같은 좌표는 캐시를 재사용하고, 실패하면 샘플 날씨로 대체한다.
 async function loadWeatherData(lat, lng, fallbackRegion) {
   const cacheKey = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
 
@@ -302,64 +418,76 @@ function clampValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function calculateMosquitoIndex(region, weatherData = null) {
-  const liveWeather = weatherData || createFallbackWeather(region);
-  const temperature = Number(liveWeather.temperature ?? region.temperature);
-  const humidity = Number(liveWeather.humidity ?? region.humidity);
-  const rainfall24h = Number(liveWeather.rainfall24h ?? region.rainfall24h);
-  const currentRain = Boolean(liveWeather.currentRain ?? region.currentRain);
-  const windSpeed = Number(liveWeather.windSpeed ?? region.windSpeed);
-  const temperatureScore = temperature <= 12
-    ? 12
-    : temperature <= 18
-      ? 28
-      : temperature <= 24
-        ? 60
-        : temperature <= 30
-          ? 82
-          : 68;
+// 기온이 모기 활동에 미치는 점수 (24~30도에서 가장 높음)
+function getTemperatureScore(temperature) {
+  if (temperature <= 12) return 12;
+  if (temperature <= 18) return 28;
+  if (temperature <= 24) return 60;
+  if (temperature <= 30) return 82;
+  return 68;
+}
 
-  const humidityScore = humidity < 40
-    ? 18
-    : humidity < 60
-      ? 42
-      : humidity < 80
-        ? 74
-        : 90;
+// 습도 점수 (높을수록 모기 활동에 유리)
+function getHumidityScore(humidity) {
+  if (humidity < 40) return 18;
+  if (humidity < 60) return 42;
+  if (humidity < 80) return 74;
+  return 90;
+}
 
-  const rainScore = currentRain
-    ? 62
-    : rainfall24h >= 10
-      ? 84
-      : rainfall24h >= 3
-        ? 58
-        : 24;
+// 강수 점수 (최근 비로 고인 물이 생기면 높아짐, 현재 강수 중에는 활동이 잠시 줄어듦)
+function getRainScore(currentRain, rainfall24h) {
+  if (currentRain) return 62;
+  if (rainfall24h >= 10) return 84;
+  if (rainfall24h >= 3) return 58;
+  return 24;
+}
 
-  const windScore = windSpeed < 1.5
-    ? 84
-    : windSpeed < 3
-      ? 66
-      : windSpeed < 5
-        ? 40
-        : 18;
+// 풍속 점수 (바람이 약할수록 모기 활동에 유리)
+function getWindScore(windSpeed) {
+  if (windSpeed < 1.5) return 84;
+  if (windSpeed < 3) return 66;
+  if (windSpeed < 5) return 40;
+  return 18;
+}
 
-  const time = new Date().getHours();
-  const timeScore = time >= 18 || time < 6 ? 78 : time >= 12 ? 45 : 36;
+// 시간대 점수 (해 진 저녁~새벽에 모기 활동이 활발)
+function getTimeScore(hour) {
+  if (hour >= 18 || hour < 6) return 78;
+  if (hour >= 12) return 45;
+  return 36;
+}
 
-  const seasonScore = getSeasonScore(new Date().getMonth() + 1);
-  const regionalScore = region.mosquitoDensity;
-
+// 여러 요소 점수를 가중치로 합산해 0~100 사이의 모기지수를 계산하는 핵심 함수
+function computeIndexFromFactors({ temperature, humidity, rainfall24h, currentRain, windSpeed, hour, month, regionalDensity }) {
   const weightedValue = (
-    temperatureScore * 0.24 +
-    humidityScore * 0.24 +
-    rainScore * 0.2 +
-    windScore * 0.12 +
-    timeScore * 0.1 +
-    seasonScore * 0.05 +
-    regionalScore * 0.05
+    getTemperatureScore(temperature) * 0.24 +
+    getHumidityScore(humidity) * 0.24 +
+    getRainScore(currentRain, rainfall24h) * 0.2 +
+    getWindScore(windSpeed) * 0.12 +
+    getTimeScore(hour) * 0.1 +
+    getSeasonScore(month) * 0.05 +
+    Number(regionalDensity || 0) * 0.05
   );
 
   return Math.round(clampValue(weightedValue, 0, 100));
+}
+
+// 현재 시각 기준 모기지수 계산 (지역 + 현재 날씨 사용)
+function calculateMosquitoIndex(region, weatherData = null) {
+  const liveWeather = weatherData || createFallbackWeather(region);
+  const now = new Date();
+
+  return computeIndexFromFactors({
+    temperature: Number(liveWeather.temperature ?? region.temperature),
+    humidity: Number(liveWeather.humidity ?? region.humidity),
+    rainfall24h: Number(liveWeather.rainfall24h ?? region.rainfall24h),
+    currentRain: Boolean(liveWeather.currentRain ?? region.currentRain),
+    windSpeed: Number(liveWeather.windSpeed ?? region.windSpeed),
+    hour: now.getHours(),
+    month: now.getMonth() + 1,
+    regionalDensity: region.mosquitoDensity,
+  });
 }
 
 function buildWeatherCards(region, index) {
@@ -408,7 +536,7 @@ function buildWeatherCards(region, index) {
     {
       name: '일출 / 일몰',
       value: liveWeather.sunrise && liveWeather.sunset
-        ? `${new Date(liveWeather.sunrise).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} / ${new Date(liveWeather.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+        ? `${formatTime(liveWeather.sunrise)} / ${formatTime(liveWeather.sunset)}`
         : '정보 없음',
       note: '해가 진 이후부터는 모기 활동이 늘기 쉬워집니다.',
     },
@@ -498,7 +626,7 @@ function renderAnalysis(region, weatherData, index) {
   }
 
   if (liveWeather.sunrise && liveWeather.sunset) {
-    reasons.push(`일출은 ${new Date(liveWeather.sunrise).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}, 일몰은 ${new Date(liveWeather.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}입니다.`);
+    reasons.push(`일출은 ${formatTime(liveWeather.sunrise)}, 일몰은 ${formatTime(liveWeather.sunset)}입니다.`);
   }
 
   if (index >= 61) {
@@ -570,6 +698,117 @@ function updateCurrentLocationMarker(lat, lng, accuracy, label) {
   `);
 }
 
+// 시간대별 예보(차트 + 위험 시간대 안내)를 한 번에 갱신한다.
+function renderForecast(region, weatherData) {
+  const series = (weatherData.hourlyForecast && weatherData.hourlyForecast.length)
+    ? weatherData.hourlyForecast
+    : buildFallbackHourlyForecast(region);
+
+  renderForecastChart(series);
+  renderPeakTimes(series);
+
+  forecastSourceText.textContent = weatherData.isLive
+    ? '실제 날씨 API의 시간별 예보로 계산한 모기지수입니다.'
+    : '실제 날씨를 불러오지 못해, 샘플 날씨에 시간대 변화만 반영한 예상값입니다.';
+}
+
+// Chart.js로 24시간 모기지수 변화를 선 그래프로 그린다.
+function renderForecastChart(series) {
+  if (!window.Chart || !forecastChartCanvas) {
+    forecastSourceText.textContent = '차트 라이브러리를 불러오지 못해 그래프를 표시할 수 없습니다.';
+    return;
+  }
+
+  const labels = series.map((point) => point.hourLabel);
+  const values = series.map((point) => point.index);
+  const pointColors = series.map((point) => getCurrentStage(point.index).color);
+
+  // 기존 차트가 있으면 제거하고 다시 그린다.
+  if (forecastChart) {
+    forecastChart.destroy();
+  }
+
+  forecastChart = new Chart(forecastChartCanvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '모기지수',
+          data: values,
+          borderColor: '#0f6b57',
+          borderWidth: 2,
+          fill: true,
+          backgroundColor: 'rgba(15, 107, 87, 0.12)',
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: {
+          min: 0,
+          max: 100,
+          ticks: { stepSize: 20, color: '#56706b' },
+          grid: { color: 'rgba(22, 48, 45, 0.08)' },
+          title: { display: true, text: '모기지수(점)', color: '#56706b' },
+        },
+        x: {
+          ticks: { color: '#56706b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+          grid: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            // 막대에 마우스를 올리면 단계와 날씨 정보를 함께 보여준다.
+            label: (context) => {
+              const point = series[context.dataIndex];
+              const stage = getCurrentStage(point.index);
+              return `모기지수 ${point.index}점 · ${stage.label}`;
+            },
+            afterLabel: (context) => {
+              const point = series[context.dataIndex];
+              const parts = [`${Number(point.temperature).toFixed(0)}°C · ${point.weatherText}`];
+              if (point.precipProbability != null) {
+                parts.push(`강수확률 ${Math.round(point.precipProbability)}%`);
+              }
+              return parts.join(' · ');
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+// 24시간 예보 중 가장 위험한 시간대와 가장 안전한 시간대를 찾아 안내한다.
+function renderPeakTimes(series) {
+  if (!series.length) {
+    return;
+  }
+
+  const dangerPoint = series.reduce((max, point) => (point.index > max.index ? point : max), series[0]);
+  const safePoint = series.reduce((min, point) => (point.index < min.index ? point : min), series[0]);
+  const dangerStage = getCurrentStage(dangerPoint.index);
+  const safeStage = getCurrentStage(safePoint.index);
+
+  peakDangerTime.textContent = `${dangerPoint.hourLabel} · ${dangerPoint.index}점`;
+  peakDangerNote.textContent = `${dangerStage.label} 단계로 가장 높습니다. 이 시간대 외출 시 모기 기피제와 긴소매를 준비하세요.`;
+  peakSafeTime.textContent = `${safePoint.hourLabel} · ${safePoint.index}점`;
+  peakSafeNote.textContent = `${safeStage.label} 단계로 가장 낮습니다. 야외활동을 한다면 이 시간대가 비교적 안전합니다.`;
+}
+
+// 한 지역(또는 좌표)의 날씨를 불러와 게이지·카드·예보·분석·지도까지 한 번에 갱신하는 핵심 함수
 async function loadAndRenderRegion(region, options = {}) {
   currentRegion = region;
   const lat = options.lat ?? region.lat;
@@ -602,6 +841,7 @@ async function loadAndRenderRegion(region, options = {}) {
   updateDataBadges(weatherData, isGps);
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index);
+  renderForecast(region, weatherData);
 
   if (map) {
     const targetZoom = preserveZoom ? map.getZoom() : (isGps ? 12 : 11);
@@ -689,7 +929,7 @@ function renderMap(regions) {
   });
 
   map.on('click', (event) => {
-    const nearestRegion = getNearestRegionByLocation(event.latlng.lat, event.latlng.lng);
+    const nearestRegion = findNearestRegion(event.latlng.lat, event.latlng.lng);
     regionSelect.value = nearestRegion.name;
     loadAndRenderRegion(nearestRegion, {
       lat: event.latlng.lat,
@@ -706,14 +946,6 @@ function renderMap(regions) {
 
 function populateSelect(regions) {
   regionSelect.innerHTML = regions.map((region) => `<option value="${region.name}">${region.name}</option>`).join('');
-}
-
-function findNearestRegion(lat, lng) {
-  return regionData.reduce((nearest, region) => {
-    const distance = Math.hypot(region.lat - lat, region.lng - lng);
-    const nearestDistance = Math.hypot(nearest.lat - lat, nearest.lng - lng);
-    return distance < nearestDistance ? region : nearest;
-  }, regionData[0]);
 }
 
 function setupEvents() {
@@ -758,6 +990,88 @@ function setupEvents() {
   });
 }
 
+// 실제 날씨로 계산한 모기지수를 지도 마커 색상과 팝업에도 반영한다.
+function applyLiveIndexToMarkers(results) {
+  if (!map) {
+    return;
+  }
+
+  results.forEach(({ region, index, isLive }) => {
+    const entry = regionMarkers.find((item) => item.data.name === region.name);
+    if (!entry) {
+      return;
+    }
+
+    const stage = getCurrentStage(index);
+    entry.marker.setStyle({ fillColor: stage.color });
+    entry.marker.setPopupContent(`
+      <strong>${region.name}</strong><br>
+      모기지수: ${index}점 (${isLive ? '실제 날씨' : '샘플'})<br>
+      단계: ${stage.label}<br>
+      날씨: ${region.weatherText}<br>
+      ${region.note}
+    `);
+  });
+}
+
+// 전국 지역의 모기지수를 계산해 높은 순서대로 순위 목록을 만든다.
+async function renderRanking() {
+  if (!regionData.length) {
+    return;
+  }
+
+  // 각 지역의 실제 날씨를 불러와(캐시 활용) 모기지수를 계산한다.
+  const results = await Promise.all(regionData.map(async (region) => {
+    const weather = await loadWeatherData(region.lat, region.lng, region);
+    return {
+      region,
+      index: calculateMosquitoIndex(region, weather),
+      isLive: weather.isLive,
+    };
+  }));
+
+  results.sort((a, b) => b.index - a.index);
+  const liveCount = results.filter((item) => item.isLive).length;
+
+  rankingList.innerHTML = results.map((item, position) => {
+    const stage = getCurrentStage(item.index);
+    return `
+      <li>
+        <button type="button" class="ranking-item" data-region="${item.region.name}">
+          <span class="ranking-rank">${position + 1}</span>
+          <span class="ranking-name">${item.region.name}</span>
+          <span class="ranking-bar"><span class="ranking-bar-fill ${stage.className}" style="width:${item.index}%"></span></span>
+          <span class="ranking-score">${item.index}점</span>
+          <span class="ranking-stage ${stage.className}">${stage.label}</span>
+        </button>
+      </li>
+    `;
+  }).join('');
+
+  // 순위 항목을 누르면 해당 지역으로 이동한다.
+  rankingList.querySelectorAll('.ranking-item').forEach((button) => {
+    button.addEventListener('click', () => {
+      const region = regionData.find((item) => item.name === button.dataset.region);
+      if (!region) {
+        return;
+      }
+
+      regionSelect.value = region.name;
+      loadAndRenderRegion(region, { isGps: false }).catch((error) => {
+        console.error('순위 선택 실패', error);
+      });
+      document.getElementById('mosquito-section').scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  rankingSourceText.textContent = liveCount === results.length
+    ? '모든 지역을 실제 날씨로 계산한 순위입니다.'
+    : `${liveCount}/${results.length}개 지역만 실제 날씨로 계산했고, 나머지는 샘플 데이터를 사용했습니다.`;
+
+  applyLiveIndexToMarkers(results);
+}
+
+// 페이지가 열릴 때 한 번 실행되어 데이터 로딩, 지도/이벤트 설정, 첫 화면 렌더링을 담당한다.
 async function init() {
   const [sampleData, regionsData] = await Promise.all([
     loadJsonWithFallback('./data/mosquito-sample.json', defaultRegionData),
@@ -781,6 +1095,12 @@ async function init() {
   renderMap(regionData);
   regionSelect.value = regionData[0].name;
   await loadAndRenderRegion(regionData[0], { isGps: false, preserveZoom: false });
+
+  // 전국 순위는 여러 지역의 날씨를 불러오므로 화면을 막지 않도록 별도로 처리한다.
+  renderRanking().catch((error) => {
+    console.error('전국 순위 계산 실패', error);
+    rankingSourceText.textContent = '전국 순위를 계산하는 중 문제가 발생했습니다.';
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
