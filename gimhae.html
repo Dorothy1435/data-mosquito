@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기제로 | 김해시 모기 위험 모델</title>
+  <meta name="description" content="김해시 행정 데이터(발생원 시설·방역민원)와 실시간 날씨를 결합해 읍·면·동별 모기 발생 위험도와 방제 우선순위를 보여주는 모델입니다.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell" id="top">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="brand-block">
+          <p class="brand-kicker">정밀 모기 모델</p>
+          <h1>모기제로</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
+          <select id="districtSelect" class="region-select" aria-label="김해시 구역 선택"></select>
+          <a class="secondary-button button-link" href="index.html">메인으로</a>
+          <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+        </div>
+      </div>
+
+      <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
+        <a href="about.html">사이트 소개</a>
+        <a href="mosquito-info.html">모기 정보</a>
+        <a href="gimhae.html" aria-current="page">김해 모델</a>
+        <a href="index.html#mosquito-section">오늘의 모기지수</a>
+        <a href="index.html#map-section">지도</a>
+      </nav>
+    </header>
+
+    <main class="content-grid">
+      <!-- 모델 소개 + 실시간 날씨 입력 상태 -->
+      <section class="hero-card" aria-labelledby="gimhaeTitle">
+        <div class="hero-copy">
+          <p class="section-label">김해시 모기 발생 위험도 모델</p>
+          <h2 id="gimhaeTitle">행정 데이터 + 실시간 날씨로 보는 구역별 모기 위험</h2>
+          <p class="hero-description">발생원 시설(정화조·축산·저수지·타이어·폐기물·수경시설 등)과 2025년 방역민원을 읍·면·동 단위로 통합한 모델에, 김해시 실시간 날씨를 입력해 모기지수를 계산합니다.</p>
+          <div class="data-pills" aria-label="데이터 상태">
+            <span id="weatherSourceBadge" class="data-pill">실시간 날씨</span>
+            <span id="districtBadge" class="data-pill">구역 선택</span>
+          </div>
+          <p id="weatherStatus" class="status-text">김해시 실시간 날씨를 불러오는 중입니다.</p>
+          <p id="weatherInputText" class="location-text">기온 · 습도 · 최근 3일 강수량 기준</p>
+          <p id="updatedText" class="updated-text">최종 갱신: -</p>
+        </div>
+        <div class="gauge-wrap">
+          <div id="gimhaeGauge" class="gauge" role="img" aria-label="김해 구역 모기지수 게이지">
+            <div class="gauge-inner">
+              <span class="gauge-value" id="indexValue">--</span>
+              <span class="gauge-unit">점</span>
+              <span id="gradeText" class="gauge-stage">대기 중</span>
+            </div>
+          </div>
+          <p id="summaryText" class="advice-text">구역을 선택하면 모델 결과가 표시됩니다.</p>
+        </div>
+      </section>
+
+      <!-- 기상 분석: 기온·습도·강수 적합도 분해 -->
+      <section class="panel-card" aria-labelledby="weatherAnalysisTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">기상 분석</p>
+            <h3 id="weatherAnalysisTitle">날씨가 모기 활동에 주는 영향</h3>
+          </div>
+          <p class="helper-text">각 요소의 적합도(0~1)가 높을수록 모기 활동에 유리합니다.</p>
+        </div>
+        <div id="weatherComponents" class="metric-grid metric-grid-3"></div>
+        <p id="weatherComment" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
+      </section>
+
+      <!-- 발생원 분석: 시설 유형별 위험 기여율 -->
+      <section class="panel-card" aria-labelledby="sourceTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">발생원 분석</p>
+            <h3 id="sourceTitle">이 구역의 모기 발생원</h3>
+          </div>
+          <p class="helper-text" id="areaTypeText">-</p>
+        </div>
+        <ul id="sourceList" class="source-list" aria-label="발생원 유형별 위험 기여율"></ul>
+        <p id="sourceComment" class="helper-text forecast-source">-</p>
+      </section>
+
+      <!-- 지역 순위 + 민원 요약 -->
+      <section class="panel-card" aria-labelledby="rankTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">시내 위치</p>
+            <h3 id="rankTitle">김해시 안에서의 순위</h3>
+          </div>
+        </div>
+        <div id="rankSummary" class="metric-grid metric-grid-4"></div>
+      </section>
+
+      <!-- 행동요령: 시민 / 방제당국 -->
+      <section class="panel-card" aria-labelledby="adviceTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">행동요령</p>
+            <h3 id="adviceTitle">지금 무엇을 하면 좋을까요</h3>
+          </div>
+          <p class="helper-text" id="extraInfoText">-</p>
+        </div>
+        <div class="advice-grid">
+          <article class="detail-card">
+            <h3>시민 행동요령</h3>
+            <ul id="citizenAdvice" class="detail-list"></ul>
+          </article>
+          <article class="detail-card warning-card">
+            <h3>방제당국 행동요령</h3>
+            <ul id="authorityAdvice" class="detail-list"></ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- 김해시 17개 구역 오늘의 모기지수 순위 -->
+      <section class="panel-card" aria-labelledby="districtRankTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">전 구역 비교</p>
+            <h3 id="districtRankTitle">오늘 김해시 구역별 모기지수</h3>
+          </div>
+          <p class="helper-text">같은 날씨에서 발생원 위험이 큰 구역일수록 지수가 높습니다. 항목을 누르면 해당 구역으로 이동합니다.</p>
+        </div>
+        <ol id="districtRankList" class="district-rank-list" aria-label="김해시 구역별 모기지수 순위"></ol>
+      </section>
+
+      <!-- 모델 설명 / 한계 -->
+      <section class="panel-card" aria-labelledby="modelNoteTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">모델 안내</p>
+            <h3 id="modelNoteTitle">이 모델은 이렇게 만들어졌습니다</h3>
+          </div>
+        </div>
+        <div class="detail-stack">
+          <article class="detail-card">
+            <h3>데이터</h3>
+            <p>김해시 개인하수처리시설(정화조·오수), 양돈·한우 농가, 저수지, 타이어가게, 폐기물 재활용·처리업체, 수경시설, 공중화장실 현황을 발생원으로 집계하고, 2025년 방역소독 민원대장을 실제 모기 민원 지표로 결합했습니다.</p>
+          </article>
+          <article class="detail-card">
+            <h3>계산 방식</h3>
+            <p>발생원 시설을 곤충학적 가중치(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)로 합산한 위험지수와 실제 민원을 결합해 구역별 방제 우선순위를 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 최종 모기지수를 산출합니다.</p>
+          </article>
+          <article class="detail-card warning-card">
+            <h3>주의할 점</h3>
+            <p>구역 단위가 17개로 작아 예측형보다 위험 스크리닝·방제 우선순위 모델로 활용하는 것이 적합합니다. 날씨는 김해시 대표 지점 기준이며, 결과는 참고용 예상값입니다.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer-note">
+      본 모기지수는 김해시 행정 데이터와 실시간 날씨를 결합해 계산한 참고용 예상값입니다.
+    </footer>
+  </div>
+
+  <script src="mosquito-model.js"></script>
+  <script src="nav.js"></script>
+  <script src="gimhae.js"></script>
+</body>
+</html>

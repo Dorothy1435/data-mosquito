@@ -4,3 +4,5 @@ config.js
 .env
 .env.*
 .vercel
+__pycache__/
+*.pyc
