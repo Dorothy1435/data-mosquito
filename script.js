@@ -451,22 +451,38 @@ function renderAnalysis(region, weatherData, index) {
   const liveWeather = weatherData || createFallbackWeather(region);
   const reasons = [];
 
+  reasons.push(`현재 지역은 ${region.name}이며, 지수 ${index}점으로 ${getCurrentStage(index).label} 단계입니다.`);
+
+  if (liveWeather.temperature >= 27) {
+    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 높아 모기 활동 환경에 가깝습니다.`);
+  } else if (liveWeather.temperature <= 18) {
+    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 다소 낮아 활동성이 줄 수 있습니다.`);
+  }
+
   if (liveWeather.humidity >= 60) {
     reasons.push(`습도가 ${Math.round(liveWeather.humidity)}%로 높아 모기 활동에 유리합니다.`);
+  } else {
+    reasons.push(`습도가 ${Math.round(liveWeather.humidity)}%로 비교적 낮아 활동성이 일부 줄어듭니다.`);
   }
 
   if (liveWeather.rainfall24h >= 3 || liveWeather.currentRain) {
-    reasons.push('최근 강수 영향으로 고인 물이 생겼을 가능성이 있습니다.');
+    reasons.push(`최근 강수량이 ${Number(liveWeather.rainfall24h).toFixed(1)}mm라서 고인 물이 생겼을 가능성이 있습니다.`);
+  } else {
+    reasons.push(`최근 강수량이 ${Number(liveWeather.rainfall24h).toFixed(1)}mm로 비교적 적습니다.`);
   }
 
   if (liveWeather.windSpeed < 3) {
     reasons.push(`풍속이 ${Number(liveWeather.windSpeed).toFixed(1)}m/s로 약해 활동성이 높아질 수 있습니다.`);
+  } else {
+    reasons.push(`풍속이 ${Number(liveWeather.windSpeed).toFixed(1)}m/s로 있어 모기 활동이 일부 억제될 수 있습니다.`);
   }
 
   if (index >= 61) {
     reasons.push('저녁 시간대와 겹치면 모기 활동이 더 활발해질 수 있습니다.');
+    reasons.push('긴소매, 모기 기피제, 방충망 점검을 함께 준비하는 것이 좋습니다.');
   } else {
     reasons.push('현재 조건은 비교적 안정적입니다.');
+    reasons.push('낮 시간대라면 야외활동이 비교적 수월하지만, 저녁에는 다시 점검이 필요합니다.');
   }
 
   analysisList.innerHTML = reasons.map((reason) => `<li>${reason}</li>`).join('');
@@ -488,7 +504,7 @@ function updateDataBadges(weatherData, isGps) {
     : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.';
 }
 
-function updateCurrentLocationMarker(lat, lng, label) {
+function updateCurrentLocationMarker(lat, lng, accuracy, label) {
   if (!map) {
     return;
   }
@@ -497,15 +513,17 @@ function updateCurrentLocationMarker(lat, lng, label) {
     currentLocationMarker.remove();
   }
 
-  currentLocationMarker = L.circleMarker([lat, lng], {
-    radius: 13,
+  currentLocationMarker = L.circle([lat, lng], {
+    radius: Math.max(accuracy || 30, 20),
     color: '#0f6b57',
-    weight: 4,
+    weight: 2,
     fillColor: '#7dd3fc',
-    fillOpacity: 0.92,
+    fillOpacity: 0.18,
   }).addTo(map).bindPopup(`
     <strong>${label}</strong><br>
-    현재 GPS 위치입니다.
+    위도: ${lat.toFixed(5)}<br>
+    경도: ${lng.toFixed(5)}<br>
+    정확도: 약 ${Math.round(accuracy || 0)}m
   `);
 }
 
@@ -515,6 +533,7 @@ async function loadAndRenderRegion(region, options = {}) {
   const lng = options.lng ?? region.lng;
   const isGps = Boolean(options.isGps);
   const label = options.label || region.name;
+  const accuracy = options.accuracy;
 
   statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
 
@@ -523,7 +542,9 @@ async function loadAndRenderRegion(region, options = {}) {
   const index = calculateMosquitoIndex(region, weatherData);
   const stage = getCurrentStage(index);
 
-  locationText.textContent = isGps ? `현재 위치 · ${region.name} 인근` : `${region.name} · 실제 날씨`;
+  locationText.textContent = isGps
+    ? `현재 위치 · ${region.name} 인근 · 위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}${accuracy ? ` · 정확도 약 ${Math.round(accuracy)}m` : ''}`
+    : `${region.name} · 실제 날씨`;
   updatedText.textContent = weatherData.isLive
     ? `실제 날씨 갱신: ${new Date(weatherData.observedAt).toLocaleString('ko-KR')}`
     : `샘플 기준: ${new Date(dataUpdatedAt).toLocaleString('ko-KR')}`;
@@ -540,7 +561,7 @@ async function loadAndRenderRegion(region, options = {}) {
   if (map) {
     map.setView([lat, lng], isGps ? 12 : 11, { animate: true });
     if (isGps) {
-      updateCurrentLocationMarker(lat, lng, label);
+      updateCurrentLocationMarker(lat, lng, accuracy, label);
     } else if (currentLocationMarker) {
       currentLocationMarker.remove();
       currentLocationMarker = null;
@@ -651,6 +672,7 @@ function setupEvents() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        const accuracy = position.coords.accuracy;
         const nearestRegion = findNearestRegion(latitude, longitude);
         regionSelect.value = nearestRegion.name;
         await loadAndRenderRegion(nearestRegion, {
@@ -658,6 +680,7 @@ function setupEvents() {
           lng: longitude,
           isGps: true,
           label: '현재 위치',
+          accuracy,
         });
       },
       () => {
