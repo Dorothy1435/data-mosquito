@@ -126,6 +126,7 @@ const adviceText = document.getElementById('adviceText');
 const statusText = document.getElementById('statusText');
 const weatherSourceBadge = document.getElementById('weatherSourceBadge');
 const locationSourceBadge = document.getElementById('locationSourceBadge');
+const confidenceBadge = document.getElementById('confidenceBadge');
 const weatherGrid = document.getElementById('weatherGrid');
 const analysisList = document.getElementById('analysisList');
 const gauge = document.getElementById('gauge');
@@ -167,7 +168,7 @@ function getWeatherUrl(lat, lng) {
     longitude: String(lng),
     current_weather: 'true',
     hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode',
-    past_days: '1',
+    past_days: '3',
     forecast_days: '2',
     timezone: 'Asia/Seoul',
     temperature_unit: 'celsius',
@@ -242,19 +243,67 @@ function formatCoordinateLabel(lat, lng, accuracy) {
   return `위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}${accuracyText}`;
 }
 
+// 계산 결과를 얼마나 믿을 수 있는지(신뢰도)를 매긴다.
+// 실제 날씨 연결 + 충분한 과거 데이터(24~72시간) + 최신 관측일수록 높아진다.
+function computeConfidence({ isLive, historyHours, observedAt }) {
+  let score = 0;
+  const reasons = [];
+
+  if (isLive) {
+    score += 55;
+    reasons.push('실시간 날씨 연결');
+  } else {
+    reasons.push('샘플 날씨 사용');
+  }
+
+  if (historyHours >= 72) {
+    score += 25;
+    reasons.push('최근 3일 데이터 확보');
+  } else if (historyHours >= 24) {
+    score += 15;
+    reasons.push('최근 24시간 데이터 확보');
+  }
+
+  if (observedAt) {
+    const ageHours = (Date.now() - new Date(observedAt).getTime()) / 3600000;
+    if (ageHours <= 2) {
+      score += 20;
+      reasons.push('관측 시각 최신');
+    } else if (ageHours <= 6) {
+      score += 10;
+    }
+  }
+
+  let level = 'low';
+  let label = '낮음';
+  if (score >= 75) {
+    level = 'high';
+    label = '높음';
+  } else if (score >= 45) {
+    level = 'medium';
+    label = '보통';
+  }
+
+  return { level, label, score: Math.round(score), reasons };
+}
+
 function createFallbackWeather(region) {
   return {
     isLive: false,
     sourceLabel: '샘플 데이터',
     temperature: region.temperature,
+    temperature24h: region.temperature,
     feelsLike: region.temperature,
     humidity: region.humidity,
+    humidity24h: region.humidity,
     rainfall24h: region.rainfall24h,
+    rainfall3d: region.rainfall24h,
     currentRain: region.currentRain,
     windSpeed: region.windSpeed,
     weatherText: region.weatherText,
     precipitationProbability: null,
     observedAt: dataUpdatedAt,
+    confidence: computeConfidence({ isLive: false, historyHours: 0, observedAt: null }),
   };
 }
 
@@ -276,16 +325,16 @@ function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
     }
 
     const date = new Date(time);
-    // 해당 시각 직전 24시간 강수량 합계 (고인 물 판단에 사용)
-    const recentRain = precipitations.slice(Math.max(0, i - 23), i + 1);
-    const rainfall24h = recentRain.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    // 해당 시각 직전 72시간(3일) 강수량 합계 (산란처 형성 판단에 사용)
+    const recentRain = precipitations.slice(Math.max(0, i - 71), i + 1);
+    const rainfall3d = recentRain.reduce((sum, value) => sum + (Number(value) || 0), 0);
     const code = codes[i];
     const precipitationNow = Number(precipitations[i] ?? 0);
 
     const index = computeIndexFromFactors({
       temperature: Number(temps[i] ?? region.temperature),
       humidity: Number(humidities[i] ?? region.humidity),
-      rainfall24h,
+      rainfall3d,
       currentRain: precipitationNow > 0.1 || isRainWeatherCode(code),
       windSpeed: Number(winds[i] ?? region.windSpeed),
       hour: date.getHours(),
@@ -317,7 +366,7 @@ function buildFallbackHourlyForecast(region) {
     const index = computeIndexFromFactors({
       temperature: region.temperature,
       humidity: region.humidity,
-      rainfall24h: region.rainfall24h,
+      rainfall3d: region.rainfall24h,
       currentRain: region.currentRain,
       windSpeed: region.windSpeed,
       hour: date.getHours(),
@@ -338,20 +387,67 @@ function buildFallbackHourlyForecast(region) {
   return points;
 }
 
+// 시간별 배열에서 "현재 시각"의 인덱스를 찾는다.
+// current_weather.time은 분이 붙을 수 있어(예: T16:30) 정시 배열(T16:00)과 indexOf가 안 맞으므로,
+// 정시(앞 13자리)로 맞추고, 그래도 없으면 현재 시각 이하의 가장 마지막 시간을 쓴다.
+function findCurrentHourIndex(times, currentTime) {
+  if (!times.length || !currentTime) {
+    return 0;
+  }
+
+  const hourKey = currentTime.slice(0, 13); // "2026-06-12T16"
+  const exact = times.findIndex((time) => time.slice(0, 13) === hourKey);
+  if (exact !== -1) {
+    return exact;
+  }
+
+  // ISO 문자열은 사전순 비교가 시간순과 같으므로, 현재 시각 이하의 마지막 인덱스를 찾는다.
+  for (let i = times.length - 1; i >= 0; i -= 1) {
+    if (times[i] <= currentTime) {
+      return i;
+    }
+  }
+
+  return 0;
+}
+
 // open-meteo API 응답을 화면에서 쓰기 쉬운 형태로 가공한다. (현재 값 + 오늘 요약 + 24시간 예보)
 function normalizeWeatherData(apiData, fallbackRegion) {
   const current = apiData.current_weather;
   const hourly = apiData.hourly || {};
   const daily = apiData.daily || {};
   const times = hourly.time || [];
-  const currentIndex = Math.max(0, times.indexOf(current.time));
+  const currentIndex = findCurrentHourIndex(times, current.time);
   const humidity = hourly.relative_humidity_2m?.[currentIndex] ?? fallbackRegion.humidity;
   const apparentTemperature = hourly.apparent_temperature?.[currentIndex] ?? current.temperature;
   const precipitationNow = Number(hourly.precipitation?.[currentIndex] ?? 0);
   const precipitationProbability = hourly.precipitation_probability?.[currentIndex] ?? null;
   const recentValues = hourly.precipitation?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [];
   const rainfall24h = recentValues.reduce((sum, value) => sum + (Number(value) || 0), 0);
-  const dailyIndex = 0;
+  // 최근 72시간(3일) 누적 강수량 — 산란처 형성을 더 잘 반영한다.
+  const recent72Values = hourly.precipitation?.slice(Math.max(0, currentIndex - 71), currentIndex + 1) || [];
+  const rainfall3d = recent72Values.reduce((sum, value) => sum + (Number(value) || 0), 0);
+  // 일별 배열에서 "오늘"의 인덱스를 찾는다. (past_days=3이라 0번은 3일 전이므로 날짜로 맞춘다)
+  const todayKey = (current.time || '').slice(0, 10);
+  const dailyTimes = daily.time || [];
+  const foundDailyIndex = dailyTimes.indexOf(todayKey);
+  const dailyIndex = foundDailyIndex === -1 ? Math.min(3, Math.max(0, dailyTimes.length - 2)) : foundDailyIndex;
+
+  // 최근 24시간 평균 기온·습도 — 순간값의 노이즈를 줄여 더 안정적인 지수를 만든다.
+  const temp24Values = (hourly.temperature_2m?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [])
+    .map(Number).filter((value) => !Number.isNaN(value));
+  const hum24Values = (hourly.relative_humidity_2m?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [])
+    .map(Number).filter((value) => !Number.isNaN(value));
+  const temperature24h = temp24Values.length
+    ? temp24Values.reduce((sum, value) => sum + value, 0) / temp24Values.length
+    : current.temperature;
+  const humidity24h = hum24Values.length
+    ? hum24Values.reduce((sum, value) => sum + value, 0) / hum24Values.length
+    : humidity;
+
+  // 신뢰도: 과거 데이터가 얼마나 쌓였는지(현재 시각 앞의 시간 수)로 판단
+  const historyHours = currentIndex;
+  const confidence = computeConfidence({ isLive: true, historyHours, observedAt: current.time });
 
   // 현재 시각부터 앞으로 24시간 동안의 시간대별 예보 데이터를 만든다.
   const hourlyForecast = buildLiveHourlyForecast(hourly, times, currentIndex, fallbackRegion);
@@ -359,11 +455,15 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   return {
     isLive: true,
     hourlyForecast,
+    confidence,
     sourceLabel: '실제 날씨',
     temperature: current.temperature,
+    temperature24h: Math.round(temperature24h * 10) / 10,
     feelsLike: apparentTemperature,
     humidity,
+    humidity24h: Math.round(humidity24h),
     rainfall24h: Math.round(rainfall24h * 10) / 10,
+    rainfall3d: Math.round(rainfall3d * 10) / 10,
     currentRain: precipitationNow > 0.1 || isRainWeatherCode(current.weathercode),
     windSpeed: current.windspeed,
     weatherText: getWeatherText(current.weathercode),
@@ -416,52 +516,60 @@ function clampValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-// 기온이 모기 활동에 미치는 점수 (24~30도에서 가장 높음)
+// === 연속(부드러운) 점수 곡선 ===
+// 임계값으로 뚝뚝 끊기는 계단식 대신, 값이 조금만 변해도 점수가 자연스럽게 변하도록 곡선으로 설계했습니다.
+// 모기 생태(약 28도 정점, 다습 선호, 적당한 비가 산란처를 만들고 폭우는 유실, 새벽·일몰 활동)를 반영합니다.
+
+// 기온 점수: 약 28도에서 정점인 종 모양(가우시안) 곡선. 14도 미만은 추가로 감쇠.
 function getTemperatureScore(temperature) {
-  if (temperature <= 12) return 12;
-  if (temperature <= 18) return 28;
-  if (temperature <= 24) return 60;
-  if (temperature <= 30) return 82;
-  return 68;
+  let base = Math.exp(-(((temperature - 28) / 8) ** 2));
+  if (temperature < 14) {
+    base *= clampValue((temperature - 8) / 6, 0, 1); // 8도 이하 거의 0 → 14도에서 정상
+  }
+  return clampValue(base * 100, 0, 100);
 }
 
-// 습도 점수 (높을수록 모기 활동에 유리)
+// 습도 점수: 62% 부근을 중심으로 부드럽게 오르는 S자(로지스틱) 곡선
 function getHumidityScore(humidity) {
-  if (humidity < 40) return 18;
-  if (humidity < 60) return 42;
-  if (humidity < 80) return 74;
-  return 90;
+  return clampValue(100 / (1 + Math.exp(-(humidity - 62) / 8)), 0, 100);
 }
 
-// 강수 점수 (최근 비로 고인 물이 생기면 높아짐, 현재 강수 중에는 활동이 잠시 줄어듦)
-function getRainScore(currentRain, rainfall24h) {
-  if (currentRain) return 62;
-  if (rainfall24h >= 10) return 84;
-  if (rainfall24h >= 3) return 58;
-  return 24;
+// 강수 점수: 최근 3일 누적 강수 기준. 적당한 비가 산란처를 늘려 정점, 폭우는 유충 유실로 감소.
+function getRainScore(currentRain, rainfall3d) {
+  let score;
+  if (rainfall3d <= 0) {
+    score = 30; // 비 없음 — 기존 고인물 위주
+  } else if (rainfall3d <= 35) {
+    score = 30 + 60 * (rainfall3d / 35); // 0→30, 35mm→90 (산란처 증가)
+  } else if (rainfall3d <= 90) {
+    score = 90 - 45 * ((rainfall3d - 35) / 55); // 35→90, 90mm→45 (일부 유실)
+  } else {
+    score = 45 - 10 * clampValue((rainfall3d - 90) / 60, 0, 1); // 폭우 추가 감소
+  }
+  if (currentRain) {
+    score *= 0.85; // 비가 내리는 동안에는 성충 활동이 일시적으로 줄어듦
+  }
+  return clampValue(score, 0, 100);
 }
 
-// 풍속 점수 (바람이 약할수록 모기 활동에 유리)
+// 풍속 점수: 바람이 강할수록 부드럽게 감소(지수 감쇠). 약 3m/s에서 약 40점.
 function getWindScore(windSpeed) {
-  if (windSpeed < 1.5) return 84;
-  if (windSpeed < 3) return 66;
-  if (windSpeed < 5) return 40;
-  return 18;
+  return clampValue(100 * Math.exp(-windSpeed / 3.2), 0, 100);
 }
 
-// 시간대 점수 (해 진 저녁~새벽에 모기 활동이 활발)
+// 시간대 점수: 새벽(5시)과 일몰 후(20시) 두 정점을 갖는 부드러운 곡선
 function getTimeScore(hour) {
-  if (hour >= 18 || hour < 6) return 78;
-  if (hour >= 12) return 45;
-  return 36;
+  const dusk = Math.exp(-(((hour - 20) / 3) ** 2));
+  const dawn = Math.exp(-(((hour - 5) / 2.5) ** 2));
+  return 35 + 55 * Math.max(dusk, dawn);
 }
 
 // 여러 요소 점수를 가중치로 합산해 0~100 사이의 모기지수를 계산하는 핵심 함수
-function computeIndexFromFactors({ temperature, humidity, rainfall24h, currentRain, windSpeed, hour, month, regionalDensity }) {
+function computeIndexFromFactors({ temperature, humidity, rainfall3d, currentRain, windSpeed, hour, month, regionalDensity }) {
   const weightedValue = (
     getTemperatureScore(temperature) * 0.24 +
     getHumidityScore(humidity) * 0.24 +
-    getRainScore(currentRain, rainfall24h) * 0.2 +
+    getRainScore(currentRain, rainfall3d) * 0.2 +
     getWindScore(windSpeed) * 0.12 +
     getTimeScore(hour) * 0.1 +
     getSeasonScore(month) * 0.05 +
@@ -472,14 +580,15 @@ function computeIndexFromFactors({ temperature, humidity, rainfall24h, currentRa
 }
 
 // 현재 시각 기준 모기지수 계산 (지역 + 현재 날씨 사용)
+// 기온·습도는 순간값 대신 최근 24시간 평균을 써서 잠깐 튀는 값에 흔들리지 않게 한다.
 function calculateMosquitoIndex(region, weatherData = null) {
   const liveWeather = weatherData || createFallbackWeather(region);
   const now = new Date();
 
   return computeIndexFromFactors({
-    temperature: Number(liveWeather.temperature ?? region.temperature),
-    humidity: Number(liveWeather.humidity ?? region.humidity),
-    rainfall24h: Number(liveWeather.rainfall24h ?? region.rainfall24h),
+    temperature: Number(liveWeather.temperature24h ?? liveWeather.temperature ?? region.temperature),
+    humidity: Number(liveWeather.humidity24h ?? liveWeather.humidity ?? region.humidity),
+    rainfall3d: Number(liveWeather.rainfall3d ?? liveWeather.rainfall24h ?? region.rainfall24h),
     currentRain: Boolean(liveWeather.currentRain ?? region.currentRain),
     windSpeed: Number(liveWeather.windSpeed ?? region.windSpeed),
     hour: now.getHours(),
@@ -593,24 +702,31 @@ function renderAnalysis(region, weatherData, index) {
 
   reasons.push(`현재 지역은 ${region.name}이며, 지수 ${index}점으로 ${getCurrentStage(index).label} 단계입니다.`);
 
-  if (liveWeather.temperature >= 27) {
-    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 높아 모기 활동 환경에 가깝습니다.`);
-  } else if (liveWeather.temperature <= 18) {
-    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 다소 낮아 활동성이 줄 수 있습니다.`);
+  // 지수는 순간값이 아니라 최근 24시간 평균 기온·습도로 계산합니다.
+  const avgTemp = Number(liveWeather.temperature24h ?? liveWeather.temperature);
+  const avgHumidity = Number(liveWeather.humidity24h ?? liveWeather.humidity);
+  const rain3d = Number(liveWeather.rainfall3d ?? liveWeather.rainfall24h);
+
+  if (avgTemp >= 27) {
+    reasons.push(`최근 24시간 평균 기온이 ${avgTemp.toFixed(1)}°C(현재 ${Number(liveWeather.temperature).toFixed(1)}°C)로 높아 모기 활동 환경에 가깝습니다.`);
+  } else if (avgTemp <= 18) {
+    reasons.push(`최근 24시간 평균 기온이 ${avgTemp.toFixed(1)}°C(현재 ${Number(liveWeather.temperature).toFixed(1)}°C)로 다소 낮아 활동성이 줄 수 있습니다.`);
   } else {
-    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 모기 활동에 무난한 범위입니다.`);
+    reasons.push(`최근 24시간 평균 기온이 ${avgTemp.toFixed(1)}°C(현재 ${Number(liveWeather.temperature).toFixed(1)}°C)로 모기 활동에 무난한 범위입니다.`);
   }
 
-  if (liveWeather.humidity >= 60) {
-    reasons.push(`습도가 ${Math.round(liveWeather.humidity)}%로 높아 모기 활동에 유리합니다.`);
+  if (avgHumidity >= 60) {
+    reasons.push(`최근 24시간 평균 습도가 ${Math.round(avgHumidity)}%로 높아 모기 활동에 유리합니다.`);
   } else {
-    reasons.push(`습도가 ${Math.round(liveWeather.humidity)}%로 비교적 낮아 활동성이 일부 줄어듭니다.`);
+    reasons.push(`최근 24시간 평균 습도가 ${Math.round(avgHumidity)}%로 비교적 낮아 활동성이 일부 줄어듭니다.`);
   }
 
-  if (liveWeather.rainfall24h >= 3 || liveWeather.currentRain) {
-    reasons.push(`최근 강수량이 ${Number(liveWeather.rainfall24h).toFixed(1)}mm라서 고인 물이 생겼을 가능성이 있습니다.`);
+  if (rain3d >= 10) {
+    reasons.push(`최근 3일 누적 강수가 ${rain3d.toFixed(1)}mm라서 고인 물(산란처)이 생겼을 가능성이 높습니다.`);
+  } else if (rain3d >= 3 || liveWeather.currentRain) {
+    reasons.push(`최근 3일 누적 강수가 ${rain3d.toFixed(1)}mm로 일부 고인 물이 생겼을 수 있습니다.`);
   } else {
-    reasons.push(`최근 강수량이 ${Number(liveWeather.rainfall24h).toFixed(1)}mm로 비교적 적습니다.`);
+    reasons.push(`최근 3일 누적 강수가 ${rain3d.toFixed(1)}mm로 비교적 적습니다.`);
   }
 
   if (liveWeather.dailyRainProbability != null) {
@@ -635,6 +751,10 @@ function renderAnalysis(region, weatherData, index) {
     reasons.push('낮 시간대라면 야외활동이 비교적 수월하지만, 저녁에는 다시 점검이 필요합니다.');
   }
 
+  // 마지막에 이 계산을 얼마나 믿을 수 있는지(신뢰도)와 근거를 함께 안내한다.
+  const confidence = liveWeather.confidence || computeConfidence({ isLive: liveWeather.isLive, historyHours: 0, observedAt: null });
+  reasons.push(`이 계산의 신뢰도는 '${confidence.label}'입니다. (${confidence.reasons.join(', ')})`);
+
   analysisList.innerHTML = reasons.map((reason) => `<li>${reason}</li>`).join('');
 }
 
@@ -649,6 +769,15 @@ function updateStageStyles(index) {
 function updateDataBadges(weatherData, isGps) {
   weatherSourceBadge.textContent = weatherData.isLive ? '실제 날씨' : '샘플 날씨';
   locationSourceBadge.textContent = isGps ? 'GPS 위치' : '지역 선택';
+
+  // 신뢰도 배지 (높음/보통/낮음)와 근거를 표시한다.
+  const confidence = weatherData.confidence || computeConfidence({ isLive: weatherData.isLive, historyHours: 0, observedAt: null });
+  if (confidenceBadge) {
+    confidenceBadge.textContent = `신뢰도 ${confidence.label}`;
+    confidenceBadge.className = `data-pill confidence-pill confidence-${confidence.level}`;
+    confidenceBadge.title = `계산 신뢰도 ${confidence.score}점 · ${confidence.reasons.join(', ')}`;
+  }
+
   statusText.textContent = weatherData.isLive
     ? '실제 날씨 데이터를 연결했습니다.'
     : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.';

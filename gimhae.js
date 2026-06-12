@@ -70,8 +70,13 @@ async function loadGimhaeWeather() {
     const daily = data.daily || {};
 
     // 현재 시각에 해당하는 습도 값을 찾는다.
+    // current_weather.time은 분이 붙을 수 있어(T16:30) 정시 배열(T16:00)과 안 맞으므로 정시로 맞춘다.
     const times = hourly.time || [];
-    const currentIndex = Math.max(0, times.indexOf(current.time));
+    const hourKey = (current.time || '').slice(0, 13);
+    let currentIndex = times.findIndex((time) => time.slice(0, 13) === hourKey);
+    if (currentIndex === -1) {
+      currentIndex = Math.max(0, times.length - 1);
+    }
     const humidity = hourly.relative_humidity_2m?.[currentIndex];
 
     // 최근 3일 강수량 합계 (가장 최근 3개 일별 강수량)
