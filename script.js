@@ -578,6 +578,7 @@ async function loadAndRenderRegion(region, options = {}) {
   const label = options.label || region.name;
   const accuracy = options.accuracy;
   const locationTitle = options.locationTitle || region.name;
+  const preserveZoom = options.preserveZoom !== false;
 
   statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
 
@@ -603,7 +604,8 @@ async function loadAndRenderRegion(region, options = {}) {
   renderAnalysis(region, weatherData, index);
 
   if (map) {
-    map.setView([lat, lng], isGps ? 12 : 11, { animate: true });
+    const targetZoom = preserveZoom ? map.getZoom() : (isGps ? 12 : 11);
+    map.setView([lat, lng], targetZoom, { animate: true });
     updateSelectedPointMarker(lat, lng, label, accuracy);
     if (isGps) {
       updateCurrentLocationMarker(lat, lng, accuracy, label);
@@ -695,6 +697,7 @@ function renderMap(regions) {
       isGps: false,
       label: '지도 클릭 지점',
       locationTitle: `지도 클릭 지점 · 기준 지역 ${nearestRegion.name}`,
+      preserveZoom: true,
     }).catch((error) => {
       console.error('지도 클릭 처리 실패', error);
     });
@@ -741,6 +744,7 @@ function setupEvents() {
           isGps: true,
           label: '현재 위치',
           accuracy,
+          preserveZoom: true,
         });
       },
       () => {
@@ -776,7 +780,7 @@ async function init() {
   setupEvents();
   renderMap(regionData);
   regionSelect.value = regionData[0].name;
-  await loadAndRenderRegion(regionData[0], { isGps: false });
+  await loadAndRenderRegion(regionData[0], { isGps: false, preserveZoom: false });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
