@@ -901,7 +901,7 @@ function renderMap(regions) {
   }
 
   if (!map) {
-    map = L.map('map', { scrollWheelZoom: false }).setView([36.5, 127.8], 7);
+    map = L.map('map', { scrollWheelZoom: true }).setView([36.5, 127.8], 7);
     window.mosquitoMap = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
