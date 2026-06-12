@@ -9,25 +9,41 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="page-shell">
+  <div class="page-shell" id="top">
     <header class="topbar">
-      <div>
-        <p class="brand-kicker">생활환경 정보</p>
-        <h1>모기제로</h1>
+      <div class="topbar-main">
+        <div class="brand-block">
+          <p class="brand-kicker">생활환경 정보</p>
+          <h1>모기제로</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="sr-only" for="regionSelect">지역 선택</label>
+          <select id="regionSelect" class="region-select" aria-label="지역 선택"></select>
+          <button id="myLocationButton" class="secondary-button" type="button">현재 위치</button>
+          <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+        </div>
       </div>
-      <div class="topbar-actions">
-        <label class="sr-only" for="regionSelect">지역 선택</label>
-        <select id="regionSelect" class="region-select" aria-label="지역 선택"></select>
-        <button id="myLocationButton" class="secondary-button" type="button">현재 위치</button>
-      </div>
+
+      <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
+        <a href="#mosquito-section">오늘의 모기지수</a>
+        <a href="#weather-section">날씨 정보</a>
+        <a href="#map-section">지도</a>
+        <a href="#mosquito-info-section">모기 정보</a>
+        <a href="#about-section">사이트 소개</a>
+      </nav>
     </header>
 
     <main class="content-grid">
-      <section class="hero-card" aria-labelledby="mosquitoTitle">
+      <section id="mosquito-section" class="hero-card" aria-labelledby="mosquitoTitle">
         <div class="hero-copy">
           <p class="section-label">오늘의 모기지수</p>
           <h2 id="mosquitoTitle">오늘의 모기 위험도를 한눈에 확인하세요</h2>
-          <p class="hero-description">날씨와 지역 샘플 데이터를 바탕으로 계산한 참고용 예상값입니다.</p>
+          <p class="hero-description">실제 날씨와 GPS 위치를 연결해서, 선택한 지역의 모기 위험도를 보여줍니다.</p>
+          <div class="data-pills" aria-label="데이터 상태">
+            <span id="weatherSourceBadge" class="data-pill">실제 날씨</span>
+            <span id="locationSourceBadge" class="data-pill">지역 선택</span>
+          </div>
+          <p id="statusText" class="status-text">실제 날씨와 GPS를 연결할 준비를 하고 있습니다.</p>
           <p id="locationText" class="location-text">서울 기준 샘플 데이터</p>
           <p id="updatedText" class="updated-text">최종 갱신: -</p>
         </div>
@@ -43,23 +59,24 @@
         </div>
       </section>
 
-      <section class="panel-card" aria-labelledby="weatherTitle">
+      <section id="weather-section" class="panel-card" aria-labelledby="weatherTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">날씨 요약</p>
             <h3 id="weatherTitle">모기 활동에 영향을 주는 요소</h3>
           </div>
+          <p class="helper-text">실제 날씨가 불러와지지 않으면 샘플 데이터로 자동 전환됩니다.</p>
         </div>
         <div id="weatherGrid" class="metric-grid"></div>
       </section>
 
-      <section class="panel-card map-card" aria-labelledby="mapTitle">
+      <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">지역별 지도</p>
             <h3 id="mapTitle">지역별 모기 위험도</h3>
           </div>
-          <p class="helper-text">마커를 누르면 해당 지역의 지수를 볼 수 있습니다.</p>
+          <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
         </div>
         <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
         <div class="legend" aria-label="지도 범례">
@@ -68,6 +85,65 @@
           <span><i class="legend-dot stage-normal"></i> 보통</span>
           <span><i class="legend-dot stage-risk"></i> 위험</span>
           <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
+        </div>
+      </section>
+
+      <section id="mosquito-info-section" class="panel-card" aria-labelledby="mosquitoInfoTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">모기 정보</p>
+            <h3 id="mosquitoInfoTitle">모기를 이해하면 예방이 쉬워집니다</h3>
+          </div>
+        </div>
+        <div class="info-grid">
+          <article class="info-card">
+            <h4>모기가 잘 모이는 곳</h4>
+            <ul>
+              <li>고인 물</li>
+              <li>화분 받침</li>
+              <li>배수구와 하수구 주변</li>
+              <li>그늘지고 습한 풀밭</li>
+            </ul>
+          </article>
+          <article class="info-card">
+            <h4>활동이 많은 시간</h4>
+            <ul>
+              <li>해질 무렵</li>
+              <li>밤과 새벽</li>
+              <li>비 온 뒤 습한 시간대</li>
+            </ul>
+          </article>
+          <article class="info-card">
+            <h4>예방 방법</h4>
+            <ul>
+              <li>긴 옷과 모기 기피제 사용</li>
+              <li>방충망과 창문 점검</li>
+              <li>집 주변 고인 물 제거</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="about-section" class="panel-card" aria-labelledby="aboutTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">사이트 소개</p>
+            <h3 id="aboutTitle">모기제로는 이렇게 동작합니다</h3>
+          </div>
+        </div>
+        <div class="about-grid">
+          <article class="about-card">
+            <h4>데이터 연결</h4>
+            <p>현재 위치는 브라우저 GPS로 가져오고, 날씨는 Open-Meteo의 공개 API를 사용합니다.</p>
+          </article>
+          <article class="about-card">
+            <h4>예측 방식</h4>
+            <p>기온, 습도, 강수량, 풍속, 시간대와 지역 샘플 데이터를 합쳐 0~100점으로 계산합니다.</p>
+          </article>
+          <article class="about-card">
+            <h4>오류 처리</h4>
+            <p>실제 날씨를 불러오지 못하면 샘플 데이터로 자동 전환하고, 화면에 상태를 알려줍니다.</p>
+          </article>
         </div>
       </section>
 
@@ -83,7 +159,7 @@
     </main>
 
     <footer class="footer-note">
-      본 모기지수는 날씨와 지역 샘플 데이터를 기반으로 계산한 참고용 예상값입니다.
+      본 모기지수는 실제 날씨와 지역 데이터를 바탕으로 계산한 참고용 예상값입니다.
     </footer>
   </div>
 

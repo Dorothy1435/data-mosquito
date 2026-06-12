@@ -101,20 +101,28 @@ const stageInfo = [
 
 const regionSelect = document.getElementById('regionSelect');
 const myLocationButton = document.getElementById('myLocationButton');
+const menuButton = document.getElementById('menuButton');
+const primaryNav = document.getElementById('primaryNav');
 const locationText = document.getElementById('locationText');
 const updatedText = document.getElementById('updatedText');
 const indexValue = document.getElementById('indexValue');
 const stageText = document.getElementById('stageText');
 const adviceText = document.getElementById('adviceText');
+const statusText = document.getElementById('statusText');
+const weatherSourceBadge = document.getElementById('weatherSourceBadge');
+const locationSourceBadge = document.getElementById('locationSourceBadge');
 const weatherGrid = document.getElementById('weatherGrid');
 const analysisList = document.getElementById('analysisList');
 const gauge = document.getElementById('gauge');
 
 let map;
 let regionMarkers = [];
+let currentLocationMarker = null;
 let regionData = [];
 let currentRegion = null;
+let activeWeatherData = null;
 let dataUpdatedAt = defaultRegionData.updatedAt;
+let weatherCache = new Map();
 
 async function loadJsonWithFallback(path, fallbackData) {
   try {
@@ -130,6 +138,135 @@ async function loadJsonWithFallback(path, fallbackData) {
   }
 }
 
+function getWeatherUrl(lat, lng) {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lng),
+    current_weather: 'true',
+    hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode',
+    past_days: '1',
+    forecast_days: '1',
+    timezone: 'Asia/Seoul',
+    temperature_unit: 'celsius',
+    wind_speed_unit: 'ms',
+    precipitation_unit: 'mm',
+  });
+
+  return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+}
+
+function isRainWeatherCode(code) {
+  return [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(Number(code));
+}
+
+function getWeatherText(code) {
+  const weatherCodeMap = {
+    0: '맑음',
+    1: '대체로 맑음',
+    2: '부분적으로 흐림',
+    3: '흐림',
+    45: '안개',
+    48: '짙은 안개',
+    51: '이슬비',
+    53: '약한 비',
+    55: '비',
+    61: '약한 비',
+    63: '비',
+    65: '강한 비',
+    71: '눈',
+    80: '소나기',
+    81: '강한 소나기',
+    82: '매우 강한 소나기',
+    95: '뇌우',
+  };
+
+  return weatherCodeMap[code] || '날씨 정보';
+}
+
+function getSeasonScore(month) {
+  if (month >= 6 && month <= 8) {
+    return 88;
+  }
+
+  if (month === 5 || month === 9) {
+    return 76;
+  }
+
+  if (month === 3 || month === 4 || month === 10) {
+    return 60;
+  }
+
+  return 36;
+}
+
+function createFallbackWeather(region) {
+  return {
+    isLive: false,
+    sourceLabel: '샘플 데이터',
+    temperature: region.temperature,
+    feelsLike: region.temperature,
+    humidity: region.humidity,
+    rainfall24h: region.rainfall24h,
+    currentRain: region.currentRain,
+    windSpeed: region.windSpeed,
+    weatherText: region.weatherText,
+    precipitationProbability: null,
+    observedAt: dataUpdatedAt,
+  };
+}
+
+function normalizeWeatherData(apiData, fallbackRegion) {
+  const current = apiData.current_weather;
+  const hourly = apiData.hourly || {};
+  const times = hourly.time || [];
+  const currentIndex = Math.max(0, times.indexOf(current.time));
+  const humidity = hourly.relative_humidity_2m?.[currentIndex] ?? fallbackRegion.humidity;
+  const apparentTemperature = hourly.apparent_temperature?.[currentIndex] ?? current.temperature;
+  const precipitationNow = Number(hourly.precipitation?.[currentIndex] ?? 0);
+  const precipitationProbability = hourly.precipitation_probability?.[currentIndex] ?? null;
+  const recentValues = hourly.precipitation?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [];
+  const rainfall24h = recentValues.reduce((sum, value) => sum + (Number(value) || 0), 0);
+
+  return {
+    isLive: true,
+    sourceLabel: '실제 날씨',
+    temperature: current.temperature,
+    feelsLike: apparentTemperature,
+    humidity,
+    rainfall24h: Math.round(rainfall24h * 10) / 10,
+    currentRain: precipitationNow > 0.1 || isRainWeatherCode(current.weathercode),
+    windSpeed: current.windspeed,
+    weatherText: getWeatherText(current.weathercode),
+    precipitationProbability,
+    observedAt: current.time,
+  };
+}
+
+async function loadWeatherData(lat, lng, fallbackRegion) {
+  const cacheKey = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
+
+  if (weatherCache.has(cacheKey)) {
+    return weatherCache.get(cacheKey);
+  }
+
+  try {
+    const response = await fetch(getWeatherUrl(lat, lng));
+    if (!response.ok) {
+      throw new Error(`날씨 요청 실패: ${response.status}`);
+    }
+
+    const apiData = await response.json();
+    const normalized = normalizeWeatherData(apiData, fallbackRegion);
+    weatherCache.set(cacheKey, normalized);
+    return normalized;
+  } catch (error) {
+    console.warn('실제 날씨를 불러오지 못해 샘플 데이터를 사용합니다.', error);
+    const fallback = createFallbackWeather(fallbackRegion);
+    weatherCache.set(cacheKey, fallback);
+    return fallback;
+  }
+}
+
 function getCurrentStage(value) {
   return stageInfo.find((stage) => value >= stage.min && value <= stage.max) || stageInfo[stageInfo.length - 1];
 }
@@ -138,45 +275,51 @@ function clampValue(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function calculateMosquitoIndex(region) {
-  const temperatureScore = region.temperature <= 12
+function calculateMosquitoIndex(region, weatherData = null) {
+  const liveWeather = weatherData || createFallbackWeather(region);
+  const temperature = Number(liveWeather.temperature ?? region.temperature);
+  const humidity = Number(liveWeather.humidity ?? region.humidity);
+  const rainfall24h = Number(liveWeather.rainfall24h ?? region.rainfall24h);
+  const currentRain = Boolean(liveWeather.currentRain ?? region.currentRain);
+  const windSpeed = Number(liveWeather.windSpeed ?? region.windSpeed);
+  const temperatureScore = temperature <= 12
     ? 12
-    : region.temperature <= 18
+    : temperature <= 18
       ? 28
-      : region.temperature <= 24
+      : temperature <= 24
         ? 60
-        : region.temperature <= 30
+        : temperature <= 30
           ? 82
           : 68;
 
-  const humidityScore = region.humidity < 40
+  const humidityScore = humidity < 40
     ? 18
-    : region.humidity < 60
+    : humidity < 60
       ? 42
-      : region.humidity < 80
+      : humidity < 80
         ? 74
         : 90;
 
-  const rainScore = region.currentRain
+  const rainScore = currentRain
     ? 62
-    : region.rainfall24h >= 10
+    : rainfall24h >= 10
       ? 84
-      : region.rainfall24h >= 3
+      : rainfall24h >= 3
         ? 58
         : 24;
 
-  const windScore = region.windSpeed < 1.5
+  const windScore = windSpeed < 1.5
     ? 84
-    : region.windSpeed < 3
+    : windSpeed < 3
       ? 66
-      : region.windSpeed < 5
+      : windSpeed < 5
         ? 40
         : 18;
 
   const time = new Date().getHours();
   const timeScore = time >= 18 || time < 6 ? 78 : time >= 12 ? 45 : 36;
 
-  const seasonScore = 76;
+  const seasonScore = getSeasonScore(new Date().getMonth() + 1);
   const regionalScore = region.mosquitoDensity;
 
   const weightedValue = (
@@ -193,26 +336,37 @@ function calculateMosquitoIndex(region) {
 }
 
 function buildWeatherCards(region, index) {
+  const liveWeather = activeWeatherData || createFallbackWeather(region);
   const cards = [
     {
       name: '기온',
-      value: `${region.temperature}°C`,
-      note: region.temperature >= 24 && region.temperature <= 30 ? '모기 활동에 적당한 기온입니다.' : '기온 영향이 상대적으로 적습니다.',
+      value: `${Number(liveWeather.temperature).toFixed(1)}°C`,
+      note: liveWeather.temperature >= 24 && liveWeather.temperature <= 30 ? '모기 활동에 적당한 기온입니다.' : '기온 영향이 상대적으로 적습니다.',
+    },
+    {
+      name: '체감 기온',
+      value: `${Number(liveWeather.feelsLike).toFixed(1)}°C`,
+      note: '체감 기온은 모기 활동 체감에도 영향을 줍니다.',
     },
     {
       name: '습도',
-      value: `${region.humidity}%`,
-      note: region.humidity >= 60 ? '습도가 높아 모기가 활동하기 좋습니다.' : '습도가 낮아 활동성이 조금 줄어듭니다.',
+      value: `${Math.round(liveWeather.humidity)}%`,
+      note: liveWeather.humidity >= 60 ? '습도가 높아 모기가 활동하기 좋습니다.' : '습도가 낮아 활동성이 조금 줄어듭니다.',
     },
     {
       name: '최근 강수량',
-      value: `${region.rainfall24h}mm`,
-      note: region.rainfall24h >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '최근 비 영향은 크지 않습니다.',
+      value: `${Number(liveWeather.rainfall24h).toFixed(1)}mm`,
+      note: liveWeather.rainfall24h >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '최근 비 영향은 크지 않습니다.',
     },
     {
       name: '풍속',
-      value: `${region.windSpeed.toFixed(1)}m/s`,
-      note: region.windSpeed < 3 ? '바람이 약해 모기 활동 가능성이 높습니다.' : '바람이 있어 활동성이 줄 수 있습니다.',
+      value: `${Number(liveWeather.windSpeed).toFixed(1)}m/s`,
+      note: liveWeather.windSpeed < 3 ? '바람이 약해 모기 활동 가능성이 높습니다.' : '바람이 있어 활동성이 줄 수 있습니다.',
+    },
+    {
+      name: '날씨 상태',
+      value: liveWeather.weatherText,
+      note: liveWeather.isLive ? '실제 날씨 API에서 받아온 값입니다.' : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.',
     },
   ];
 
@@ -253,19 +407,20 @@ function getGaugeGradient(value) {
   return `${safe} 0deg, ${good} 72deg, ${normal} 144deg, ${risk} 216deg, ${danger} ${value * 3.6}deg, rgba(255,255,255,0.18) ${value * 3.6}deg, rgba(255,255,255,0.18) 360deg`;
 }
 
-function renderAnalysis(region, index) {
+function renderAnalysis(region, weatherData, index) {
+  const liveWeather = weatherData || createFallbackWeather(region);
   const reasons = [];
 
-  if (region.humidity >= 60) {
-    reasons.push(`습도가 ${region.humidity}%로 높아 모기 활동에 유리합니다.`);
+  if (liveWeather.humidity >= 60) {
+    reasons.push(`습도가 ${Math.round(liveWeather.humidity)}%로 높아 모기 활동에 유리합니다.`);
   }
 
-  if (region.rainfall24h >= 3 || region.currentRain) {
+  if (liveWeather.rainfall24h >= 3 || liveWeather.currentRain) {
     reasons.push('최근 강수 영향으로 고인 물이 생겼을 가능성이 있습니다.');
   }
 
-  if (region.windSpeed < 3) {
-    reasons.push(`풍속이 ${region.windSpeed.toFixed(1)}m/s로 약해 활동성이 높아질 수 있습니다.`);
+  if (liveWeather.windSpeed < 3) {
+    reasons.push(`풍속이 ${Number(liveWeather.windSpeed).toFixed(1)}m/s로 약해 활동성이 높아질 수 있습니다.`);
   }
 
   if (index >= 61) {
@@ -285,27 +440,82 @@ function updateStageStyles(index) {
   gauge.style.setProperty('--stage-color', stage.color);
 }
 
-function renderRegion(region) {
+function updateDataBadges(weatherData, isGps) {
+  weatherSourceBadge.textContent = weatherData.isLive ? '실제 날씨' : '샘플 날씨';
+  locationSourceBadge.textContent = isGps ? 'GPS 위치' : '지역 선택';
+  statusText.textContent = weatherData.isLive
+    ? '실제 날씨 데이터를 연결했습니다.'
+    : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.';
+}
+
+function updateCurrentLocationMarker(lat, lng, label) {
+  if (!map) {
+    return;
+  }
+
+  if (currentLocationMarker) {
+    currentLocationMarker.remove();
+  }
+
+  currentLocationMarker = L.circleMarker([lat, lng], {
+    radius: 13,
+    color: '#0f6b57',
+    weight: 4,
+    fillColor: '#7dd3fc',
+    fillOpacity: 0.92,
+  }).addTo(map).bindPopup(`
+    <strong>${label}</strong><br>
+    현재 GPS 위치입니다.
+  `);
+}
+
+async function loadAndRenderRegion(region, options = {}) {
   currentRegion = region;
-  const index = calculateMosquitoIndex(region);
+  const lat = options.lat ?? region.lat;
+  const lng = options.lng ?? region.lng;
+  const isGps = Boolean(options.isGps);
+  const label = options.label || region.name;
+
+  statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
+
+  const weatherData = await loadWeatherData(lat, lng, region);
+  activeWeatherData = weatherData;
+  const index = calculateMosquitoIndex(region, weatherData);
   const stage = getCurrentStage(index);
 
-  locationText.textContent = `${region.name} 기준 샘플 데이터`;
-  updatedText.textContent = `최종 갱신: ${new Date(dataUpdatedAt).toLocaleString('ko-KR')}`;
+  locationText.textContent = isGps ? `현재 위치 · ${region.name} 인근` : `${region.name} · 실제 날씨`;
+  updatedText.textContent = weatherData.isLive
+    ? `실제 날씨 갱신: ${new Date(weatherData.observedAt).toLocaleString('ko-KR')}`
+    : `샘플 기준: ${new Date(dataUpdatedAt).toLocaleString('ko-KR')}`;
   indexValue.textContent = index;
   stageText.textContent = stage.label;
   stageText.className = `gauge-stage ${stage.className}`;
   adviceText.textContent = stage.advice;
 
   updateStageStyles(index);
+  updateDataBadges(weatherData, isGps);
   buildWeatherCards(region, index);
-  renderAnalysis(region, index);
+  renderAnalysis(region, weatherData, index);
 
   if (map) {
-    map.setView([region.lat, region.lng], 11, { animate: true });
+    map.setView([lat, lng], isGps ? 12 : 11, { animate: true });
+    if (isGps) {
+      updateCurrentLocationMarker(lat, lng, label);
+    } else if (currentLocationMarker) {
+      currentLocationMarker.remove();
+      currentLocationMarker = null;
+    }
   }
 
   highlightActiveRegion(region.name);
+}
+
+function renderRegion(region) {
+  currentRegion = region;
+  loadAndRenderRegion(region, { isGps: false }).catch((error) => {
+    console.error('지역 표시 실패', error);
+    statusText.textContent = '지역 표시 중 문제가 발생해 샘플 데이터로 다시 시도합니다.';
+  });
 }
 
 function highlightActiveRegion(regionName) {
@@ -320,7 +530,7 @@ function highlightActiveRegion(regionName) {
 }
 
 function createRegionMarker(region) {
-  const index = calculateMosquitoIndex(region);
+  const index = calculateMosquitoIndex(region, createFallbackWeather(region));
   const stage = getCurrentStage(index);
 
   return L.circleMarker([region.lat, region.lng], {
@@ -361,7 +571,9 @@ function renderMap(regions) {
       if (selectValue !== region.name) {
         regionSelect.value = region.name;
       }
-      renderRegion(region);
+      loadAndRenderRegion(region, { isGps: false }).catch((error) => {
+        console.error('마커 선택 실패', error);
+      });
     });
 
     return { marker, data: region };
@@ -384,8 +596,22 @@ function setupEvents() {
   regionSelect.addEventListener('change', () => {
     const selectedRegion = regionData.find((region) => region.name === regionSelect.value);
     if (selectedRegion) {
-      renderRegion(selectedRegion);
+      loadAndRenderRegion(selectedRegion, { isGps: false }).catch((error) => {
+        console.error('지역 선택 실패', error);
+      });
     }
+  });
+
+  menuButton.addEventListener('click', () => {
+    const isOpen = document.body.classList.toggle('menu-open');
+    menuButton.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  primaryNav.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      document.body.classList.remove('menu-open');
+      menuButton.setAttribute('aria-expanded', 'false');
+    });
   });
 
   myLocationButton.addEventListener('click', () => {
@@ -395,14 +621,22 @@ function setupEvents() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         const nearestRegion = findNearestRegion(latitude, longitude);
         regionSelect.value = nearestRegion.name;
-        renderRegion(nearestRegion);
+        await loadAndRenderRegion(nearestRegion, {
+          lat: latitude,
+          lng: longitude,
+          isGps: true,
+          label: '현재 위치',
+        });
       },
       () => {
-        alert('위치정보를 가져오지 못해 기본 샘플 지역으로 표시합니다.');
+        alert('위치정보를 가져오지 못해 기본 지역의 실제 날씨로 표시합니다.');
+        if (currentRegion) {
+          loadAndRenderRegion(currentRegion, { isGps: false }).catch(() => {});
+        }
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 },
     );
@@ -430,8 +664,8 @@ async function init() {
   populateSelect(regionData);
   setupEvents();
   renderMap(regionData);
-  renderRegion(regionData[0]);
   regionSelect.value = regionData[0].name;
+  await loadAndRenderRegion(regionData[0], { isGps: false });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
