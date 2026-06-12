@@ -139,6 +139,13 @@ select {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .secondary-button:hover,
 .secondary-button:focus-visible {
   transform: translateY(-1px);
@@ -447,6 +454,60 @@ select {
   margin: 0;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.page-hero {
+  display: grid;
+  gap: 12px;
+}
+
+.page-hero h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  line-height: 1.25;
+}
+
+.page-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.detail-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.detail-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+}
+
+.detail-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.08rem;
+}
+
+.detail-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.detail-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.warning-card,
+.highlight-card {
+  border-color: rgba(230, 130, 45, 0.22);
+  background: linear-gradient(180deg, rgba(255, 248, 241, 0.96), #ffffff);
 }
 
 .footer-note {

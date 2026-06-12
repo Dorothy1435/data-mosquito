@@ -25,11 +25,11 @@
       </div>
 
       <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
+        <a href="about.html">사이트 소개</a>
+        <a href="mosquito-info.html">모기 정보</a>
         <a href="#mosquito-section">오늘의 모기지수</a>
         <a href="#weather-section">날씨 정보</a>
         <a href="#map-section">지도</a>
-        <a href="#mosquito-info-section">모기 정보</a>
-        <a href="#about-section">사이트 소개</a>
       </nav>
     </header>
 
@@ -88,65 +88,6 @@
         </div>
       </section>
 
-      <section id="mosquito-info-section" class="panel-card" aria-labelledby="mosquitoInfoTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">모기 정보</p>
-            <h3 id="mosquitoInfoTitle">모기를 이해하면 예방이 쉬워집니다</h3>
-          </div>
-        </div>
-        <div class="info-grid">
-          <article class="info-card">
-            <h4>모기가 잘 모이는 곳</h4>
-            <ul>
-              <li>고인 물</li>
-              <li>화분 받침</li>
-              <li>배수구와 하수구 주변</li>
-              <li>그늘지고 습한 풀밭</li>
-            </ul>
-          </article>
-          <article class="info-card">
-            <h4>활동이 많은 시간</h4>
-            <ul>
-              <li>해질 무렵</li>
-              <li>밤과 새벽</li>
-              <li>비 온 뒤 습한 시간대</li>
-            </ul>
-          </article>
-          <article class="info-card">
-            <h4>예방 방법</h4>
-            <ul>
-              <li>긴 옷과 모기 기피제 사용</li>
-              <li>방충망과 창문 점검</li>
-              <li>집 주변 고인 물 제거</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section id="about-section" class="panel-card" aria-labelledby="aboutTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">사이트 소개</p>
-            <h3 id="aboutTitle">모기제로는 이렇게 동작합니다</h3>
-          </div>
-        </div>
-        <div class="about-grid">
-          <article class="about-card">
-            <h4>데이터 연결</h4>
-            <p>현재 위치는 브라우저 GPS로 가져오고, 날씨는 Open-Meteo의 공개 API를 사용합니다.</p>
-          </article>
-          <article class="about-card">
-            <h4>예측 방식</h4>
-            <p>기온, 습도, 강수량, 풍속, 시간대와 지역 샘플 데이터를 합쳐 0~100점으로 계산합니다.</p>
-          </article>
-          <article class="about-card">
-            <h4>오류 처리</h4>
-            <p>실제 날씨를 불러오지 못하면 샘플 데이터로 자동 전환하고, 화면에 상태를 알려줍니다.</p>
-          </article>
-        </div>
-      </section>
-
       <section class="panel-card" aria-labelledby="analysisTitle">
         <div class="panel-heading">
           <div>
@@ -164,6 +105,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="nav.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

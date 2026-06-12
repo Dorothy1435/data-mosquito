@@ -150,6 +150,7 @@ function getWeatherUrl(lat, lng) {
     temperature_unit: 'celsius',
     wind_speed_unit: 'ms',
     precipitation_unit: 'mm',
+    daily: 'temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset',
   });
 
   return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
@@ -218,6 +219,7 @@ function createFallbackWeather(region) {
 function normalizeWeatherData(apiData, fallbackRegion) {
   const current = apiData.current_weather;
   const hourly = apiData.hourly || {};
+  const daily = apiData.daily || {};
   const times = hourly.time || [];
   const currentIndex = Math.max(0, times.indexOf(current.time));
   const humidity = hourly.relative_humidity_2m?.[currentIndex] ?? fallbackRegion.humidity;
@@ -226,6 +228,7 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   const precipitationProbability = hourly.precipitation_probability?.[currentIndex] ?? null;
   const recentValues = hourly.precipitation?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [];
   const rainfall24h = recentValues.reduce((sum, value) => sum + (Number(value) || 0), 0);
+  const dailyIndex = 0;
 
   return {
     isLive: true,
@@ -239,6 +242,16 @@ function normalizeWeatherData(apiData, fallbackRegion) {
     weatherText: getWeatherText(current.weathercode),
     precipitationProbability,
     observedAt: current.time,
+    temperatureMax: daily.temperature_2m_max?.[dailyIndex] ?? current.temperature,
+    temperatureMin: daily.temperature_2m_min?.[dailyIndex] ?? current.temperature,
+    apparentTemperatureMax: daily.apparent_temperature_max?.[dailyIndex] ?? apparentTemperature,
+    apparentTemperatureMin: daily.apparent_temperature_min?.[dailyIndex] ?? apparentTemperature,
+    dailyRainfall: daily.precipitation_sum?.[dailyIndex] ?? rainfall24h,
+    dailyRainProbability: daily.precipitation_probability_max?.[dailyIndex] ?? precipitationProbability,
+    windSpeedMax: daily.wind_speed_10m_max?.[dailyIndex] ?? current.windspeed,
+    uvIndexMax: daily.uv_index_max?.[dailyIndex] ?? null,
+    sunrise: daily.sunrise?.[dailyIndex] ?? null,
+    sunset: daily.sunset?.[dailyIndex] ?? null,
   };
 }
 
@@ -349,19 +362,46 @@ function buildWeatherCards(region, index) {
       note: '체감 기온은 모기 활동 체감에도 영향을 줍니다.',
     },
     {
+      name: '최고 / 최저',
+      value: `${Number(liveWeather.temperatureMax).toFixed(1)}° / ${Number(liveWeather.temperatureMin).toFixed(1)}°`,
+      note: '하루 기온 범위를 함께 보면 모기 활동 시간대를 예측하기 쉽습니다.',
+    },
+    {
       name: '습도',
       value: `${Math.round(liveWeather.humidity)}%`,
       note: liveWeather.humidity >= 60 ? '습도가 높아 모기가 활동하기 좋습니다.' : '습도가 낮아 활동성이 조금 줄어듭니다.',
     },
     {
-      name: '최근 강수량',
-      value: `${Number(liveWeather.rainfall24h).toFixed(1)}mm`,
-      note: liveWeather.rainfall24h >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '최근 비 영향은 크지 않습니다.',
+      name: '오늘 강수량',
+      value: `${Number(liveWeather.dailyRainfall ?? liveWeather.rainfall24h).toFixed(1)}mm`,
+      note: (liveWeather.dailyRainfall ?? liveWeather.rainfall24h) >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '오늘 비 영향은 크지 않습니다.',
+    },
+    {
+      name: '강수 확률',
+      value: liveWeather.dailyRainProbability == null ? '정보 없음' : `${Math.round(liveWeather.dailyRainProbability)}%`,
+      note: '비가 올 가능성이 높으면 이후 모기 활동이 더 활발해질 수 있습니다.',
     },
     {
       name: '풍속',
       value: `${Number(liveWeather.windSpeed).toFixed(1)}m/s`,
       note: liveWeather.windSpeed < 3 ? '바람이 약해 모기 활동 가능성이 높습니다.' : '바람이 있어 활동성이 줄 수 있습니다.',
+    },
+    {
+      name: '최대 풍속',
+      value: `${Number(liveWeather.windSpeedMax ?? liveWeather.windSpeed).toFixed(1)}m/s`,
+      note: '하루 중 가장 강한 바람도 함께 참고할 수 있습니다.',
+    },
+    {
+      name: '일출 / 일몰',
+      value: liveWeather.sunrise && liveWeather.sunset
+        ? `${new Date(liveWeather.sunrise).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} / ${new Date(liveWeather.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+        : '정보 없음',
+      note: '해가 진 이후부터는 모기 활동이 늘기 쉬워집니다.',
+    },
+    {
+      name: '자외선 최대',
+      value: liveWeather.uvIndexMax == null ? '정보 없음' : `${Number(liveWeather.uvIndexMax).toFixed(1)}`,
+      note: '자외선이 높을수록 낮 시간대 외출 체감이 달라질 수 있습니다.',
     },
     {
       name: '날씨 상태',
@@ -600,18 +640,6 @@ function setupEvents() {
         console.error('지역 선택 실패', error);
       });
     }
-  });
-
-  menuButton.addEventListener('click', () => {
-    const isOpen = document.body.classList.toggle('menu-open');
-    menuButton.setAttribute('aria-expanded', String(isOpen));
-  });
-
-  primaryNav.querySelectorAll('a').forEach((link) => {
-    link.addEventListener('click', () => {
-      document.body.classList.remove('menu-open');
-      menuButton.setAttribute('aria-expanded', 'false');
-    });
   });
 
   myLocationButton.addEventListener('click', () => {

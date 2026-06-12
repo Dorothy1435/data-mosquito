@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기제로 | 사이트 소개</title>
+  <meta name="description" content="모기제로의 목적, 데이터 연결 방식, 예측 기준을 소개합니다.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell" id="top">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="brand-block">
+          <p class="brand-kicker">생활환경 정보</p>
+          <h1>모기제로</h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="secondary-button button-link" href="index.html">메인으로</a>
+          <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+        </div>
+      </div>
+
+      <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
+        <a href="about.html" aria-current="page">사이트 소개</a>
+        <a href="mosquito-info.html">모기 정보</a>
+        <a href="index.html#mosquito-section">오늘의 모기지수</a>
+        <a href="index.html#weather-section">날씨 정보</a>
+        <a href="index.html#map-section">지도</a>
+      </nav>
+    </header>
+
+    <main class="content-grid">
+      <section class="page-hero panel-card">
+        <p class="section-label">사이트 소개</p>
+        <h2>모기제로는 오늘의 모기 위험을 쉽게 보여주는 생활 정보 웹앱입니다.</h2>
+        <p class="page-lead">날씨, 위치, 지역 특성을 함께 보고 싶을 때 빠르게 확인할 수 있도록 만들었습니다.</p>
+      </section>
+
+      <section class="panel-card">
+        <div class="detail-stack">
+          <article class="detail-card">
+            <h3>무엇을 하는 서비스인가요?</h3>
+            <p>현재 위치 또는 선택한 지역의 날씨를 기준으로 모기 활동 가능성을 계산하고, 지역별 위험도를 지도와 카드로 보여줍니다.</p>
+          </article>
+          <article class="detail-card">
+            <h3>어떤 데이터를 쓰나요?</h3>
+            <p>브라우저 GPS, Open-Meteo 공개 날씨 API, 그리고 지역별 샘플 데이터를 함께 사용합니다. 실제 데이터가 실패하면 샘플 데이터로 자동 전환됩니다.</p>
+          </article>
+          <article class="detail-card">
+            <h3>어떻게 계산하나요?</h3>
+            <p>기온, 습도, 최근 강수, 현재 비, 풍속, 시간대, 계절, 지역 가중치를 합쳐 0점부터 100점까지 계산합니다.</p>
+          </article>
+          <article class="detail-card warning-card">
+            <h3>주의할 점</h3>
+            <p>이 값은 참고용 예상값입니다. 공식 질병 경보나 관측 결과로 사용하지 않도록 화면에서도 명확히 구분합니다.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="nav.js"></script>
+</body>
+</html>
