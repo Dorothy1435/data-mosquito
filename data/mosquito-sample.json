@@ -1,0 +1,57 @@
+{
+  "updatedAt": "2026-06-12T09:00:00+09:00",
+  "regions": [
+    {
+      "name": "서울",
+      "lat": 37.5665,
+      "lng": 126.978,
+      "temperature": 28,
+      "humidity": 74,
+      "rainfall24h": 12,
+      "currentRain": false,
+      "windSpeed": 1.6,
+      "mosquitoDensity": 68,
+      "weatherText": "흐림",
+      "note": "습도와 최근 강수 영향으로 모기 활동 가능성이 높습니다."
+    },
+    {
+      "name": "부산",
+      "lat": 35.1796,
+      "lng": 129.0756,
+      "temperature": 26,
+      "humidity": 69,
+      "rainfall24h": 4,
+      "currentRain": false,
+      "windSpeed": 3.8,
+      "mosquitoDensity": 47,
+      "weatherText": "맑음",
+      "note": "바람이 비교적 강해 모기 활동이 다소 줄어듭니다."
+    },
+    {
+      "name": "제주",
+      "lat": 33.4996,
+      "lng": 126.5312,
+      "temperature": 29,
+      "humidity": 81,
+      "rainfall24h": 16,
+      "currentRain": true,
+      "windSpeed": 2.1,
+      "mosquitoDensity": 83,
+      "weatherText": "비",
+      "note": "현재 비와 높은 습도로 매우 위험 단계에 가깝습니다."
+    },
+    {
+      "name": "대전",
+      "lat": 36.3504,
+      "lng": 127.3845,
+      "temperature": 25,
+      "humidity": 62,
+      "rainfall24h": 0,
+      "currentRain": false,
+      "windSpeed": 2.9,
+      "mosquitoDensity": 39,
+      "weatherText": "구름 많음",
+      "note": "기준치에 가까운 무난한 수준입니다."
+    }
+  ]
+}

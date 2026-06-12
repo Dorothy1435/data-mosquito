@@ -1,0 +1,9 @@
+{
+  "name": "mosquito-zero",
+  "private": true,
+  "version": "1.0.0",
+  "description": "모기지수 생활환경 정보 웹앱",
+  "scripts": {
+    "dev": "npx serve ."
+  }
+}

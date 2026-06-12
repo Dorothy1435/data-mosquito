@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기제로 | 오늘의 모기지수</title>
+  <meta name="description" content="날씨와 지역 데이터를 바탕으로 오늘의 모기지수를 확인하는 웹앱입니다.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <p class="brand-kicker">생활환경 정보</p>
+        <h1>모기제로</h1>
+      </div>
+      <div class="topbar-actions">
+        <label class="sr-only" for="regionSelect">지역 선택</label>
+        <select id="regionSelect" class="region-select" aria-label="지역 선택"></select>
+        <button id="myLocationButton" class="secondary-button" type="button">현재 위치</button>
+      </div>
+    </header>
+
+    <main class="content-grid">
+      <section class="hero-card" aria-labelledby="mosquitoTitle">
+        <div class="hero-copy">
+          <p class="section-label">오늘의 모기지수</p>
+          <h2 id="mosquitoTitle">오늘의 모기 위험도를 한눈에 확인하세요</h2>
+          <p class="hero-description">날씨와 지역 샘플 데이터를 바탕으로 계산한 참고용 예상값입니다.</p>
+          <p id="locationText" class="location-text">서울 기준 샘플 데이터</p>
+          <p id="updatedText" class="updated-text">최종 갱신: -</p>
+        </div>
+        <div class="gauge-wrap">
+          <div id="gauge" class="gauge" role="img" aria-label="모기지수 원형 게이지">
+            <div class="gauge-inner">
+              <span class="gauge-value" id="indexValue">--</span>
+              <span class="gauge-unit">점</span>
+              <span id="stageText" class="gauge-stage">대기 중</span>
+            </div>
+          </div>
+          <p id="adviceText" class="advice-text">데이터를 불러오는 중입니다.</p>
+        </div>
+      </section>
+
+      <section class="panel-card" aria-labelledby="weatherTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">날씨 요약</p>
+            <h3 id="weatherTitle">모기 활동에 영향을 주는 요소</h3>
+          </div>
+        </div>
+        <div id="weatherGrid" class="metric-grid"></div>
+      </section>
+
+      <section class="panel-card map-card" aria-labelledby="mapTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">지역별 지도</p>
+            <h3 id="mapTitle">지역별 모기 위험도</h3>
+          </div>
+          <p class="helper-text">마커를 누르면 해당 지역의 지수를 볼 수 있습니다.</p>
+        </div>
+        <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
+        <div class="legend" aria-label="지도 범례">
+          <span><i class="legend-dot stage-safe"></i> 매우 양호</span>
+          <span><i class="legend-dot stage-good"></i> 양호</span>
+          <span><i class="legend-dot stage-normal"></i> 보통</span>
+          <span><i class="legend-dot stage-risk"></i> 위험</span>
+          <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
+        </div>
+      </section>
+
+      <section class="panel-card" aria-labelledby="analysisTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">분석 근거</p>
+            <h3 id="analysisTitle">왜 이런 지수가 나왔는지</h3>
+          </div>
+        </div>
+        <ul id="analysisList" class="analysis-list"></ul>
+      </section>
+    </main>
+
+    <footer class="footer-note">
+      본 모기지수는 날씨와 지역 샘플 데이터를 기반으로 계산한 참고용 예상값입니다.
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="script.js"></script>
+</body>
+</html>
