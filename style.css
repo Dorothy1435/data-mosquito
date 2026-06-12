@@ -567,110 +567,6 @@ select {
   margin-top: 12px;
 }
 
-/* 전국 지역 순위 목록 */
-.ranking-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.ranking-item {
-  display: grid;
-  grid-template-columns: 34px 64px minmax(0, 1fr) 56px 80px;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel-strong);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.ranking-item:hover,
-.ranking-item:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(15, 107, 87, 0.35);
-  box-shadow: 0 8px 18px rgba(16, 40, 36, 0.1);
-  outline: none;
-}
-
-.ranking-item:focus-visible {
-  outline: 3px solid rgba(15, 107, 87, 0.25);
-  outline-offset: 2px;
-}
-
-.ranking-rank {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--accent);
-  text-align: center;
-}
-
-.ranking-name {
-  font-weight: 700;
-}
-
-.ranking-bar {
-  position: relative;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(22, 48, 45, 0.08);
-  overflow: hidden;
-}
-
-.ranking-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: 100%;
-  border-radius: 999px;
-}
-
-.ranking-score {
-  font-weight: 800;
-  text-align: right;
-}
-
-.ranking-stage {
-  justify-self: end;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #fff;
-}
-
-/* 순위 막대와 단계 배지에 위험 단계별 색상 적용 */
-.ranking-bar-fill.stage-safe,
-.ranking-stage.stage-safe {
-  background: var(--safe);
-}
-
-.ranking-bar-fill.stage-good,
-.ranking-stage.stage-good {
-  background: var(--good);
-}
-
-.ranking-bar-fill.stage-normal,
-.ranking-stage.stage-normal {
-  background: var(--normal);
-}
-
-.ranking-bar-fill.stage-risk,
-.ranking-stage.stage-risk {
-  background: var(--risk);
-}
-
-.ranking-bar-fill.stage-danger,
-.ranking-stage.stage-danger {
-  background: var(--danger);
-}
-
 .footer-note {
   padding: 18px 6px 0;
   text-align: center;
@@ -783,15 +679,5 @@ select {
 
   .chart-area {
     height: 260px;
-  }
-
-  /* 좁은 화면에서는 막대를 숨기고 핵심 정보만 한 줄로 보여준다. */
-  .ranking-item {
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
-    gap: 10px;
-  }
-
-  .ranking-bar {
-    display: none;
   }
 }

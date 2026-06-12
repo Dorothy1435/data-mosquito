@@ -29,9 +29,8 @@
         <a href="mosquito-info.html">모기 정보</a>
         <a href="#mosquito-section">오늘의 모기지수</a>
         <a href="#weather-section">날씨 정보</a>
-        <a href="#forecast-section">시간대별 예보</a>
-        <a href="#ranking-section">지역 순위</a>
         <a href="#map-section">지도</a>
+        <a href="#forecast-section">시간대별 예보</a>
       </nav>
     </header>
 
@@ -72,6 +71,24 @@
         <div id="weatherGrid" class="metric-grid"></div>
       </section>
 
+      <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">지역별 지도</p>
+            <h3 id="mapTitle">지역별 모기 위험도</h3>
+          </div>
+          <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
+        </div>
+        <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
+        <div class="legend" aria-label="지도 범례">
+          <span><i class="legend-dot stage-safe"></i> 매우 양호</span>
+          <span><i class="legend-dot stage-good"></i> 양호</span>
+          <span><i class="legend-dot stage-normal"></i> 보통</span>
+          <span><i class="legend-dot stage-risk"></i> 위험</span>
+          <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
+        </div>
+      </section>
+
       <section id="forecast-section" class="panel-card" aria-labelledby="forecastTitle">
         <div class="panel-heading">
           <div>
@@ -99,36 +116,6 @@
           <canvas id="forecastChart" role="img" aria-label="시간대별 모기지수 예보 그래프"></canvas>
         </div>
         <p id="forecastSourceText" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
-      </section>
-
-      <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">지역별 지도</p>
-            <h3 id="mapTitle">지역별 모기 위험도</h3>
-          </div>
-          <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
-        </div>
-        <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
-        <div class="legend" aria-label="지도 범례">
-          <span><i class="legend-dot stage-safe"></i> 매우 양호</span>
-          <span><i class="legend-dot stage-good"></i> 양호</span>
-          <span><i class="legend-dot stage-normal"></i> 보통</span>
-          <span><i class="legend-dot stage-risk"></i> 위험</span>
-          <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
-        </div>
-      </section>
-
-      <section id="ranking-section" class="panel-card" aria-labelledby="rankingTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">전국 순위</p>
-            <h3 id="rankingTitle">지역별 모기지수 순위</h3>
-          </div>
-          <p class="helper-text">모기지수가 높은 순서입니다. 항목을 누르면 해당 지역으로 이동합니다.</p>
-        </div>
-        <ol id="rankingList" class="ranking-list" aria-label="지역별 모기지수 순위"></ol>
-        <p id="rankingSourceText" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
       </section>
 
       <section class="panel-card" aria-labelledby="analysisTitle">

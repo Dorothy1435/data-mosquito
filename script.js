@@ -135,8 +135,6 @@ const peakDangerTime = document.getElementById('peakDangerTime');
 const peakDangerNote = document.getElementById('peakDangerNote');
 const peakSafeTime = document.getElementById('peakSafeTime');
 const peakSafeNote = document.getElementById('peakSafeNote');
-const rankingList = document.getElementById('rankingList');
-const rankingSourceText = document.getElementById('rankingSourceText');
 
 let map;
 let regionMarkers = [];
@@ -990,87 +988,6 @@ function setupEvents() {
   });
 }
 
-// 실제 날씨로 계산한 모기지수를 지도 마커 색상과 팝업에도 반영한다.
-function applyLiveIndexToMarkers(results) {
-  if (!map) {
-    return;
-  }
-
-  results.forEach(({ region, index, isLive }) => {
-    const entry = regionMarkers.find((item) => item.data.name === region.name);
-    if (!entry) {
-      return;
-    }
-
-    const stage = getCurrentStage(index);
-    entry.marker.setStyle({ fillColor: stage.color });
-    entry.marker.setPopupContent(`
-      <strong>${region.name}</strong><br>
-      모기지수: ${index}점 (${isLive ? '실제 날씨' : '샘플'})<br>
-      단계: ${stage.label}<br>
-      날씨: ${region.weatherText}<br>
-      ${region.note}
-    `);
-  });
-}
-
-// 전국 지역의 모기지수를 계산해 높은 순서대로 순위 목록을 만든다.
-async function renderRanking() {
-  if (!regionData.length) {
-    return;
-  }
-
-  // 각 지역의 실제 날씨를 불러와(캐시 활용) 모기지수를 계산한다.
-  const results = await Promise.all(regionData.map(async (region) => {
-    const weather = await loadWeatherData(region.lat, region.lng, region);
-    return {
-      region,
-      index: calculateMosquitoIndex(region, weather),
-      isLive: weather.isLive,
-    };
-  }));
-
-  results.sort((a, b) => b.index - a.index);
-  const liveCount = results.filter((item) => item.isLive).length;
-
-  rankingList.innerHTML = results.map((item, position) => {
-    const stage = getCurrentStage(item.index);
-    return `
-      <li>
-        <button type="button" class="ranking-item" data-region="${item.region.name}">
-          <span class="ranking-rank">${position + 1}</span>
-          <span class="ranking-name">${item.region.name}</span>
-          <span class="ranking-bar"><span class="ranking-bar-fill ${stage.className}" style="width:${item.index}%"></span></span>
-          <span class="ranking-score">${item.index}점</span>
-          <span class="ranking-stage ${stage.className}">${stage.label}</span>
-        </button>
-      </li>
-    `;
-  }).join('');
-
-  // 순위 항목을 누르면 해당 지역으로 이동한다.
-  rankingList.querySelectorAll('.ranking-item').forEach((button) => {
-    button.addEventListener('click', () => {
-      const region = regionData.find((item) => item.name === button.dataset.region);
-      if (!region) {
-        return;
-      }
-
-      regionSelect.value = region.name;
-      loadAndRenderRegion(region, { isGps: false }).catch((error) => {
-        console.error('순위 선택 실패', error);
-      });
-      document.getElementById('mosquito-section').scrollIntoView({ behavior: 'smooth' });
-    });
-  });
-
-  rankingSourceText.textContent = liveCount === results.length
-    ? '모든 지역을 실제 날씨로 계산한 순위입니다.'
-    : `${liveCount}/${results.length}개 지역만 실제 날씨로 계산했고, 나머지는 샘플 데이터를 사용했습니다.`;
-
-  applyLiveIndexToMarkers(results);
-}
-
 // 페이지가 열릴 때 한 번 실행되어 데이터 로딩, 지도/이벤트 설정, 첫 화면 렌더링을 담당한다.
 async function init() {
   const [sampleData, regionsData] = await Promise.all([
@@ -1095,12 +1012,6 @@ async function init() {
   renderMap(regionData);
   regionSelect.value = regionData[0].name;
   await loadAndRenderRegion(regionData[0], { isGps: false, preserveZoom: false });
-
-  // 전국 순위는 여러 지역의 날씨를 불러오므로 화면을 막지 않도록 별도로 처리한다.
-  renderRanking().catch((error) => {
-    console.error('전국 순위 계산 실패', error);
-    rankingSourceText.textContent = '전국 순위를 계산하는 중 문제가 발생했습니다.';
-  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
