@@ -118,6 +118,7 @@ const gauge = document.getElementById('gauge');
 let map;
 let regionMarkers = [];
 let currentLocationMarker = null;
+let selectedPointMarker = null;
 let regionData = [];
 let currentRegion = null;
 let activeWeatherData = null;
@@ -198,6 +199,19 @@ function getSeasonScore(month) {
   }
 
   return 36;
+}
+
+function getNearestRegionByLocation(lat, lng) {
+  return regionData.reduce((nearest, region) => {
+    const distance = Math.hypot(region.lat - lat, region.lng - lng);
+    const nearestDistance = Math.hypot(nearest.lat - lat, nearest.lng - lng);
+    return distance < nearestDistance ? region : nearest;
+  }, regionData[0]);
+}
+
+function formatCoordinateLabel(lat, lng, accuracy) {
+  const accuracyText = accuracy ? ` · 정확도 약 ${Math.round(accuracy)}m` : '';
+  return `위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}${accuracyText}`;
 }
 
 function createFallbackWeather(region) {
@@ -457,6 +471,8 @@ function renderAnalysis(region, weatherData, index) {
     reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 높아 모기 활동 환경에 가깝습니다.`);
   } else if (liveWeather.temperature <= 18) {
     reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 다소 낮아 활동성이 줄 수 있습니다.`);
+  } else {
+    reasons.push(`기온이 ${Number(liveWeather.temperature).toFixed(1)}°C로 모기 활동에 무난한 범위입니다.`);
   }
 
   if (liveWeather.humidity >= 60) {
@@ -471,10 +487,18 @@ function renderAnalysis(region, weatherData, index) {
     reasons.push(`최근 강수량이 ${Number(liveWeather.rainfall24h).toFixed(1)}mm로 비교적 적습니다.`);
   }
 
+  if (liveWeather.dailyRainProbability != null) {
+    reasons.push(`강수 확률이 ${Math.round(liveWeather.dailyRainProbability)}%라 비 이후 모기 활동 변화도 함께 볼 수 있습니다.`);
+  }
+
   if (liveWeather.windSpeed < 3) {
     reasons.push(`풍속이 ${Number(liveWeather.windSpeed).toFixed(1)}m/s로 약해 활동성이 높아질 수 있습니다.`);
   } else {
     reasons.push(`풍속이 ${Number(liveWeather.windSpeed).toFixed(1)}m/s로 있어 모기 활동이 일부 억제될 수 있습니다.`);
+  }
+
+  if (liveWeather.sunrise && liveWeather.sunset) {
+    reasons.push(`일출은 ${new Date(liveWeather.sunrise).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}, 일몰은 ${new Date(liveWeather.sunset).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}입니다.`);
   }
 
   if (index >= 61) {
@@ -504,6 +528,27 @@ function updateDataBadges(weatherData, isGps) {
     : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.';
 }
 
+function updateSelectedPointMarker(lat, lng, label, accuracy) {
+  if (!map) {
+    return;
+  }
+
+  if (selectedPointMarker) {
+    selectedPointMarker.remove();
+  }
+
+  selectedPointMarker = L.circleMarker([lat, lng], {
+    radius: 11,
+    color: '#0f6b57',
+    weight: 3,
+    fillColor: '#0f6b57',
+    fillOpacity: 0.85,
+  }).addTo(map).bindPopup(`
+    <strong>${label}</strong><br>
+    ${formatCoordinateLabel(lat, lng, accuracy)}
+  `);
+}
+
 function updateCurrentLocationMarker(lat, lng, accuracy, label) {
   if (!map) {
     return;
@@ -521,9 +566,7 @@ function updateCurrentLocationMarker(lat, lng, accuracy, label) {
     fillOpacity: 0.18,
   }).addTo(map).bindPopup(`
     <strong>${label}</strong><br>
-    위도: ${lat.toFixed(5)}<br>
-    경도: ${lng.toFixed(5)}<br>
-    정확도: 약 ${Math.round(accuracy || 0)}m
+    ${formatCoordinateLabel(lat, lng, accuracy)}
   `);
 }
 
@@ -534,6 +577,7 @@ async function loadAndRenderRegion(region, options = {}) {
   const isGps = Boolean(options.isGps);
   const label = options.label || region.name;
   const accuracy = options.accuracy;
+  const locationTitle = options.locationTitle || region.name;
 
   statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
 
@@ -543,8 +587,8 @@ async function loadAndRenderRegion(region, options = {}) {
   const stage = getCurrentStage(index);
 
   locationText.textContent = isGps
-    ? `현재 위치 · ${region.name} 인근 · 위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}${accuracy ? ` · 정확도 약 ${Math.round(accuracy)}m` : ''}`
-    : `${region.name} · 실제 날씨`;
+    ? `현재 위치 · ${region.name} 인근 · ${formatCoordinateLabel(lat, lng, accuracy)}`
+    : `${locationTitle} · ${formatCoordinateLabel(lat, lng)}`;
   updatedText.textContent = weatherData.isLive
     ? `실제 날씨 갱신: ${new Date(weatherData.observedAt).toLocaleString('ko-KR')}`
     : `샘플 기준: ${new Date(dataUpdatedAt).toLocaleString('ko-KR')}`;
@@ -560,6 +604,7 @@ async function loadAndRenderRegion(region, options = {}) {
 
   if (map) {
     map.setView([lat, lng], isGps ? 12 : 11, { animate: true });
+    updateSelectedPointMarker(lat, lng, label, accuracy);
     if (isGps) {
       updateCurrentLocationMarker(lat, lng, accuracy, label);
     } else if (currentLocationMarker) {
@@ -617,6 +662,7 @@ function renderMap(regions) {
 
   if (!map) {
     map = L.map('map', { scrollWheelZoom: false }).setView([36.5, 127.8], 7);
+    window.mosquitoMap = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -638,6 +684,20 @@ function renderMap(regions) {
     });
 
     return { marker, data: region };
+  });
+
+  map.on('click', (event) => {
+    const nearestRegion = getNearestRegionByLocation(event.latlng.lat, event.latlng.lng);
+    regionSelect.value = nearestRegion.name;
+    loadAndRenderRegion(nearestRegion, {
+      lat: event.latlng.lat,
+      lng: event.latlng.lng,
+      isGps: false,
+      label: '지도 클릭 지점',
+      locationTitle: `지도 클릭 지점 · 기준 지역 ${nearestRegion.name}`,
+    }).catch((error) => {
+      console.error('지도 클릭 처리 실패', error);
+    });
   });
 }
 
