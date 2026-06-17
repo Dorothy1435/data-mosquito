@@ -93,6 +93,18 @@
           <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
           <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
         </div>
+
+        <!-- 히트맵을 켜면 함께 보이는 설명 패널: 이게 무엇이고 왜 위험도가 높은지 -->
+        <div id="heatmapInfo" class="heatmap-info" hidden>
+          <h4 class="heatmap-info-title">김해 발생원 히트맵이란?</h4>
+          <p class="heatmap-info-lead">모기는 <strong>고인 물 + 유기물</strong>이 있는 곳에서 번식합니다. 그런 <strong>발생원 시설</strong>(정화조·축산농가·저수지·폐타이어·폐기물시설·수경시설 등)이 몰려 있을수록 모기가 많이 생깁니다. 이 지도는 김해 17개 읍·면·동의 <strong>발생원 위험</strong>을 색과 크기로 보여줍니다. <strong>색이 진하고 원이 클수록 위험이 높습니다.</strong></p>
+          <ul class="heatmap-info-list">
+            <li><strong>왜 위험도가 높을까?</strong> 발생원 시설이 많고, 곤충학적으로 위험이 큰 시설(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)이 모여 있으며, 실제 <strong>유충 검출률</strong>과 <strong>방역 민원</strong>이 높은 구역일수록 점수가 올라갑니다.</li>
+            <li><strong>색의 의미:</strong> 위 범례처럼 초록(낮음) → 노랑 → 주황 → 빨강(매우 높음) 순으로 발생원 위험이 커집니다.</li>
+            <li><strong>사용법:</strong> 원을 누르면 그 구역의 발생원 위험·순위·유충 검출률·오늘 모기지수가 나오고, 상단 게이지도 그 구역 정밀값으로 바뀝니다.</li>
+          </ul>
+          <p class="heatmap-info-note">※ 발생원 위험은 매일 변하는 날씨와 별개인 <strong>구역 고유의 정적 위험</strong>입니다. 여기에 날씨를 곱한 값이 '오늘 모기지수'입니다.</p>
+        </div>
       </section>
 
       <section id="weather-section" class="panel-card" aria-labelledby="weatherTitle">

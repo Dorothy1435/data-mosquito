@@ -446,6 +446,52 @@ select {
   display: none;
 }
 
+/* 히트맵 설명 패널 */
+.heatmap-info {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgba(15, 107, 87, 0.06);
+  border: 1px solid var(--border);
+}
+
+.heatmap-info[hidden] {
+  display: none;
+}
+
+.heatmap-info-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.heatmap-info-lead {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.heatmap-info-list {
+  margin: 0 0 10px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.heatmap-info-note {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.heatmap-info strong {
+  color: var(--text);
+}
+
 .legend-title {
   font-weight: 700;
   color: var(--text);

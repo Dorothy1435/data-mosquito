@@ -147,6 +147,7 @@ const rangeText = document.getElementById('rangeText');
 const precisionBadge = document.getElementById('precisionBadge');
 const heatmapButton = document.getElementById('heatmapButton');
 const heatmapLegend = document.getElementById('heatmapLegend');
+const heatmapInfo = document.getElementById('heatmapInfo');
 const forecastChartCanvas = document.getElementById('forecastChart');
 const forecastSourceText = document.getElementById('forecastSourceText');
 const peakDangerTime = document.getElementById('peakDangerTime');
@@ -1354,6 +1355,9 @@ async function toggleGimhaeHeatmap() {
     if (heatmapLegend) {
       heatmapLegend.hidden = true;
     }
+    if (heatmapInfo) {
+      heatmapInfo.hidden = true;
+    }
     return;
   }
 
@@ -1380,6 +1384,9 @@ async function toggleGimhaeHeatmap() {
   }
   if (heatmapLegend) {
     heatmapLegend.hidden = false;
+  }
+  if (heatmapInfo) {
+    heatmapInfo.hidden = false;
   }
 }
 
