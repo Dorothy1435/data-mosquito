@@ -57,8 +57,9 @@ function getBulkWeatherUrl(names) {
     current_weather: 'true',
     current: 'precipitation',
     hourly: 'relative_humidity_2m',
-    daily: 'precipitation_sum',
-    past_days: '3',
+    // 누적온도(GDD) 계산을 위해 일별 기온 최고/최저를 14일치 함께 받는다.
+    daily: 'precipitation_sum,temperature_2m_max,temperature_2m_min',
+    past_days: '14',
     forecast_days: '1',
     timezone: 'Asia/Seoul',
     temperature_unit: 'celsius',
@@ -107,6 +108,25 @@ function parseLocationWeather(loc, month) {
     ? Number(current.time.slice(11, 13))
     : new Date().getHours();
 
+  // 최근 ~2주 누적온도(GDD, base 10.5℃) — 오늘 이전 최대 14일의 일평균 기온으로 계산.
+  const dmax = daily.temperature_2m_max || [];
+  const dmin = daily.temperature_2m_min || [];
+  const dtime = daily.time || [];
+  const todayKey = (current.time || '').slice(0, 10);
+  let todayIdx = dtime.indexOf(todayKey);
+  if (todayIdx === -1) todayIdx = dtime.length - 1;
+  let gddSum = 0;
+  let gddCount = 0;
+  for (let i = Math.max(0, todayIdx - 14); i < todayIdx; i += 1) {
+    const mx = Number(dmax[i]);
+    const mn = Number(dmin[i]);
+    if (!Number.isNaN(mx) && !Number.isNaN(mn)) {
+      gddSum += Math.max(0, (mx + mn) / 2 - 10.5);
+      gddCount += 1;
+    }
+  }
+  const gdd14d = gddCount > 0 ? Math.round(gddSum) : null;
+
   return {
     month,
     isLive: true,
@@ -116,6 +136,7 @@ function parseLocationWeather(loc, month) {
     wind_ms: windMs,
     precip_now: precipNow,
     hour,
+    gdd_14d: gdd14d,
     observedAt: current.time,
   };
 }
@@ -172,6 +193,7 @@ function buildModelOptions(district) {
   if (weather.hour != null) options.hour = weather.hour;
   if (weather.wind_ms != null) options.wind_ms = weather.wind_ms;
   if (weather.precip_now != null) options.precip_now = weather.precip_now;
+  if (weather.gdd_14d != null) options.gdd_14d = weather.gdd_14d; // ③ 누적온도 발육 보정
   return options;
 }
 

@@ -383,6 +383,17 @@ const DISTRICTS = {
     MAXS[key] = Math.max(0, ...Object.values(DISTRICTS).map((d) => d.sources[key] || 0));
   });
 
+  // === (v3) 산식 보정 상수 ===
+  // ① 발생원 영향 완화: 기존 (0.35 + 0.65×geo) → (0.50 + 0.50×geo).
+  //    발생원이 0이어도 날씨최대치의 50%는 나오고, 최대 배율은 2.86→2.0배로 줄인다.
+  const GEO_FLOOR = 0.50;
+  const GEO_WEIGHT = 0.50;
+  // ③ 유충 미검증 구역 자동 하향: 발생원 추정만 있는 구역은 신뢰가 낮으므로
+  //    시내 평균 쪽으로 수축(정규화)해 극단적 과대평가(예: 한림면)를 완화한다.
+  const LARVA_SHRINK = 0.7; // 자기값 70% + 시내평균 30%
+  const MEAN_SOURCE = Object.values(DISTRICTS)
+    .reduce((sum, d) => sum + d.control_priority / 100.0, 0) / Object.keys(DISTRICTS).length;
+
   // 파이썬 round()와 동일하게 "반올림(소수 자리)"을 맞추기 위한 도우미
   function roundTo(value, digits) {
     const factor = Math.pow(10, digits);
@@ -616,8 +627,16 @@ const DISTRICTS = {
       const geo = (1 - w) * sourceScore + w * larvaRate;
       return { geo: clamp(geo), weight: w, basis: 'source+larva', larvaRate };
     }
-    // 조사 미실시 구역은 발생원 추정만 사용
-    return { geo: clamp(sourceScore), weight: 0.0, basis: 'source_only', larvaRate };
+    // ③ 조사 미실시 구역: 발생원 추정만 있어 신뢰 낮음 → 시내 평균 쪽으로 수축(과대평가 완화)
+    const shrunk = LARVA_SHRINK * sourceScore + (1 - LARVA_SHRINK) * MEAN_SOURCE;
+    return { geo: clamp(shrunk), weight: 0.0, basis: 'source_only(shrunk)', larvaRate };
+  }
+
+  // ③ 발육 보정 — 최근 ~2주 누적온도(GDD, base 10.5℃)로 '지금 성충이 나올 만큼 따뜻했는가'를 0~1로.
+  //    gdd가 없으면 1.0(보정 없음). 봄·가을엔 누적온도가 부족해 활동 적합일이라도 개체수가 적다.
+  function devFactor(gdd14d) {
+    if (gdd14d == null) return 1.0;
+    return clamp((gdd14d - 40.0) / 140.0, 0.2, 1.0);
   }
 
   // (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭을 정한다.
@@ -660,11 +679,14 @@ const DISTRICTS = {
     const [nv, ns] = rainNowSuit(behaviorOpts.precip_now);
     const [timeV, timeS] = behaviorOpts.hour == null ? [null, '시간대 정보 없음'] : timeSuit(behaviorOpts.hour);
     const act = weatherActivity(tempC, humidity, rain3dMm, behaviorOpts);
+    // ③ 발육 보정(누적온도). gdd_14d가 없으면 1.0(보정 없음).
+    const dev = devFactor(options.gdd_14d == null ? null : Number(options.gdd_14d));
     const rec = DISTRICTS[district];
     // (A) 발생원 위험에 유충 검출률을 결합한 '실효 발생원위험'을 사용한다.
     const geoInfo = geoEffective(rec);
     const geo = geoInfo.geo;
-    const index = roundTo(100 * act * (0.35 + 0.65 * geo), 1);
+    // ① 발생원 영향 완화 + ③ 발육 보정 적용
+    const index = roundTo(100 * act * dev * (GEO_FLOOR + GEO_WEIGHT * geo), 1);
     const [lv, nm, col] = grade(index);
 
     // (D) 신뢰구간: 날씨 실측/직접입력 여부 + 유충 표본 수 기반
@@ -684,7 +706,7 @@ const DISTRICTS = {
 
     // 모든 구역의 오늘 지수를 계산해 순위를 매긴다(실효 발생원위험 기준).
     const allIdx = Object.keys(DISTRICTS)
-      .map((d) => [d, roundTo(100 * act * (0.35 + 0.65 * geoEffective(DISTRICTS[d]).geo), 1)])
+      .map((d) => [d, roundTo(100 * act * dev * (GEO_FLOOR + GEO_WEIGHT * geoEffective(DISTRICTS[d]).geo), 1)])
       .sort((a, b) => b[1] - a[1]);
     const rank = allIdx.findIndex(([d]) => d === district) + 1;
     const total = allIdx.length;
@@ -734,6 +756,9 @@ const DISTRICTS = {
         },
         activity_index: roundTo(act, 3),
         behavior_factor: roundTo(behaviorFactor(behaviorOpts), 3),
+        // ③ 발육 보정(최근 2주 누적온도 기반). gdd 미제공 시 1.0.
+        development_factor: roundTo(dev, 3),
+        gdd_14d: options.gdd_14d == null ? null : Number(options.gdd_14d),
         components: {
           temperature: { score: tv, status: ts },
           humidity: { score: hv, status: hs },

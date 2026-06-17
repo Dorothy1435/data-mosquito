@@ -188,7 +188,7 @@ function getWeatherUrl(lat, lng) {
     longitude: String(lng),
     current_weather: 'true',
     hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode',
-    past_days: '3',
+    past_days: '14',
     forecast_days: '2',
     timezone: 'Asia/Seoul',
     temperature_unit: 'celsius',
@@ -345,6 +345,10 @@ function gimhaeModelOptions(weatherData) {
     options.wind_ms = Number(weatherData.windSpeed);
     options.precip_now = weatherData.currentRain ? 1.0 : 0.0;
   }
+  // ③ 누적온도 발육 보정 (있으면 전달)
+  if (weatherData && weatherData.gdd_14d != null) {
+    options.gdd_14d = weatherData.gdd_14d;
+  }
 
   return options;
 }
@@ -370,6 +374,8 @@ function gimhaeForecastPointOptions(point, weatherData) {
     rain_3d_mm: point.rainfall3d,
     wind_ms: point.windSpeed,
     precip_now: point.precipNow,
+    // ③ 누적온도는 하루 단위로 천천히 변하므로 모든 시점에 동일 값을 적용한다.
+    gdd_14d: weatherData.gdd_14d == null ? undefined : weatherData.gdd_14d,
   };
 }
 
@@ -553,7 +559,22 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   const todayKey = (current.time || '').slice(0, 10);
   const dailyTimes = daily.time || [];
   const foundDailyIndex = dailyTimes.indexOf(todayKey);
-  const dailyIndex = foundDailyIndex === -1 ? Math.min(3, Math.max(0, dailyTimes.length - 2)) : foundDailyIndex;
+  const dailyIndex = foundDailyIndex === -1 ? Math.min(14, Math.max(0, dailyTimes.length - 2)) : foundDailyIndex;
+
+  // 최근 ~2주 누적온도(GDD, base 10.5℃) — 김해 정밀 모델의 발육 보정에 쓴다(오늘 이전 최대 14일).
+  const dailyMax = daily.temperature_2m_max || [];
+  const dailyMin = daily.temperature_2m_min || [];
+  let gddSum = 0;
+  let gddCount = 0;
+  for (let i = Math.max(0, dailyIndex - 14); i < dailyIndex; i += 1) {
+    const mx = Number(dailyMax[i]);
+    const mn = Number(dailyMin[i]);
+    if (!Number.isNaN(mx) && !Number.isNaN(mn)) {
+      gddSum += Math.max(0, (mx + mn) / 2 - 10.5);
+      gddCount += 1;
+    }
+  }
+  const gdd14d = gddCount > 0 ? Math.round(gddSum) : null;
 
   // 최근 24시간 평균 기온·습도 — 순간값의 노이즈를 줄여 더 안정적인 지수를 만든다.
   const temp24Values = (hourly.temperature_2m?.slice(Math.max(0, currentIndex - 23), currentIndex + 1) || [])
@@ -578,6 +599,7 @@ function normalizeWeatherData(apiData, fallbackRegion) {
     isLive: true,
     hourlyForecast,
     confidence,
+    gdd_14d: gdd14d,
     sourceLabel: '실제 날씨',
     temperature: current.temperature,
     temperature24h: Math.round(temperature24h * 10) / 10,

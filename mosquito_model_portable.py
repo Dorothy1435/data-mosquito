@@ -23,6 +23,11 @@ v2 보완점:
   A. 위험지수 실제화 — 발생원 '개수'뿐 아니라 실제 '유충 검출률'을 위험지수에 직접 반영.
   C. 실시간 기상 API — Open-Meteo 연동(fetch_weather), 표준 라이브러리만으로 동작.
   D. 불확실성 출력 — 단일 점수 대신 신뢰구간(low~high)과 신뢰도 등급을 함께 반환.
+
+v3 보완점 (발생원 과의존 완화 + 날씨 시차):
+  ① 발생원 영향 완화 — 산식을 (0.35+0.65×geo) → (0.50+0.50×geo)로. 발생원 최대 배율 2.86→2.0배.
+  ③ 유충 미검증 구역 자동 하향 — 발생원 추정만 있는 구역은 시내 평균 쪽으로 수축(과대평가 완화).
+  ③ 날씨 시차(GDD) — 최근 ~2주 누적온도로 발육 보정(gdd_14d). 봄·가을 개체수 과대평가 방지.
 """
 import math
 import json
@@ -332,6 +337,13 @@ for _d, (_s, _p) in _LARVA.items():
 
 _MAXS = {k: max((d['sources'].get(k,0) for d in DISTRICTS.values()), default=0) for k in SRC_KOR}
 
+# === (v3) 산식 보정 상수 ===
+# ① 발생원 영향 완화: (0.35 + 0.65×geo) → (0.50 + 0.50×geo). 최대 배율 2.86→2.0배.
+GEO_FLOOR, GEO_WEIGHT = 0.50, 0.50
+# ③ 유충 미검증 구역 자동 하향: 발생원 추정만 있는 구역은 시내 평균 쪽으로 수축(과대평가 완화).
+LARVA_SHRINK = 0.7  # 자기값 70% + 시내평균 30%
+_MEAN_SOURCE = sum(d['control_priority'] / 100.0 for d in DISTRICTS.values()) / len(DISTRICTS)
+
 def _clamp(x, lo=0.0, hi=1.0): return max(lo, min(hi, x))
 
 def _temp_suit(T):
@@ -484,8 +496,17 @@ def _geo_effective(rec):
         geo = (1 - w) * source_score + w * larva_rate
         basis = 'source+larva'
     else:
-        geo, w, basis = source_score, 0.0, 'source_only'    # 조사 미실시 구역
+        # ③ 조사 미실시 구역: 신뢰 낮음 → 시내 평균 쪽으로 수축(과대평가 완화)
+        geo = LARVA_SHRINK * source_score + (1 - LARVA_SHRINK) * _MEAN_SOURCE
+        w, basis = 0.0, 'source_only(shrunk)'
     return _clamp(geo), w, basis, larva_rate
+
+# ③ 발육 보정 — 최근 ~2주 누적온도(GDD, base 10.5℃)로 '지금 성충이 나올 만큼 따뜻했는가'를 0~1로.
+#    gdd가 None이면 1.0(보정 없음). 봄·가을엔 누적온도가 부족해 활동 적합일이라도 개체수가 적다.
+def _dev_factor(gdd_14d):
+    if gdd_14d is None:
+        return 1.0
+    return _clamp((gdd_14d - 40.0) / 140.0, 0.2, 1.0)
 
 # ---------------------------------------------------------------------------
 # (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭 결정.
@@ -501,7 +522,7 @@ def _confidence(weather_observed, surveyed):
     return u, label, wu, su
 
 def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=None,
-                   live_weather=False):
+                   live_weather=False, gdd_14d=None):
     if district not in DISTRICTS:
         raise KeyError("unknown district: " + str(district))
     if month is None: month = 6
@@ -529,9 +550,11 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
 
     tv, ts = _temp_suit(temp_c); hv, hs = _hum_suit(humidity); rv, rs = _rain_suit(rain_3d_mm)
     act = weather_activity(temp_c, humidity, rain_3d_mm)
+    dev = _dev_factor(gdd_14d)                                  # ③ 발육 보정(누적온도)
     rec = DISTRICTS[district]
     geo, larva_w, geo_basis, larva_rate = _geo_effective(rec)   # (A) 유충 검출률 반영
-    index = round(100 * act * (0.35 + 0.65 * geo), 1)
+    # ① 발생원 영향 완화 + ③ 발육 보정 적용
+    index = round(100 * act * dev * (GEO_FLOOR + GEO_WEIGHT * geo), 1)
     lv, nm, col = grade(index)
 
     # (D) 신뢰구간: 날씨 실측/입력 여부 + 유충 표본 수 기반
@@ -543,7 +566,7 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
     top_name = breakdown[0]['source'] if breakdown else None
     area_type = '농촌형(축산·정화조 밀집)' if district.endswith(('읍','면')) else '도심형(생활하수·타이어·수경시설)'
 
-    all_idx = sorted(((d, round(100*act*(0.35+0.65*_geo_effective(DISTRICTS[d])[0]),1))
+    all_idx = sorted(((d, round(100*act*dev*(GEO_FLOOR+GEO_WEIGHT*_geo_effective(DISTRICTS[d])[0]),1))
                       for d in DISTRICTS), key=lambda x:-x[1])
     rank = [d for d,_ in all_idx].index(district) + 1
     total = len(all_idx)
@@ -579,6 +602,8 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
             'source': weather_src,
             'observed': weather_observed,
             'activity_index': round(act,3),
+            'development_factor': round(dev,3),   # ③ 누적온도(GDD) 발육 보정
+            'gdd_14d': gdd_14d,
             'components': {
                 'temperature': {'score': tv, 'status': ts},
                 'humidity':    {'score': hv, 'status': hs},
