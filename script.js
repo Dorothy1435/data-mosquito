@@ -358,6 +358,33 @@ function computeGimhaePrecision(district, weatherData) {
   }
 }
 
+// 시간대별 예보의 한 시점(point)을 김해 정밀 모델 입력 옵션으로 변환한다.
+function gimhaeForecastPointOptions(point, weatherData) {
+  return {
+    month: point.month,
+    hour: point.hourOfDay,
+    weather_observed: weatherData.isLive === true,
+    temp_c: point.temperature,
+    humidity: point.humidity,
+    rain_3d_mm: point.rainfall3d,
+    wind_ms: point.windSpeed,
+    precip_now: point.precipNow,
+  };
+}
+
+// 시간대별 예보 시리즈를 김해 정밀 모델로 다시 계산해 지수를 교체한다.
+// (게이지와 같은 모델을 쓰게 되어 그래프와 현재 값이 일치한다)
+function buildGimhaeForecastSeries(series, district, weatherData) {
+  return series.map((point) => {
+    try {
+      const result = GimhaeMosquitoModel.mosquitoIndex(district, gimhaeForecastPointOptions(point, weatherData));
+      return { ...point, index: Math.round(result.mosquito_index) };
+    } catch (error) {
+      return point;
+    }
+  });
+}
+
 // 발생원 위험(0~100)에 따른 히트맵 색상. 높을수록 진한 빨강.
 function sourceRiskColor(score) {
   if (score >= 75) return '#b91c1c';
@@ -429,6 +456,13 @@ function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
       temperature: Number(temps[i] ?? region.temperature),
       weatherText: getWeatherText(code),
       precipProbability: probabilities[i] ?? null,
+      // 김해 정밀 모델로 다시 계산할 때 쓰는 원시 요소
+      humidity: Number(humidities[i] ?? region.humidity),
+      rainfall3d,
+      windSpeed: Number(winds[i] ?? region.windSpeed),
+      precipNow: precipitationNow,
+      hourOfDay: date.getHours(),
+      month: date.getMonth() + 1,
     });
   }
 
@@ -461,6 +495,13 @@ function buildFallbackHourlyForecast(region) {
       temperature: region.temperature,
       weatherText: region.weatherText,
       precipProbability: null,
+      // 김해 정밀 모델로 다시 계산할 때 쓰는 원시 요소
+      humidity: region.humidity,
+      rainfall3d: region.rainfall24h,
+      windSpeed: region.windSpeed,
+      precipNow: region.currentRain ? 1.0 : 0.0,
+      hourOfDay: date.getHours(),
+      month: date.getMonth() + 1,
     });
   }
 
@@ -954,13 +995,17 @@ function updateCurrentLocationMarker(lat, lng, accuracy, label) {
 }
 
 // 시간대별 예보(차트 + 위험 시간대 안내)를 한 번에 갱신한다.
-function renderForecast(region, weatherData) {
-  const series = (weatherData.hourlyForecast && weatherData.hourlyForecast.length)
-    ? weatherData.hourlyForecast
-    : buildFallbackHourlyForecast(region);
-
+// series는 호출부에서 미리 만든 시리즈(김해면 정밀 모델로 다시 계산된 시리즈).
+function renderForecast(series, weatherData, isGimhae) {
   renderForecastChart(series);
   renderPeakTimes(series);
+
+  if (isGimhae) {
+    forecastSourceText.textContent = weatherData.isLive
+      ? '김해 정밀 모델 + 실제 날씨의 시간별 예보입니다. (게이지 값과 동일 모델)'
+      : '실제 날씨를 불러오지 못해, 김해 정밀 모델에 시간대 변화만 반영한 예상값입니다.';
+    return;
+  }
 
   forecastSourceText.textContent = weatherData.isLive
     ? '실제 날씨 API의 시간별 예보로 계산한 모기지수입니다.'
@@ -1079,12 +1124,26 @@ async function loadAndRenderRegion(region, options = {}) {
   const weatherData = await loadWeatherData(lat, lng, region);
   activeWeatherData = weatherData;
 
+  // 시간대별 예보 시리즈를 먼저 만든다(실시간 시간별 예보 or 샘플 기반).
+  let series = (weatherData.hourlyForecast && weatherData.hourlyForecast.length)
+    ? weatherData.hourlyForecast
+    : buildFallbackHourlyForecast(region);
+
   // 김해시 안이면 정밀 모델 결과를 우선 사용한다(밖이면 null → 일반 모델).
+  // 예보 시리즈와 게이지를 같은 정밀 모델로 계산해 그래프와 현재 값이 일치하게 한다.
   const gimhaeDistrict = getGimhaeDistrict(lat, lng);
-  const precision = gimhaeDistrict ? computeGimhaePrecision(gimhaeDistrict, weatherData) : null;
-  const index = precision
-    ? Math.round(precision.mosquito_index)
-    : calculateMosquitoIndex(region, weatherData);
+  let precision = null;
+  let index;
+  if (gimhaeDistrict) {
+    series = buildGimhaeForecastSeries(series, gimhaeDistrict, weatherData);
+    // 게이지는 '지금'에 해당하는 첫 시점(series[0])과 동일한 입력으로 계산한다.
+    precision = series.length
+      ? GimhaeMosquitoModel.mosquitoIndex(gimhaeDistrict, gimhaeForecastPointOptions(series[0], weatherData))
+      : computeGimhaePrecision(gimhaeDistrict, weatherData);
+    index = Math.round(precision.mosquito_index);
+  } else {
+    index = calculateMosquitoIndex(region, weatherData);
+  }
   const stage = getCurrentStage(index);
 
   locationText.textContent = isGps
@@ -1103,7 +1162,7 @@ async function loadAndRenderRegion(region, options = {}) {
   renderRange(index, weatherData, precision);
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index, precision);
-  renderForecast(region, weatherData);
+  renderForecast(series, weatherData, Boolean(gimhaeDistrict));
 
   if (map) {
     const targetZoom = preserveZoom ? map.getZoom() : (isGps ? 12 : 11);
