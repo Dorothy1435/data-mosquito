@@ -427,6 +427,41 @@ select {
   display: inline-block;
 }
 
+/* 지도 헤더의 안내문 + 히트맵 버튼을 한 줄에 배치 */
+.map-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 김해 발생원 히트맵 범례 */
+.heatmap-legend {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.heatmap-legend[hidden] {
+  display: none;
+}
+
+.legend-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 지도 팝업 안의 '정밀 모델' 강조 */
+.popup-precision {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(15, 107, 87, 0.12);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .analysis-list {
   margin: 0;
   padding-left: 20px;
@@ -615,6 +650,115 @@ select {
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
+}
+
+/* (D) 신뢰도·예상 범위 박스 (게이지 아래) */
+.confidence-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #22c55e;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.confidence-range {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.confidence-reason {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+/* (A) 유충 실태조사 표시 박스 (발생원 분석 카드) */
+.larva-box {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 14px 0 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 107, 87, 0.06);
+}
+
+.larva-label {
+  grid-column: 1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.larva-text {
+  grid-column: 2;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.larva-bar {
+  grid-column: 1 / -1;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(22, 48, 45, 0.08);
+  overflow: hidden;
+}
+
+.larva-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* 메인 게이지 아래 '예상 범위' + 정밀 모델 배지 */
+.range-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.range-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.precision-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(15, 107, 87, 0.12);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.precision-badge[hidden] {
+  display: none;
 }
 
 /* 발생원 분석 목록 */

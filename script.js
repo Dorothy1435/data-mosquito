@@ -68,6 +68,19 @@ const defaultRegionData = {
       weatherText: '구름 많음',
       note: '기준치에 가까운 무난한 수준입니다.',
     },
+    {
+      name: '김해',
+      lat: 35.243,
+      lng: 128.901,
+      temperature: 28,
+      humidity: 79,
+      rainfall24h: 10,
+      currentRain: false,
+      windSpeed: 2.2,
+      mosquitoDensity: 77,
+      weatherText: '흐림',
+      note: '발생원·유충 데이터를 반영한 김해 정밀 모델이 적용되는 지역입니다.',
+    },
   ],
 };
 
@@ -130,6 +143,10 @@ const confidenceBadge = document.getElementById('confidenceBadge');
 const weatherGrid = document.getElementById('weatherGrid');
 const analysisList = document.getElementById('analysisList');
 const gauge = document.getElementById('gauge');
+const rangeText = document.getElementById('rangeText');
+const precisionBadge = document.getElementById('precisionBadge');
+const heatmapButton = document.getElementById('heatmapButton');
+const heatmapLegend = document.getElementById('heatmapLegend');
 const forecastChartCanvas = document.getElementById('forecastChart');
 const forecastSourceText = document.getElementById('forecastSourceText');
 const peakDangerTime = document.getElementById('peakDangerTime');
@@ -141,6 +158,8 @@ let map;
 let regionMarkers = [];
 let currentLocationMarker = null;
 let selectedPointMarker = null;
+let gimhaeSourceLayer = null; // 김해 발생원 히트맵 레이어 (켜면 생성, 끄면 null)
+let gimhaeLayerWeather = null; // 히트맵용으로 한 번 받아온 김해 날씨 (재사용 캐시)
 let regionData = [];
 let currentRegion = null;
 let activeWeatherData = null;
@@ -285,6 +304,67 @@ function computeConfidence({ isLive, historyHours, observedAt }) {
   }
 
   return { level, label, score: Math.round(score), reasons };
+}
+
+// === 김해 정밀 모델 연결 ===
+// 선택 좌표가 김해시 안이면, 일반 날씨 모델 대신 발생원·유충 데이터까지 반영한
+// 김해 정밀 모델(GimhaeMosquitoModel)을 사용한다.
+
+// 김해시 경계(근사 바운딩 박스). 이 범위 안이면 정밀 모델을 적용한다.
+const GIMHAE_BOUNDS = { minLat: 35.10, maxLat: 35.40, minLng: 128.70, maxLng: 129.00 };
+// 김해시 대표 좌표(시청 부근). 발생원 히트맵용 날씨를 한 번 받아올 때 사용한다.
+const GIMHAE_CENTER = { lat: 35.2342, lng: 128.8811 };
+
+// 좌표가 김해시 범위 안이면 가장 가까운 구역명을, 아니면 null을 돌려준다.
+function getGimhaeDistrict(lat, lng) {
+  if (!window.GimhaeMosquitoModel || typeof GimhaeMosquitoModel.nearestDistrict !== 'function') {
+    return null;
+  }
+  if (lat < GIMHAE_BOUNDS.minLat || lat > GIMHAE_BOUNDS.maxLat
+    || lng < GIMHAE_BOUNDS.minLng || lng > GIMHAE_BOUNDS.maxLng) {
+    return null;
+  }
+  return GimhaeMosquitoModel.nearestDistrict(lat, lng);
+}
+
+// 날씨 데이터를 김해 정밀 모델 입력 옵션으로 변환한다.
+function gimhaeModelOptions(weatherData) {
+  const now = new Date();
+  const options = {
+    month: now.getMonth() + 1,
+    hour: now.getHours(),
+    weather_observed: weatherData && weatherData.isLive === true,
+  };
+
+  // 실시간 날씨가 있으면 정밀 모델에 그대로 넘긴다(없으면 모델이 월평년값 사용).
+  if (weatherData && weatherData.isLive) {
+    options.temp_c = Number(weatherData.temperature24h ?? weatherData.temperature);
+    options.humidity = Number(weatherData.humidity24h ?? weatherData.humidity);
+    options.rain_3d_mm = Number(weatherData.rainfall3d ?? weatherData.rainfall24h);
+    options.wind_ms = Number(weatherData.windSpeed);
+    options.precip_now = weatherData.currentRain ? 1.0 : 0.0;
+  }
+
+  return options;
+}
+
+// 김해 정밀 모델을 현재 날씨로 실행해 결과(모기지수·예상범위·신뢰도 등)를 돌려준다.
+function computeGimhaePrecision(district, weatherData) {
+  try {
+    return GimhaeMosquitoModel.mosquitoIndex(district, gimhaeModelOptions(weatherData));
+  } catch (error) {
+    console.warn('김해 정밀 모델 계산에 실패해 일반 모델로 대체합니다.', error);
+    return null;
+  }
+}
+
+// 발생원 위험(0~100)에 따른 히트맵 색상. 높을수록 진한 빨강.
+function sourceRiskColor(score) {
+  if (score >= 75) return '#b91c1c';
+  if (score >= 50) return '#ef4444';
+  if (score >= 30) return '#f59e0b';
+  if (score >= 15) return '#facc15';
+  return '#86efac';
 }
 
 function createFallbackWeather(region) {
@@ -696,11 +776,18 @@ function getGaugeGradient(value) {
   return `${safe} 0deg, ${good} 72deg, ${normal} 144deg, ${risk} 216deg, ${danger} ${value * 3.6}deg, rgba(255,255,255,0.18) ${value * 3.6}deg, rgba(255,255,255,0.18) 360deg`;
 }
 
-function renderAnalysis(region, weatherData, index) {
+function renderAnalysis(region, weatherData, index, precision) {
   const liveWeather = weatherData || createFallbackWeather(region);
   const reasons = [];
 
   reasons.push(`현재 지역은 ${region.name}이며, 지수 ${index}점으로 ${getCurrentStage(index).label} 단계입니다.`);
+
+  // 김해 정밀 모델이 적용된 경우, 발생원·유충 근거를 먼저 안내한다.
+  if (precision) {
+    const sr = precision.source_risk;
+    reasons.push(`김해 정밀 모델 적용: '${precision.district}' 구역의 발생원·유충 데이터를 반영했습니다. ${sr.comment}`);
+    reasons.push(`예상 범위는 ${precision.index_range.low}~${precision.index_range.high}점이며, 발생원 위험은 ${sr.score}점(시내 ${precision.ranking.rank}/${precision.ranking.total_districts}위)입니다.`);
+  }
 
   // 지수는 순간값이 아니라 최근 24시간 평균 기온·습도로 계산합니다.
   const avgTemp = Number(liveWeather.temperature24h ?? liveWeather.temperature);
@@ -766,21 +853,62 @@ function updateStageStyles(index) {
   gauge.style.setProperty('--stage-color', stage.color);
 }
 
-function updateDataBadges(weatherData, isGps) {
+// 정밀 모델의 신뢰도 등급(한글) → 메인 페이지 배지 색 클래스로 변환
+function confidenceLevelClass(koreanLabel) {
+  if (koreanLabel === '높음') return 'high';
+  if (koreanLabel === '보통') return 'medium';
+  return 'low';
+}
+
+function updateDataBadges(weatherData, isGps, precision) {
   weatherSourceBadge.textContent = weatherData.isLive ? '실제 날씨' : '샘플 날씨';
   locationSourceBadge.textContent = isGps ? 'GPS 위치' : '지역 선택';
 
   // 신뢰도 배지 (높음/보통/낮음)와 근거를 표시한다.
-  const confidence = weatherData.confidence || computeConfidence({ isLive: weatherData.isLive, historyHours: 0, observedAt: null });
   if (confidenceBadge) {
-    confidenceBadge.textContent = `신뢰도 ${confidence.label}`;
-    confidenceBadge.className = `data-pill confidence-pill confidence-${confidence.level}`;
-    confidenceBadge.title = `계산 신뢰도 ${confidence.score}점 · ${confidence.reasons.join(', ')}`;
+    if (precision) {
+      // 정밀 모델은 자체 신뢰구간/신뢰도를 제공한다.
+      const conf = precision.confidence;
+      confidenceBadge.textContent = `신뢰도 ${conf.level}`;
+      confidenceBadge.className = `data-pill confidence-pill confidence-${confidenceLevelClass(conf.level)}`;
+      confidenceBadge.title = `김해 정밀 모델 · 불확실성 ±${conf.uncertainty_pct}% · 날씨 ${conf.reasons.weather} · 유충 표본 ${conf.reasons.larva_sample}건`;
+    } else {
+      const confidence = weatherData.confidence || computeConfidence({ isLive: weatherData.isLive, historyHours: 0, observedAt: null });
+      confidenceBadge.textContent = `신뢰도 ${confidence.label}`;
+      confidenceBadge.className = `data-pill confidence-pill confidence-${confidence.level}`;
+      confidenceBadge.title = `계산 신뢰도 ${confidence.score}점 · ${confidence.reasons.join(', ')}`;
+    }
   }
 
   statusText.textContent = weatherData.isLive
     ? '실제 날씨 데이터를 연결했습니다.'
     : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.';
+}
+
+// 게이지 아래 '예상 범위(신뢰구간)'와 정밀 모델 배지를 표시한다.
+function renderRange(index, weatherData, precision) {
+  if (!rangeText) return;
+
+  if (precision) {
+    // 정밀 모델은 실제 신뢰구간(low~high)을 돌려준다.
+    const r = precision.index_range;
+    rangeText.textContent = `예상 범위 ${r.low}~${r.high}점 · 신뢰도 ${precision.confidence.level}`;
+    if (precisionBadge) {
+      precisionBadge.hidden = false;
+      precisionBadge.textContent = `김해 정밀 모델 · ${precision.district}`;
+    }
+    return;
+  }
+
+  // 일반 모델은 신뢰도 등급에 따라 예상 범위 폭을 추정한다.
+  const confidence = weatherData.confidence || computeConfidence({ isLive: weatherData.isLive, historyHours: 0, observedAt: null });
+  const uncertainty = confidence.level === 'high' ? 0.10 : (confidence.level === 'medium' ? 0.18 : 0.27);
+  const low = Math.max(0, Math.round(index * (1 - uncertainty)));
+  const high = Math.min(100, Math.round(index * (1 + uncertainty)));
+  rangeText.textContent = `예상 범위 ${low}~${high}점 · 신뢰도 ${confidence.label}`;
+  if (precisionBadge) {
+    precisionBadge.hidden = true;
+  }
 }
 
 function updateSelectedPointMarker(lat, lng, label, accuracy) {
@@ -950,7 +1078,13 @@ async function loadAndRenderRegion(region, options = {}) {
 
   const weatherData = await loadWeatherData(lat, lng, region);
   activeWeatherData = weatherData;
-  const index = calculateMosquitoIndex(region, weatherData);
+
+  // 김해시 안이면 정밀 모델 결과를 우선 사용한다(밖이면 null → 일반 모델).
+  const gimhaeDistrict = getGimhaeDistrict(lat, lng);
+  const precision = gimhaeDistrict ? computeGimhaePrecision(gimhaeDistrict, weatherData) : null;
+  const index = precision
+    ? Math.round(precision.mosquito_index)
+    : calculateMosquitoIndex(region, weatherData);
   const stage = getCurrentStage(index);
 
   locationText.textContent = isGps
@@ -965,9 +1099,10 @@ async function loadAndRenderRegion(region, options = {}) {
   adviceText.textContent = stage.advice;
 
   updateStageStyles(index);
-  updateDataBadges(weatherData, isGps);
+  updateDataBadges(weatherData, isGps, precision);
+  renderRange(index, weatherData, precision);
   buildWeatherCards(region, index);
-  renderAnalysis(region, weatherData, index);
+  renderAnalysis(region, weatherData, index, precision);
   renderForecast(region, weatherData);
 
   if (map) {
@@ -1005,7 +1140,23 @@ function highlightActiveRegion(regionName) {
 }
 
 function createRegionMarker(region) {
-  const index = calculateMosquitoIndex(region, createFallbackWeather(region));
+  // 김해시 안의 지역이면 정밀 모델로 지수를 계산하고 팝업에 발생원·유충 정보를 함께 보여준다.
+  const gimhaeDistrict = getGimhaeDistrict(region.lat, region.lng);
+  let index;
+  let popupExtra = `날씨: ${region.weatherText}<br>${region.note}`;
+
+  if (gimhaeDistrict) {
+    const precision = GimhaeMosquitoModel.mosquitoIndex(gimhaeDistrict, gimhaeModelOptions(null));
+    index = Math.round(precision.mosquito_index);
+    const larva = precision.source_risk.larva;
+    const larvaText = larva.detection_rate != null ? `유충 검출률 ${Math.round(larva.detection_rate * 100)}%` : '유충 미조사';
+    popupExtra = `<span class="popup-precision">김해 정밀 모델 · ${gimhaeDistrict}</span><br>`
+      + `발생원 위험: ${precision.source_risk.score}점 (시내 ${precision.ranking.rank}/${precision.ranking.total_districts}위)<br>`
+      + `${larvaText} · 예상범위 ${precision.index_range.low}~${precision.index_range.high}점`;
+  } else {
+    index = calculateMosquitoIndex(region, createFallbackWeather(region));
+  }
+
   const stage = getCurrentStage(index);
 
   return L.circleMarker([region.lat, region.lng], {
@@ -1018,8 +1169,7 @@ function createRegionMarker(region) {
     <strong>${region.name}</strong><br>
     모기지수: ${index}점<br>
     단계: ${stage.label}<br>
-    날씨: ${region.weatherText}<br>
-    ${region.note}
+    ${popupExtra}
   `);
 }
 
@@ -1071,6 +1221,109 @@ function renderMap(regions) {
   });
 }
 
+// 김해시 17개 구역의 발생원 위험을 지도 위 원형 마커(히트맵)로 그린다.
+// 같은 날씨에서도 발생원·유충 데이터가 달라 구역별 위험이 다르게 나타난다.
+function buildGimhaeSourceLayer(weatherData) {
+  const coords = GimhaeMosquitoModel.COORDS;
+  const layer = L.layerGroup();
+  const gimhaeRegion = regionData.find((region) => region.name === '김해') || currentRegion;
+
+  Object.entries(coords).forEach(([district, point]) => {
+    const precision = computeGimhaePrecision(district, weatherData);
+    if (!precision) {
+      return;
+    }
+
+    const score = precision.source_risk.score; // 발생원 위험(0~100)
+    const todayIndex = Math.round(precision.mosquito_index);
+    const larva = precision.source_risk.larva;
+    const larvaText = larva.detection_rate != null
+      ? `유충 검출률 ${Math.round(larva.detection_rate * 100)}% (표본 ${larva.surveyed}건)`
+      : '유충 조사 미실시';
+
+    // 발생원 위험이 클수록 원이 크고 진한 빨강이 된다.
+    const circle = L.circleMarker(point, {
+      radius: 10 + (score / 100) * 22,
+      color: '#ffffff',
+      weight: 1.5,
+      fillColor: sourceRiskColor(score),
+      fillOpacity: 0.55,
+    }).bindPopup(`
+      <strong>${district}</strong><br>
+      발생원 위험: ${score}점 (시내 ${precision.ranking.rank}/${precision.ranking.total_districts}위)<br>
+      오늘 모기지수: ${todayIndex}점 · ${precision.grade}<br>
+      주요 발생원: ${precision.source_risk.top_sources[0] ? precision.source_risk.top_sources[0].source : '없음'}<br>
+      ${larvaText}
+    `);
+
+    // 원을 누르면 해당 구역 좌표로 메인 게이지를 정밀 모델로 갱신한다.
+    circle.on('click', () => {
+      if (!gimhaeRegion) {
+        return;
+      }
+      regionSelect.value = gimhaeRegion.name;
+      loadAndRenderRegion(gimhaeRegion, {
+        lat: point[0],
+        lng: point[1],
+        isGps: false,
+        label: `${district} (김해)`,
+        locationTitle: `김해시 ${district}`,
+        preserveZoom: true,
+      }).catch((error) => console.error('히트맵 구역 선택 실패', error));
+    });
+
+    circle.addTo(layer);
+  });
+
+  return layer;
+}
+
+// 발생원 히트맵을 켜고 끈다. 처음 켤 때 김해 날씨를 한 번만 받아 17개 구역에 적용한다.
+async function toggleGimhaeHeatmap() {
+  if (!map || !window.GimhaeMosquitoModel) {
+    return;
+  }
+
+  // 이미 켜져 있으면 끈다.
+  if (gimhaeSourceLayer) {
+    gimhaeSourceLayer.remove();
+    gimhaeSourceLayer = null;
+    if (heatmapButton) {
+      heatmapButton.textContent = '김해 발생원 히트맵 보기';
+      heatmapButton.setAttribute('aria-pressed', 'false');
+    }
+    if (heatmapLegend) {
+      heatmapLegend.hidden = true;
+    }
+    return;
+  }
+
+  // 켜기: 김해 대표 지점 날씨를 한 번 받아 둔다(실패 시 평년값으로 자동 대체).
+  if (heatmapButton) {
+    heatmapButton.textContent = '불러오는 중…';
+  }
+  if (!gimhaeLayerWeather) {
+    const gimhaeRegion = regionData.find((region) => region.name === '김해')
+      || { name: '김해', temperature: 28, humidity: 79, rainfall24h: 10, currentRain: false, windSpeed: 2.2, weatherText: '흐림', mosquitoDensity: 77 };
+    gimhaeLayerWeather = await loadWeatherData(GIMHAE_CENTER.lat, GIMHAE_CENTER.lng, gimhaeRegion);
+  }
+
+  gimhaeSourceLayer = buildGimhaeSourceLayer(gimhaeLayerWeather).addTo(map);
+  // 김해 영역으로 지도를 맞춰 히트맵이 잘 보이게 한다.
+  map.fitBounds([
+    [GIMHAE_BOUNDS.minLat, GIMHAE_BOUNDS.minLng],
+    [GIMHAE_BOUNDS.maxLat, GIMHAE_BOUNDS.maxLng],
+  ], { padding: [20, 20] });
+
+  if (heatmapButton) {
+    heatmapButton.textContent = '김해 발생원 히트맵 끄기';
+    heatmapButton.setAttribute('aria-pressed', 'true');
+  }
+  if (heatmapLegend) {
+    heatmapLegend.hidden = false;
+  }
+}
+
 function populateSelect(regions) {
   regionSelect.innerHTML = regions.map((region) => `<option value="${region.name}">${region.name}</option>`).join('');
 }
@@ -1084,6 +1337,15 @@ function setupEvents() {
       });
     }
   });
+
+  if (heatmapButton) {
+    heatmapButton.addEventListener('click', () => {
+      toggleGimhaeHeatmap().catch((error) => {
+        console.error('발생원 히트맵 처리 실패', error);
+        heatmapButton.textContent = '김해 발생원 히트맵 보기';
+      });
+    });
+  }
 
   myLocationButton.addEventListener('click', () => {
     if (!navigator.geolocation) {

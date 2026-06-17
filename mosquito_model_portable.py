@@ -15,12 +15,45 @@
     발생원분석(유형·주요발생원·위험기여율), 지역순위/시평균대비, 민원이력,
     행동요령(시민·방제당국), 모기 활동시간대, 추천 기피제
 
-실서비스 전환: SEASON(월평년값)을 기상청/Open-Meteo API 값으로 바꿔 temp_c/humidity/rain_3d_mm에 넣으면 됩니다.
+실서비스 전환:
+  - (자동) live_weather=True 로 호출하면 Open-Meteo에서 실시간 날씨를 받아옵니다(표준 urllib만 사용).
+  - (수동) SEASON(월평년값) 대신 기상청 값을 temp_c/humidity/rain_3d_mm 인자로 직접 넣어도 됩니다.
+
+v2 보완점:
+  A. 위험지수 실제화 — 발생원 '개수'뿐 아니라 실제 '유충 검출률'을 위험지수에 직접 반영.
+  C. 실시간 기상 API — Open-Meteo 연동(fetch_weather), 표준 라이브러리만으로 동작.
+  D. 불확실성 출력 — 단일 점수 대신 신뢰구간(low~high)과 신뢰도 등급을 함께 반환.
 """
 import math
+import json
 
 SRC_KOR = {'septic_sewage': '정화조/오수', 'livestock_farm': '축산농가', 'reservoir': '저수지', 'tire_shop': '타이어가게', 'waste_recycle': '폐기물재활용', 'waste_treat': '폐기물처리', 'water_feature': '수경시설', 'public_toilet': '공중화장실'}
 RISK_W  = {'septic_sewage': 3.0, 'livestock_farm': 2.0, 'reservoir': 2.5, 'tire_shop': 2.0, 'waste_recycle': 1.5, 'waste_treat': 1.0, 'water_feature': 1.5, 'public_toilet': 0.5}
+
+# 김해시 기본 좌표(시 중심). 구역별 정밀 좌표는 COORDS에 추가하면 우선 사용됨.
+KIMHAE_CENTER = (35.2285, 128.8894)
+# 구역별 대표 좌표(읍면동 중심부 근사값, lat, lon). Open-Meteo 격자(~1~11km)에 맞춰
+# 구역별로 다른 날씨를 받아오게 함. ※ 근사 중심점이므로, 정밀도가 더 필요하면
+# 통계청 행정동 경계의 공식 중심좌표로 교체 권장.
+COORDS = {
+    '활천동':   (35.243, 128.901),   # 시내 동부
+    '북부동':   (35.262, 128.869),   # 시내 북부(삼계)
+    '내외동':   (35.228, 128.869),   # 시내 중심
+    '부원동':   (35.231, 128.884),   # 시내
+    '동상동':   (35.234, 128.879),   # 시내(원도심)
+    '회현동':   (35.224, 128.883),   # 시내 남부
+    '칠산서부동': (35.213, 128.860),   # 남부
+    '화목동':   (35.222, 128.857),   # 시내 서남
+    '불암동':   (35.207, 128.927),   # 남동부(낙동강변)
+    '장유':     (35.180, 128.804),   # 남부(율하·무계)
+    '주촌면':   (35.227, 128.829),   # 서부
+    '진례면':   (35.270, 128.787),   # 서부
+    '진영읍':   (35.310, 128.741),   # 서부 끝
+    '한림면':   (35.328, 128.804),   # 북서부
+    '생림면':   (35.337, 128.889),   # 북부
+    '상동면':   (35.323, 128.946),   # 북동부(낙동강변)
+    '대동면':   (35.234, 128.984),   # 동부 끝(낙동강)
+}
 
 SEASON = {1:(3,50,5),2:(5,50,5),3:(10,55,10),4:(16,60,15),5:(21,65,20),6:(25,75,40),
           7:(28,82,60),8:(29,80,50),9:(24,75,30),10:(18,65,15),11:(11,60,10),12:(5,52,5)}
@@ -283,6 +316,20 @@ DISTRICTS = {
     }
 }
 
+# --- (A) 유충 실태조사 결과: (조사건수, 양성건수). 실제 모기 번식의 직접 증거. ---
+# 진영읍/진례면/한림면/장유는 조사 데이터가 없어(0,0) 발생원 기반으로만 추정함.
+_LARVA = {
+    '활천동': (212, 87), '한림면': (0, 0),   '진영읍': (0, 0),   '진례면': (0, 0),
+    '상동면': (107, 75), '생림면': (158, 138), '주촌면': (112, 87), '북부동': (46, 23),
+    '대동면': (83, 68),  '내외동': (74, 20),  '부원동': (146, 41), '회현동': (23, 10),
+    '불암동': (10, 5),   '동상동': (36, 11),  '칠산서부동': (4, 1), '화목동': (11, 6),
+    '장유': (0, 0),
+}
+for _d, (_s, _p) in _LARVA.items():
+    if _d in DISTRICTS:
+        DISTRICTS[_d]['larva_surveyed'] = _s
+        DISTRICTS[_d]['larva_positive'] = _p
+
 _MAXS = {k: max((d['sources'].get(k,0) for d in DISTRICTS.values()), default=0) for k in SRC_KOR}
 
 def _clamp(x, lo=0.0, hi=1.0): return max(lo, min(hi, x))
@@ -319,6 +366,69 @@ def weather_activity(temp_c, humidity, rain_3d_mm):
     t,_ = _temp_suit(temp_c); h,_ = _hum_suit(humidity); r,_ = _rain_suit(rain_3d_mm)
     env = 0.6 * h + 0.4 * r
     return _clamp(t * (0.5 + 0.5 * env))
+
+# ---------------------------------------------------------------------------
+# (C) 실시간 기상 연동 — Open-Meteo (무료/키 불필요). 표준 라이브러리만 사용.
+# ---------------------------------------------------------------------------
+def fetch_weather(district=None, lat=None, lon=None, timeout=8):
+    """Open-Meteo에서 현재 기온/습도 + 최근 3일 누적강수를 받아온다.
+    실패 시 None을 반환 → 호출부가 월평년값(SEASON)으로 자동 대체."""
+    import urllib.request, urllib.parse
+    if lat is None or lon is None:
+        lat, lon = COORDS.get(district, KIMHAE_CENTER)
+    params = {
+        'latitude': lat, 'longitude': lon,
+        'hourly': 'temperature_2m,relative_humidity_2m',
+        'daily': 'precipitation_sum',
+        'past_days': 3, 'forecast_days': 1, 'timezone': 'Asia/Seoul',
+    }
+    url = 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        temps = data['hourly']['temperature_2m']
+        hums  = data['hourly']['relative_humidity_2m']
+        temp_c   = next(v for v in reversed(temps) if v is not None)
+        humidity = next(v for v in reversed(hums)  if v is not None)
+        rain_3d  = sum(x for x in data['daily']['precipitation_sum'][:3] if x is not None)
+        return {'temp_c': round(temp_c, 1), 'humidity': round(humidity),
+                'rain_3d_mm': round(rain_3d, 1), 'source': 'open-meteo',
+                'lat': lat, 'lon': lon}
+    except Exception:
+        return None
+
+def fetch_weather_bulk(districts, timeout=12):
+    """여러 구역의 날씨를 Open-Meteo 멀티좌표 기능으로 '한 번의 호출'에 받아온다.
+    반환: {구역명: {temp_c, humidity, rain_3d_mm, source}}. 실패 시 None."""
+    import urllib.request, urllib.parse
+    lats, lons = [], []
+    for d in districts:
+        la, lo = COORDS.get(d, KIMHAE_CENTER)
+        lats.append(str(la)); lons.append(str(lo))
+    params = {
+        'latitude': ','.join(lats), 'longitude': ','.join(lons),
+        'hourly': 'temperature_2m,relative_humidity_2m',
+        'daily': 'precipitation_sum',
+        'past_days': 3, 'forecast_days': 1, 'timezone': 'Asia/Seoul',
+    }
+    url = 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        if isinstance(data, dict):   # 좌표 1개면 dict, 여러 개면 list로 옴
+            data = [data]
+        out = {}
+        for d, loc in zip(districts, data):
+            temps = loc['hourly']['temperature_2m']
+            hums  = loc['hourly']['relative_humidity_2m']
+            temp_c   = next(v for v in reversed(temps) if v is not None)
+            humidity = next(v for v in reversed(hums)  if v is not None)
+            rain_3d  = sum(x for x in loc['daily']['precipitation_sum'][:3] if x is not None)
+            out[d] = {'temp_c': round(temp_c, 1), 'humidity': round(humidity),
+                      'rain_3d_mm': round(rain_3d, 1), 'source': 'open-meteo'}
+        return out
+    except Exception:
+        return None
 
 def grade(index):
     if index < 25: return (1,'쾌적','#3b82f6')
@@ -360,10 +470,58 @@ def _authority_advice(level, rank, total, complaints):
     if not a: a.append('정기 방역 주기를 유지하세요.')
     return a
 
-def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=None):
+# ---------------------------------------------------------------------------
+# (A) 위험지수 실제화 — 발생원 개수 기반 점수에 '실제 유충 검출률'을 결합.
+#     유충 조사 표본이 많을수록 경험적 신호의 비중↑ (최대 60%까지).
+# ---------------------------------------------------------------------------
+def _geo_effective(rec):
+    source_score = rec['control_priority'] / 100.0          # 기존 발생원+민원 기반(0~1)
+    surveyed = rec.get('larva_surveyed', 0)
+    positive = rec.get('larva_positive', 0)
+    larva_rate = (positive / surveyed) if surveyed > 0 else None
+    if surveyed >= 10:
+        w = min(1.0, surveyed / 100.0) * 0.6                # 표본 100건이면 경험 비중 60%
+        geo = (1 - w) * source_score + w * larva_rate
+        basis = 'source+larva'
+    else:
+        geo, w, basis = source_score, 0.0, 'source_only'    # 조사 미실시 구역
+    return _clamp(geo), w, basis, larva_rate
+
+# ---------------------------------------------------------------------------
+# (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭 결정.
+# ---------------------------------------------------------------------------
+def _confidence(weather_observed, surveyed):
+    wu = 0.06 if weather_observed else 0.22                 # 날씨 불확실성(실측 vs 평년값)
+    if   surveyed >= 100: su = 0.06
+    elif surveyed >= 30:  su = 0.12
+    elif surveyed >= 1:   su = 0.18
+    else:                 su = 0.25                         # 유충 조사 없음 → 추정 의존
+    u = (wu ** 2 + su ** 2) ** 0.5                          # 결합 상대 불확실성
+    label = '높음' if u < 0.13 else ('보통' if u < 0.21 else '낮음')
+    return u, label, wu, su
+
+def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=None,
+                   live_weather=False):
     if district not in DISTRICTS:
         raise KeyError("unknown district: " + str(district))
     if month is None: month = 6
+
+    # 날씨가 실측/직접입력인지(불확실성 낮음) vs 월평년값 대체인지(불확실성 높음) 판단
+    caller_provided = temp_c is not None
+    weather_observed = False
+    weather_src = 'manual' if caller_provided else 'climatology'
+
+    # (C) 실시간 날씨: 명시 입력이 없고 live_weather=True면 Open-Meteo 조회
+    if live_weather and temp_c is None and humidity is None and rain_3d_mm is None:
+        live = fetch_weather(district)
+        if live is not None:
+            temp_c, humidity, rain_3d_mm = live['temp_c'], live['humidity'], live['rain_3d_mm']
+            weather_observed = True
+            weather_src = live['source']
+
+    # 신뢰도 계산용: 실측 또는 직접입력이면 날씨 불확실성 낮음
+    weather_known = weather_observed or caller_provided
+
     st, sh, sr = SEASON.get(month, (22,65,20))
     temp_c     = st if temp_c     is None else temp_c
     humidity   = sh if humidity   is None else humidity
@@ -372,15 +530,20 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
     tv, ts = _temp_suit(temp_c); hv, hs = _hum_suit(humidity); rv, rs = _rain_suit(rain_3d_mm)
     act = weather_activity(temp_c, humidity, rain_3d_mm)
     rec = DISTRICTS[district]
-    geo = rec['control_priority'] / 100.0
+    geo, larva_w, geo_basis, larva_rate = _geo_effective(rec)   # (A) 유충 검출률 반영
     index = round(100 * act * (0.35 + 0.65 * geo), 1)
     lv, nm, col = grade(index)
+
+    # (D) 신뢰구간: 날씨 실측/입력 여부 + 유충 표본 수 기반
+    u, conf_label, wu, su = _confidence(weather_known, rec.get('larva_surveyed', 0))
+    band_low  = round(max(0.0,   index * (1 - u)), 1)
+    band_high = round(min(100.0, index * (1 + u)), 1)
 
     breakdown = _source_breakdown(rec)
     top_name = breakdown[0]['source'] if breakdown else None
     area_type = '농촌형(축산·정화조 밀집)' if district.endswith(('읍','면')) else '도심형(생활하수·타이어·수경시설)'
 
-    all_idx = sorted(((d, round(100*act*(0.35+0.65*DISTRICTS[d]['control_priority']/100.0),1))
+    all_idx = sorted(((d, round(100*act*(0.35+0.65*_geo_effective(DISTRICTS[d])[0]),1))
                       for d in DISTRICTS), key=lambda x:-x[1])
     rank = [d for d,_ in all_idx].index(district) + 1
     total = len(all_idx)
@@ -396,12 +559,25 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
     return {
         'district': district,
         'mosquito_index': index,
+        'index_range': {'low': band_low, 'high': band_high},
+        'confidence': {
+            'level': conf_label,
+            'uncertainty_pct': round(100*u, 1),
+            'reasons': {
+                'weather': ('실측(Open-Meteo)' if weather_observed
+                            else ('직접입력' if caller_provided else '월평년값(추정)')),
+                'larva_sample': rec.get('larva_surveyed', 0),
+            },
+        },
         'level': lv, 'grade': nm, 'color': col,
-        'summary': district + '의 모기지수는 ' + str(index) + '점(' + str(lv) + '단계 ' + nm + ')입니다. '
+        'summary': district + '의 모기지수는 ' + str(index) + '점(' + str(lv) + '단계 ' + nm
+                   + ', 신뢰도 ' + conf_label + ', ' + str(band_low) + '~' + str(band_high) + '점)입니다. '
                    + act_txt + '하며, 발생원 위험은 ' + str(rec['control_priority'])
                    + '점(시내 ' + str(rank) + '/' + str(total) + '위)입니다.',
         'weather': {
             'input': {'temp_c': temp_c, 'humidity': humidity, 'rain_3d_mm': rain_3d_mm, 'month': month},
+            'source': weather_src,
+            'observed': weather_observed,
             'activity_index': round(act,3),
             'components': {
                 'temperature': {'score': tv, 'status': ts},
@@ -414,9 +590,19 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
         'source_risk': {
             'score': rec['control_priority'],
             'raw_risk_index': rec['risk_index'],
+            'effective_geo': round(geo, 3),
+            'larva': {
+                'surveyed': rec.get('larva_surveyed', 0),
+                'positive': rec.get('larva_positive', 0),
+                'detection_rate': round(larva_rate, 3) if larva_rate is not None else None,
+                'weight_in_geo': round(larva_w, 2),
+                'basis': geo_basis,
+            },
             'area_type': area_type,
             'top_sources': breakdown[:5],
-            'comment': ('주요 발생원은 ' + top_name + '이며, 이 구역은 ' + area_type + '입니다.') if top_name else '등록 발생원 없음',
+            'comment': ('주요 발생원은 ' + top_name + '이며, 이 구역은 ' + area_type + '입니다.'
+                        + (' 유충 검출률 ' + str(round(100*larva_rate)) + '%로 실측 반영됨.' if larva_rate is not None else ' (유충 조사 미실시 — 발생원 추정.)'))
+                       if top_name else '등록 발생원 없음',
         },
         'ranking': {
             'rank': rank, 'total_districts': total,
@@ -434,7 +620,20 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
         'recommended_repellent': repellent,
     }
 
-def all_indices(month=None, **wx):
+def all_indices(month=None, live_weather=False, **wx):
+    # live_weather일 때 구역별 좌표로 '한 번의 호출'에 17개 날씨를 받아 각각 적용
+    if live_weather and not wx:
+        bulk = fetch_weather_bulk(list(DISTRICTS))
+        if bulk is not None:
+            res = []
+            for d in DISTRICTS:
+                w = bulk.get(d)
+                if w:
+                    res.append(mosquito_index(d, month=month, temp_c=w['temp_c'],
+                                              humidity=w['humidity'], rain_3d_mm=w['rain_3d_mm']))
+                else:
+                    res.append(mosquito_index(d, month=month))
+            return sorted(res, key=lambda x:-x['mosquito_index'])
     res = [mosquito_index(d, month=month, **wx) for d in DISTRICTS]
     return sorted(res, key=lambda x:-x['mosquito_index'])
 
@@ -442,6 +641,11 @@ def list_districts():
     return list(DISTRICTS.keys())
 
 if __name__ == '__main__':
-    import json
+    # 1) 수동 입력 (유충 데이터 있는 구역 → 신뢰도 높음)
     print(json.dumps(mosquito_index('활천동', temp_c=29, humidity=80, rain_3d_mm=50),
                      ensure_ascii=False, indent=2))
+    # 2) 유충 조사 미실시 구역 → 신뢰도 낮음 + 발생원 추정 표시
+    r = mosquito_index('한림면', temp_c=29, humidity=80, rain_3d_mm=50)
+    print('\n[한림면]', r['mosquito_index'], r['index_range'], '신뢰도', r['confidence']['level'])
+    # 3) 실시간 날씨 (인터넷 필요; 실패 시 자동으로 평년값 사용)
+    # print(json.dumps(mosquito_index('활천동', live_weather=True), ensure_ascii=False, indent=2))

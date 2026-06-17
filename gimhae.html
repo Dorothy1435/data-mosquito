@@ -56,6 +56,11 @@
             </div>
           </div>
           <p id="summaryText" class="advice-text">구역을 선택하면 모델 결과가 표시됩니다.</p>
+          <div id="confidenceBox" class="confidence-box">
+            <span id="confidenceBadge" class="confidence-badge">신뢰도 -</span>
+            <span id="rangeText" class="confidence-range">예상 범위 -</span>
+            <p id="confidenceReason" class="confidence-reason">-</p>
+          </div>
         </div>
       </section>
 
@@ -82,6 +87,11 @@
           <p class="helper-text" id="areaTypeText">-</p>
         </div>
         <ul id="sourceList" class="source-list" aria-label="발생원 유형별 위험 기여율"></ul>
+        <div id="larvaBox" class="larva-box">
+          <span class="larva-label">유충 실태조사</span>
+          <span id="larvaText" class="larva-text">-</span>
+          <span id="larvaBar" class="larva-bar"><span id="larvaFill" class="larva-fill"></span></span>
+        </div>
         <p id="sourceComment" class="helper-text forecast-source">-</p>
       </section>
 
@@ -144,7 +154,7 @@
           </article>
           <article class="detail-card">
             <h3>계산 방식</h3>
-            <p>발생원 시설을 곤충학적 가중치(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)로 합산한 위험지수와 실제 민원을 결합해 구역별 방제 우선순위를 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 최종 모기지수를 산출합니다.</p>
+            <p>발생원 시설을 곤충학적 가중치(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)로 합산한 위험지수와 실제 민원을 결합해 구역별 방제 우선순위를 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 최종 모기지수를 산출합니다. 활동지수는 기온·습도·최근 3일 강수로 번식 환경을 평가한 뒤, 시간대(일몰·새벽 피크)·풍속(강풍 시 비행 억제)·현재 강수 여부로 '지금 이 시각'의 활동 가능성을 추가 보정합니다.</p>
           </article>
           <article class="detail-card warning-card">
             <h3>주의할 점</h3>

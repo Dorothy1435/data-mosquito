@@ -169,6 +169,19 @@
       "mosquitoDensity": 48,
       "weatherText": "맑음",
       "note": "바람이 있어 다소 완화되지만 습도는 여전히 높은 편입니다."
+    },
+    {
+      "name": "김해",
+      "lat": 35.243,
+      "lng": 128.901,
+      "temperature": 28,
+      "humidity": 79,
+      "rainfall24h": 10,
+      "currentRain": false,
+      "windSpeed": 2.2,
+      "mosquitoDensity": 77,
+      "weatherText": "흐림",
+      "note": "발생원·유충 데이터를 반영한 김해 정밀 모델이 적용되는 지역입니다."
     }
   ]
 }

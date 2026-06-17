@@ -360,6 +360,23 @@ const DISTRICTS = {
     }
   }
 };
+  // --- (A) 유충 실태조사 결과: [조사건수, 양성건수]. 실제 모기 번식의 직접 증거 ---
+  // 진영읍/진례면/한림면/장유는 조사 데이터가 없어([0,0]) 발생원 기반으로만 추정한다.
+  const LARVA = {
+    "활천동": [212, 87], "한림면": [0, 0], "진영읍": [0, 0], "진례면": [0, 0],
+    "상동면": [107, 75], "생림면": [158, 138], "주촌면": [112, 87], "북부동": [46, 23],
+    "대동면": [83, 68], "내외동": [74, 20], "부원동": [146, 41], "회현동": [23, 10],
+    "불암동": [10, 5], "동상동": [36, 11], "칠산서부동": [4, 1], "화목동": [11, 6],
+    "장유": [0, 0]
+  };
+  // 유충 조사 결과를 각 구역 데이터에 붙인다.
+  Object.entries(LARVA).forEach(([name, pair]) => {
+    if (DISTRICTS[name]) {
+      DISTRICTS[name].larva_surveyed = pair[0];
+      DISTRICTS[name].larva_positive = pair[1];
+    }
+  });
+
   // 각 발생원 시설의 김해시 전체 최댓값 (정규화 기준)
   const MAXS = {};
   Object.keys(SRC_KOR).forEach((key) => {
@@ -442,13 +459,83 @@ const DISTRICTS = {
     return [roundTo(clamp(v, 0.3, 1.0), 3), s];
   }
 
-  // 날씨 종합 활동지수(0~1): 기온이 기본, 습도·강수가 환경 보정
-  function weatherActivity(tempC, humidity, rain3dMm) {
+  // 시간대 적합도: 모기(주로 빨간집모기·숲모기)는 일몰 직후와 새벽에 가장 활발하고
+  // 한낮·심야에는 활동이 저조하다. 0~1 값으로 시각별 활동 강도를 표현한다.
+  // 0시부터 23시까지 24개 값. (피크 1.0, 한낮·심야 약 0.5)
+  const HOUR_ACTIVITY = [
+    0.55, 0.50, 0.50, 0.55, 0.80, 0.95, // 0~5시 (4~5시 새벽 피크 시작)
+    0.90, 0.70, 0.60, 0.55, 0.50, 0.50, // 6~11시 (아침→한낮 하강)
+    0.50, 0.50, 0.50, 0.50, 0.55, 0.65, // 12~17시 (한낮 저조)
+    0.85, 1.00, 1.00, 0.95, 0.85, 0.70, // 18~23시 (일몰 직후 피크)
+  ];
+  function timeSuit(hour) {
+    const raw = HOUR_ACTIVITY[((Math.floor(hour) % 24) + 24) % 24];
+    let s;
+    if (raw >= 0.85) s = '활동 피크 — 일몰 직후·새벽';
+    else if (raw <= 0.55) s = '활동 저조 — 한낮·심야';
+    else s = '활동 보통 시간대';
+    return [roundTo(raw, 3), s];
+  }
+
+  // 풍속 적합도: 바람이 강하면 모기가 비행을 못 해 흡혈 활동이 줄어든다.
+  // 약 2m/s 이하는 영향이 거의 없고, 6m/s 이상은 활동이 크게 억제된다.
+  function windSuit(windMs) {
+    if (windMs == null) return [1.0, '풍속 정보 없음'];
+    let v;
+    let s;
+    if (windMs <= 2) {
+      v = 1.0;
+      s = '미풍 — 활동에 영향 적음';
+    } else if (windMs <= 6) {
+      v = 1.0 - 0.4 * ((windMs - 2) / 4.0);
+      s = '바람 — 비행 다소 억제';
+    } else {
+      v = 0.6;
+      s = '강풍 — 비행 억제';
+    }
+    return [roundTo(v, 3), s];
+  }
+
+  // 현재 강수 적합도: 지금 비가 내리는 중이면 모기가 날지 못해 활동이 일시적으로 줄어든다.
+  // (비가 그친 뒤에는 산란처가 늘어 오히려 증가하는데, 그 효과는 '최근 3일 강수'가 담당한다)
+  function rainNowSuit(precipNow) {
+    if (precipNow == null) return [1.0, '실시간 강수 정보 없음'];
+    let v;
+    let s;
+    if (precipNow <= 0.1) {
+      v = 1.0;
+      s = '현재 비 없음';
+    } else if (precipNow < 1.0) {
+      v = 0.85;
+      s = '약한 비 — 활동 다소 감소';
+    } else {
+      v = 0.65;
+      s = '비 내리는 중 — 활동 감소';
+    }
+    return [roundTo(v, 3), s];
+  }
+
+  // 현재 활동 보정값(0.45~1.0): 번식 환경과 별개로, '지금 이 순간' 모기가
+  // 실제로 날아다니며 흡혈할 수 있는지를 시간대·풍속·현재강수로 보정한다.
+  // 값이 없으면(평년값 모드 등) 1.0이 되어 기존 계산과 동일하게 동작한다.
+  function behaviorFactor(opts) {
+    if (!opts) return 1.0;
+    // 시간대 효과는 너무 과하지 않게 0.6~1.0 범위로 완화해서 적용한다.
+    const tm = opts.hour == null ? 1.0 : (0.6 + 0.4 * timeSuit(opts.hour)[0]);
+    const wm = windSuit(opts.wind_ms == null ? null : opts.wind_ms)[0];
+    const rm = rainNowSuit(opts.precip_now == null ? null : opts.precip_now)[0];
+    return clamp(tm * wm * rm, 0.45, 1.0);
+  }
+
+  // 날씨 종합 활동지수(0~1): 기온이 기본, 습도·강수가 환경 보정,
+  // 시간대·풍속·현재강수가 '현재 활동 가능성'을 추가로 보정한다.
+  function weatherActivity(tempC, humidity, rain3dMm, opts) {
     const t = tempSuit(tempC)[0];
     const h = humSuit(humidity)[0];
     const r = rainSuit(rain3dMm)[0];
     const env = 0.6 * h + 0.4 * r;
-    return clamp(t * (0.5 + 0.5 * env));
+    const base = clamp(t * (0.5 + 0.5 * env));
+    return clamp(base * behaviorFactor(opts));
   }
 
   // 모기지수 → 4단계 등급(번호, 이름, 색상)
@@ -516,6 +603,37 @@ const DISTRICTS = {
     return a;
   }
 
+  // (A) 위험지수 실제화 — 발생원 개수 기반 점수에 '실제 유충 검출률'을 결합한다.
+  //     유충 조사 표본이 많을수록 경험적 신호의 비중을 높인다(최대 60%).
+  //     반환: { geo: 보정된 발생원위험(0~1), weight: 유충 비중, basis, larvaRate }
+  function geoEffective(rec) {
+    const sourceScore = rec.control_priority / 100.0; // 기존 발생원+민원 기반(0~1)
+    const surveyed = rec.larva_surveyed || 0;
+    const positive = rec.larva_positive || 0;
+    const larvaRate = surveyed > 0 ? positive / surveyed : null;
+    if (surveyed >= 10) {
+      const w = Math.min(1.0, surveyed / 100.0) * 0.6; // 표본 100건이면 경험 비중 60%
+      const geo = (1 - w) * sourceScore + w * larvaRate;
+      return { geo: clamp(geo), weight: w, basis: 'source+larva', larvaRate };
+    }
+    // 조사 미실시 구역은 발생원 추정만 사용
+    return { geo: clamp(sourceScore), weight: 0.0, basis: 'source_only', larvaRate };
+  }
+
+  // (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭을 정한다.
+  //     반환: { uncertainty: 상대 불확실성(0~1), label: 신뢰도 등급 }
+  function confidence(weatherObserved, surveyed) {
+    const wu = weatherObserved ? 0.06 : 0.22; // 날씨 불확실성(실측 vs 평년값)
+    let su;
+    if (surveyed >= 100) su = 0.06;
+    else if (surveyed >= 30) su = 0.12;
+    else if (surveyed >= 1) su = 0.18;
+    else su = 0.25; // 유충 조사 없음 → 추정 의존
+    const u = Math.sqrt(wu * wu + su * su); // 결합 상대 불확실성
+    const label = u < 0.13 ? '높음' : (u < 0.21 ? '보통' : '낮음');
+    return { uncertainty: u, label };
+  }
+
   // 한 구역의 모기지수와 풍부한 분석 정보를 계산한다.
   function mosquitoIndex(district, options = {}) {
     if (!DISTRICTS[district]) {
@@ -528,14 +646,35 @@ const DISTRICTS = {
     const humidity = options.humidity == null ? season[1] : options.humidity;
     const rain3dMm = options.rain_3d_mm == null ? season[2] : options.rain_3d_mm;
 
+    // 현재 활동 보정 입력(시간대·풍속·현재강수). 값이 없으면 보정 없음(1.0).
+    const behaviorOpts = {
+      hour: options.hour == null ? null : options.hour,
+      wind_ms: options.wind_ms == null ? null : options.wind_ms,
+      precip_now: options.precip_now == null ? null : options.precip_now,
+    };
+
     const [tv, ts] = tempSuit(tempC);
     const [hv, hs] = humSuit(humidity);
     const [rv, rs] = rainSuit(rain3dMm);
-    const act = weatherActivity(tempC, humidity, rain3dMm);
+    const [wv, ws] = windSuit(behaviorOpts.wind_ms);
+    const [nv, ns] = rainNowSuit(behaviorOpts.precip_now);
+    const [timeV, timeS] = behaviorOpts.hour == null ? [null, '시간대 정보 없음'] : timeSuit(behaviorOpts.hour);
+    const act = weatherActivity(tempC, humidity, rain3dMm, behaviorOpts);
     const rec = DISTRICTS[district];
-    const geo = rec.control_priority / 100.0;
+    // (A) 발생원 위험에 유충 검출률을 결합한 '실효 발생원위험'을 사용한다.
+    const geoInfo = geoEffective(rec);
+    const geo = geoInfo.geo;
     const index = roundTo(100 * act * (0.35 + 0.65 * geo), 1);
     const [lv, nm, col] = grade(index);
+
+    // (D) 신뢰구간: 날씨 실측/직접입력 여부 + 유충 표본 수 기반
+    // weather_observed 옵션이 없으면 기온이 직접 입력됐는지로 판단한다.
+    const weatherObserved = options.weather_observed != null
+      ? !!options.weather_observed
+      : (options.temp_c != null);
+    const conf = confidence(weatherObserved, rec.larva_surveyed || 0);
+    const bandLow = roundTo(Math.max(0.0, index * (1 - conf.uncertainty)), 1);
+    const bandHigh = roundTo(Math.min(100.0, index * (1 + conf.uncertainty)), 1);
 
     const breakdown = sourceBreakdown(rec);
     const topName = breakdown.length ? breakdown[0].source : null;
@@ -543,9 +682,9 @@ const DISTRICTS = {
       ? '농촌형(축산·정화조 밀집)'
       : '도심형(생활하수·타이어·수경시설)';
 
-    // 모든 구역의 오늘 지수를 계산해 순위를 매긴다.
+    // 모든 구역의 오늘 지수를 계산해 순위를 매긴다(실효 발생원위험 기준).
     const allIdx = Object.keys(DISTRICTS)
-      .map((d) => [d, roundTo(100 * act * (0.35 + 0.65 * DISTRICTS[d].control_priority / 100.0), 1)])
+      .map((d) => [d, roundTo(100 * act * (0.35 + 0.65 * geoEffective(DISTRICTS[d]).geo), 1)])
       .sort((a, b) => b[1] - a[1]);
     const rank = allIdx.findIndex(([d]) => d === district) + 1;
     const total = allIdx.length;
@@ -562,32 +701,77 @@ const DISTRICTS = {
 
     const actTxt = act >= 0.6 ? '고온다습한 날씨로 모기 활동이 왕성' : (act < 0.3 ? '선선한 날씨로 활동이 제한적' : '보통 수준의 활동');
 
+    const larvaRate = geoInfo.larvaRate;
     return {
       district,
       mosquito_index: index,
+      // (D) 신뢰구간(low~high)과 신뢰도 등급
+      index_range: { low: bandLow, high: bandHigh },
+      confidence: {
+        level: conf.label,
+        uncertainty_pct: roundTo(100 * conf.uncertainty, 1),
+        reasons: {
+          weather: weatherObserved ? '실측/실시간' : '월평년값(추정)',
+          larva_sample: rec.larva_surveyed || 0,
+        },
+      },
       level: lv,
       grade: nm,
       color: col,
-      summary: district + '의 모기지수는 ' + pyNum(index, 1) + '점(' + lv + '단계 ' + nm + ')입니다. '
+      summary: district + '의 모기지수는 ' + pyNum(index, 1) + '점(' + lv + '단계 ' + nm
+        + ', 신뢰도 ' + conf.label + ', ' + pyNum(bandLow, 1) + '~' + pyNum(bandHigh, 1) + '점)입니다. '
         + actTxt + '하며, 발생원 위험은 ' + pyNum(rec.control_priority, 1)
         + '점(시내 ' + rank + '/' + total + '위)입니다.',
       weather: {
-        input: { temp_c: tempC, humidity, rain_3d_mm: rain3dMm, month },
+        input: {
+          temp_c: tempC,
+          humidity,
+          rain_3d_mm: rain3dMm,
+          month,
+          wind_ms: behaviorOpts.wind_ms,
+          precip_now: behaviorOpts.precip_now,
+          hour: behaviorOpts.hour,
+        },
         activity_index: roundTo(act, 3),
+        behavior_factor: roundTo(behaviorFactor(behaviorOpts), 3),
         components: {
           temperature: { score: tv, status: ts },
           humidity: { score: hv, status: hs },
           rainfall: { score: rv, status: rs },
+          // 시간대·풍속은 점수가 없을 수 있으므로(평년값 모드) score가 null일 수 있다.
+          wind: { score: wv, status: ws },
+          time_of_day: { score: timeV, status: timeS },
+          current_rain: { score: nv, status: ns },
         },
         comment: '기온 ' + tempC + '℃, 습도 ' + humidity + '%, 최근3일 강수 '
-          + rain3dMm + 'mm 기준 활동지수 ' + pyNum(act, 2),
+          + rain3dMm + 'mm'
+          + (behaviorOpts.wind_ms != null ? (', 풍속 ' + behaviorOpts.wind_ms + 'm/s') : '')
+          + (behaviorOpts.hour != null ? (', ' + behaviorOpts.hour + '시') : '')
+          + ' 기준 활동지수 ' + pyNum(act, 2)
+          + (behaviorFactor(behaviorOpts) < 0.999
+            ? ' (시간대·바람·현재 강수로 ' + Math.round((1 - behaviorFactor(behaviorOpts)) * 100) + '% 하향)'
+            : ''),
       },
       source_risk: {
         score: rec.control_priority,
         raw_risk_index: rec.risk_index,
+        effective_geo: roundTo(geo, 3),
+        // (A) 유충 실태조사 결과(있으면 실측 반영, 없으면 발생원 추정)
+        larva: {
+          surveyed: rec.larva_surveyed || 0,
+          positive: rec.larva_positive || 0,
+          detection_rate: larvaRate != null ? roundTo(larvaRate, 3) : null,
+          weight_in_geo: roundTo(geoInfo.weight, 2),
+          basis: geoInfo.basis,
+        },
         area_type: areaType,
         top_sources: breakdown.slice(0, 5),
-        comment: topName ? ('주요 발생원은 ' + topName + '이며, 이 구역은 ' + areaType + '입니다.') : '등록 발생원 없음',
+        comment: topName
+          ? ('주요 발생원은 ' + topName + '이며, 이 구역은 ' + areaType + '입니다.'
+            + (larvaRate != null
+              ? ' 유충 검출률 ' + Math.round(100 * larvaRate) + '%로 실측 반영됨.'
+              : ' (유충 조사 미실시 — 발생원 추정.)'))
+          : '등록 발생원 없음',
       },
       ranking: {
         rank,
@@ -618,7 +802,32 @@ const DISTRICTS = {
     return Object.keys(DISTRICTS);
   }
 
-  const api = { mosquitoIndex, allIndices, listDistricts, DISTRICTS, SRC_KOR };
+  // 구역별 대표 좌표(읍·면·동 중심부 근사값, [위도, 경도]).
+  // 메인 페이지가 위경도로 "김해 어느 구역인지"를 판별하는 데 사용한다.
+  const COORDS = {
+    "활천동": [35.243, 128.901], "북부동": [35.262, 128.869], "내외동": [35.228, 128.869],
+    "부원동": [35.231, 128.884], "동상동": [35.234, 128.879], "회현동": [35.224, 128.883],
+    "칠산서부동": [35.213, 128.860], "화목동": [35.222, 128.857], "불암동": [35.207, 128.927],
+    "장유": [35.180, 128.804], "주촌면": [35.227, 128.829], "진례면": [35.270, 128.787],
+    "진영읍": [35.310, 128.741], "한림면": [35.328, 128.804], "생림면": [35.337, 128.889],
+    "상동면": [35.323, 128.946], "대동면": [35.234, 128.984]
+  };
+
+  // 주어진 좌표에서 가장 가까운 김해시 구역명을 돌려준다.
+  function nearestDistrict(lat, lng) {
+    let best = null;
+    let bestDist = Infinity;
+    Object.entries(COORDS).forEach(([name, c]) => {
+      const dist = Math.hypot(c[0] - lat, c[1] - lng);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = name;
+      }
+    });
+    return best;
+  }
+
+  const api = { mosquitoIndex, allIndices, listDistricts, nearestDistrict, COORDS, DISTRICTS, SRC_KOR };
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

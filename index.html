@@ -59,6 +59,10 @@
             </div>
           </div>
           <p id="adviceText" class="advice-text">데이터를 불러오는 중입니다.</p>
+          <div id="rangeBox" class="range-box">
+            <span id="rangeText" class="range-value">예상 범위 -</span>
+            <span id="precisionBadge" class="precision-badge" hidden>김해 정밀 모델</span>
+          </div>
         </div>
       </section>
 
@@ -68,7 +72,10 @@
             <p class="section-label">지역별 지도</p>
             <h3 id="mapTitle">지역별 모기 위험도</h3>
           </div>
-          <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
+          <div class="map-actions">
+            <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
+            <button id="heatmapButton" class="secondary-button" type="button" aria-pressed="false">김해 발생원 히트맵 보기</button>
+          </div>
         </div>
         <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
         <div class="legend" aria-label="지도 범례">
@@ -77,6 +84,14 @@
           <span><i class="legend-dot stage-normal"></i> 보통</span>
           <span><i class="legend-dot stage-risk"></i> 위험</span>
           <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
+        </div>
+        <div id="heatmapLegend" class="legend heatmap-legend" aria-label="김해 발생원 히트맵 범례" hidden>
+          <span class="legend-title">김해 발생원 위험</span>
+          <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
+          <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
+          <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
+          <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
+          <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
         </div>
       </section>
 
@@ -138,6 +153,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="mosquito-model.js"></script>
   <script src="nav.js"></script>
   <script src="script.js"></script>
 </body>

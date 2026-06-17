@@ -2,14 +2,15 @@
  * 김해시 모기 위험 모델 페이지 스크립트
  *
  * 흐름
- *  1) 김해시 대표 지점의 실시간 날씨(기온·습도·최근 3일 강수량)를 Open-Meteo로 불러온다.
+ *  1) 17개 읍·면·동 좌표의 실시간 날씨(기온·습도·최근 3일 강수량)를 Open-Meteo
+ *     멀티좌표 기능으로 "한 번의 호출"에 각각 받아온다. (구역마다 다른 날씨)
  *  2) 불러온 날씨를 mosquito-model.js(GimhaeMosquitoModel)에 입력해 구역별 모기지수를 계산한다.
  *  3) 게이지·기상분석·발생원분석·순위·행동요령·구역 순위표를 화면에 렌더링한다.
  *  4) 날씨를 못 불러오면 이번 달 평년값으로 자동 대체한다. (모델이 월별 평년값을 내장)
  */
 
-// 김해시청 부근 대표 좌표 (날씨는 시 단위라 구역마다 따로 받지 않고 대표 지점 하나를 사용)
-const GIMHAE_CENTER = { lat: 35.2342, lng: 128.8811 };
+// 17개 구역의 대표 좌표 (모델에서 가져옴: { 구역명: [위도, 경도] })
+const DISTRICT_COORDS = GimhaeMosquitoModel.COORDS;
 
 // 화면 요소 참조
 const districtSelect = document.getElementById('districtSelect');
@@ -22,6 +23,11 @@ const gimhaeGauge = document.getElementById('gimhaeGauge');
 const indexValue = document.getElementById('indexValue');
 const gradeText = document.getElementById('gradeText');
 const summaryText = document.getElementById('summaryText');
+const confidenceBadge = document.getElementById('confidenceBadge');
+const rangeText = document.getElementById('rangeText');
+const confidenceReason = document.getElementById('confidenceReason');
+const larvaText = document.getElementById('larvaText');
+const larvaFill = document.getElementById('larvaFill');
 const weatherComponents = document.getElementById('weatherComponents');
 const weatherComment = document.getElementById('weatherComment');
 const sourceList = document.getElementById('sourceList');
@@ -33,15 +39,23 @@ const authorityAdvice = document.getElementById('authorityAdvice');
 const extraInfoText = document.getElementById('extraInfoText');
 const districtRankList = document.getElementById('districtRankList');
 
-// 현재 적용 중인 날씨 입력값 (isLive: 실시간 여부)
-let currentWeather = { month: 6, isLive: false };
+// 구역별 현재 날씨 보관소 { 구역명: {month, isLive, temp_c, humidity, ...} }
+let districtWeather = {};
+// 이번 실행에 실시간 날씨를 하나라도 받아왔는지 (화면 안내용)
+let weatherIsLive = false;
+// 이번 달 (평년값 대체 시 사용)
+let currentMonth = 6;
 
-// 실시간 날씨 요청 주소 (현재 기온 + 시간별 습도 + 일별 강수량 + 최근 3일)
-function getWeatherUrl(lat, lng) {
+// 여러 구역의 실시간 날씨를 Open-Meteo 멀티좌표 기능으로 한 번에 요청하는 주소를 만든다.
+// (위도/경도를 콤마로 이어 보내면 좌표 개수만큼의 결과가 배열로 돌아온다)
+function getBulkWeatherUrl(names) {
+  const lats = names.map((name) => DISTRICT_COORDS[name][0]).join(',');
+  const lngs = names.map((name) => DISTRICT_COORDS[name][1]).join(',');
   const params = new URLSearchParams({
-    latitude: String(lat),
-    longitude: String(lng),
+    latitude: lats,
+    longitude: lngs,
     current_weather: 'true',
+    current: 'precipitation',
     hourly: 'relative_humidity_2m',
     daily: 'precipitation_sum',
     past_days: '3',
@@ -54,59 +68,110 @@ function getWeatherUrl(lat, lng) {
   return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
 }
 
-// Open-Meteo 응답에서 모델 입력값(기온·습도·최근 3일 강수)을 뽑아낸다.
-async function loadGimhaeWeather() {
+// Open-Meteo 응답(한 좌표분)에서 모델 입력값(기온·습도·최근 3일 강수 등)을 뽑아낸다.
+function parseLocationWeather(loc, month) {
+  const current = loc.current_weather;
+  const currentExtra = loc.current || {};
+  const hourly = loc.hourly || {};
+  const daily = loc.daily || {};
+
+  // 현재 시각에 해당하는 습도 값을 찾는다.
+  // current_weather.time은 분이 붙을 수 있어(T16:30) 정시 배열(T16:00)과 안 맞으므로 정시로 맞춘다.
+  const times = hourly.time || [];
+  const hourKey = (current.time || '').slice(0, 13);
+  let currentIndex = times.findIndex((time) => time.slice(0, 13) === hourKey);
+  if (currentIndex === -1) {
+    currentIndex = Math.max(0, times.length - 1);
+  }
+  const humidity = hourly.relative_humidity_2m?.[currentIndex];
+
+  // 최근 3일 강수량 합계 (가장 최근 3개 일별 강수량)
+  const dailyRain = (daily.precipitation_sum || []).filter((value) => value != null);
+  const recent3 = dailyRain.slice(-3);
+  const rain3dMm = recent3.length
+    ? Math.round(recent3.reduce((sum, value) => sum + Number(value || 0), 0) * 10) / 10
+    : null;
+
+  // 풍속(m/s): current_weather에 포함된 값을 그대로 사용한다.
+  const windMs = current.windspeed == null
+    ? null
+    : Math.round(Number(current.windspeed) * 10) / 10;
+
+  // 현재 강수량(mm/h): current=precipitation 응답에서 가져온다.
+  const precipNow = currentExtra.precipitation == null
+    ? null
+    : Number(currentExtra.precipitation);
+
+  // 현재 시각(0~23시): 관측 시각 문자열(예: 2026-06-12T16:30)에서 시(時)만 뽑는다.
+  const hour = current.time
+    ? Number(current.time.slice(11, 13))
+    : new Date().getHours();
+
+  return {
+    month,
+    isLive: true,
+    temp_c: current.temperature,
+    humidity: humidity == null ? null : Math.round(humidity),
+    rain_3d_mm: rain3dMm,
+    wind_ms: windMs,
+    precip_now: precipNow,
+    hour,
+    observedAt: current.time,
+  };
+}
+
+// 17개 구역의 실시간 날씨를 "한 번의 호출"로 모두 받아와 districtWeather에 채운다.
+// 실패하면 모든 구역을 평년값 모드로 둔다(서비스 중단 없음).
+async function loadAllDistrictWeather() {
   const month = new Date().getMonth() + 1;
+  currentMonth = month;
+  const names = GimhaeMosquitoModel.listDistricts().filter((name) => DISTRICT_COORDS[name]);
 
   try {
-    const response = await fetch(getWeatherUrl(GIMHAE_CENTER.lat, GIMHAE_CENTER.lng));
+    const response = await fetch(getBulkWeatherUrl(names));
     if (!response.ok) {
       throw new Error(`날씨 요청 실패: ${response.status}`);
     }
 
-    const data = await response.json();
-    const current = data.current_weather;
-    const hourly = data.hourly || {};
-    const daily = data.daily || {};
-
-    // 현재 시각에 해당하는 습도 값을 찾는다.
-    // current_weather.time은 분이 붙을 수 있어(T16:30) 정시 배열(T16:00)과 안 맞으므로 정시로 맞춘다.
-    const times = hourly.time || [];
-    const hourKey = (current.time || '').slice(0, 13);
-    let currentIndex = times.findIndex((time) => time.slice(0, 13) === hourKey);
-    if (currentIndex === -1) {
-      currentIndex = Math.max(0, times.length - 1);
+    let data = await response.json();
+    // 좌표가 1개면 객체, 여러 개면 배열로 온다.
+    if (!Array.isArray(data)) {
+      data = [data];
     }
-    const humidity = hourly.relative_humidity_2m?.[currentIndex];
 
-    // 최근 3일 강수량 합계 (가장 최근 3개 일별 강수량)
-    const dailyRain = (daily.precipitation_sum || []).filter((value) => value != null);
-    const recent3 = dailyRain.slice(-3);
-    const rain3dMm = recent3.length
-      ? Math.round(recent3.reduce((sum, value) => sum + Number(value || 0), 0) * 10) / 10
-      : null;
-
-    return {
-      month,
-      isLive: true,
-      temp_c: current.temperature,
-      humidity: humidity == null ? null : Math.round(humidity),
-      rain_3d_mm: rain3dMm,
-      observedAt: current.time,
-    };
+    const result = {};
+    names.forEach((name, i) => {
+      const loc = data[i];
+      result[name] = (loc && loc.current_weather)
+        ? parseLocationWeather(loc, month)
+        : { month, isLive: false };
+    });
+    weatherIsLive = true;
+    return result;
   } catch (error) {
-    console.warn('김해 실시간 날씨를 불러오지 못해 이번 달 평년값으로 계산합니다.', error);
-    // 날씨 입력을 비워두면 모델이 월별 평년값(SEASON)을 사용한다.
-    return { month, isLive: false };
+    console.warn('구역별 실시간 날씨를 불러오지 못해 이번 달 평년값으로 계산합니다.', error);
+    const result = {};
+    names.forEach((name) => {
+      result[name] = { month, isLive: false };
+    });
+    weatherIsLive = false;
+    return result;
   }
 }
 
-// 모델에 넘길 옵션을 만든다. (값이 없는 항목은 빼서 모델이 평년값을 쓰도록 한다)
-function buildModelOptions() {
-  const options = { month: currentWeather.month };
-  if (currentWeather.temp_c != null) options.temp_c = currentWeather.temp_c;
-  if (currentWeather.humidity != null) options.humidity = currentWeather.humidity;
-  if (currentWeather.rain_3d_mm != null) options.rain_3d_mm = currentWeather.rain_3d_mm;
+// 한 구역의 날씨를 모델 옵션으로 만든다. (값이 없는 항목은 빼서 모델이 평년값을 쓰도록 한다)
+function buildModelOptions(district) {
+  const weather = districtWeather[district] || { month: currentMonth, isLive: false };
+  const options = { month: weather.month || currentMonth };
+  // 실시간 날씨를 반영했는지(신뢰도 계산용). 평년값 모드면 false.
+  options.weather_observed = weather.isLive === true;
+  if (weather.temp_c != null) options.temp_c = weather.temp_c;
+  if (weather.humidity != null) options.humidity = weather.humidity;
+  if (weather.rain_3d_mm != null) options.rain_3d_mm = weather.rain_3d_mm;
+  // 시간대·풍속·현재강수는 실시간 모드에서만 전달한다(평년값 모드에선 빼서 보정 없이 계산).
+  if (weather.hour != null) options.hour = weather.hour;
+  if (weather.wind_ms != null) options.wind_ms = weather.wind_ms;
+  if (weather.precip_now != null) options.precip_now = weather.precip_now;
   return options;
 }
 
@@ -124,25 +189,47 @@ function renderGauge(result) {
   gradeText.textContent = `${result.level}단계 ${result.grade}`;
   gradeText.style.background = result.color;
   summaryText.textContent = result.summary;
+
+  // (D) 신뢰도 등급 + 예상 범위(신뢰구간)를 함께 보여 단일 점수의 '거짓 정밀도'를 막는다.
+  const conf = result.confidence;
+  const range = result.index_range;
+  confidenceBadge.textContent = `신뢰도 ${conf.level}`;
+  // 신뢰도 등급별로 배지 색을 달리한다(높음=초록, 보통=주황, 낮음=빨강).
+  const confColor = conf.level === '높음' ? '#22c55e' : (conf.level === '보통' ? '#f59e0b' : '#ef4444');
+  confidenceBadge.style.background = confColor;
+  rangeText.textContent = `예상 범위 ${range.low}~${range.high}점`;
+  confidenceReason.textContent =
+    `날씨 ${conf.reasons.weather} · 유충 표본 ${conf.reasons.larva_sample}건 (불확실성 ±${conf.uncertainty_pct}%)`;
 }
 
-// 기상 분석 카드 3개(기온·습도·강수)를 그린다.
+// 기상 분석 카드(기온·습도·강수 + 풍속·시간대)를 그린다.
 function renderWeatherComponents(result) {
   const components = result.weather.components;
+  const input = result.weather.input;
+
+  // 풍속·시간대는 실시간 모드에서만 값이 들어온다(없으면 '평년값'으로 표시).
   const cards = [
-    { name: '기온', data: components.temperature, input: `${result.weather.input.temp_c}℃` },
-    { name: '습도', data: components.humidity, input: `${result.weather.input.humidity}%` },
-    { name: '최근 3일 강수', data: components.rainfall, input: `${result.weather.input.rain_3d_mm}mm` },
+    { name: '기온', data: components.temperature, input: `${input.temp_c}℃` },
+    { name: '습도', data: components.humidity, input: `${input.humidity}%` },
+    { name: '최근 3일 강수', data: components.rainfall, input: `${input.rain_3d_mm}mm` },
+    { name: '풍속', data: components.wind, input: input.wind_ms != null ? `${input.wind_ms}m/s` : '평년값' },
+    { name: '시간대', data: components.time_of_day, input: input.hour != null ? `${input.hour}시` : '평년값' },
   ];
 
-  weatherComponents.innerHTML = cards.map((card) => `
+  weatherComponents.innerHTML = cards.map((card) => {
+    // 점수가 없는 경우(평년값 모드의 시간대 등)는 막대 대신 안내만 표시한다.
+    const hasScore = card.data.score != null;
+    const valueText = hasScore ? `적합도 ${card.data.score.toFixed(2)}` : '적용 안 됨';
+    const bar = hasScore ? scoreBar(card.data.score) : '';
+    return `
     <article class="metric-card">
       <p class="metric-name">${card.name} <span class="metric-input">${card.input}</span></p>
-      <p class="metric-value">적합도 ${card.data.score.toFixed(2)}</p>
-      ${scoreBar(card.data.score)}
+      <p class="metric-value">${valueText}</p>
+      ${bar}
       <p class="metric-note">${card.data.status}</p>
     </article>
-  `).join('');
+  `;
+  }).join('');
 
   weatherComment.textContent = result.weather.comment;
 }
@@ -163,6 +250,20 @@ function renderSources(result) {
         <span class="source-count">${item.count.toLocaleString('ko-KR')}곳</span>
       </li>
     `).join('');
+  }
+
+  // (A) 유충 실태조사 결과: 조사 건수와 양성률을 막대로 보여준다.
+  const larva = result.source_risk.larva;
+  if (larva.surveyed > 0) {
+    const ratePct = Math.round(larva.detection_rate * 100);
+    larvaText.textContent =
+      `${larva.surveyed}건 조사 중 ${larva.positive}건 양성 (검출률 ${ratePct}%) · 위험도 반영 ${Math.round(larva.weight_in_geo * 100)}%`;
+    larvaFill.style.width = `${ratePct}%`;
+    larvaFill.parentElement.style.visibility = 'visible';
+  } else {
+    larvaText.textContent = '유충 조사 미실시 — 발생원 시설 기반으로 추정한 값입니다.';
+    larvaFill.style.width = '0%';
+    larvaFill.parentElement.style.visibility = 'hidden';
   }
 
   sourceComment.textContent = result.source_risk.comment;
@@ -197,8 +298,11 @@ function renderAdvice(result) {
 }
 
 // 김해시 17개 구역의 오늘 모기지수 순위표를 그린다.
+// 구역마다 '자기 동네 날씨'로 계산해 정렬한다.
 function renderDistrictRanking(activeDistrict) {
-  const results = GimhaeMosquitoModel.allIndices(buildModelOptions());
+  const results = GimhaeMosquitoModel.listDistricts()
+    .map((name) => GimhaeMosquitoModel.mosquitoIndex(name, buildModelOptions(name)))
+    .sort((a, b) => b.mosquito_index - a.mosquito_index);
 
   districtRankList.innerHTML = results.map((item, position) => `
     <li>
@@ -225,19 +329,22 @@ function renderDistrictRanking(activeDistrict) {
 
 // 선택한 구역에 대해 모델을 실행하고 전체 화면을 갱신한다.
 function renderDistrict(district) {
-  const result = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions());
+  const result = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions(district));
+  // 이 구역의 날씨가 실시간인지 여부 (구역마다 다를 수 있다)
+  const weather = districtWeather[district] || { month: currentMonth, isLive: false };
 
   districtBadge.textContent = district;
-  weatherSourceBadge.textContent = currentWeather.isLive ? '실시간 날씨' : '평년값(샘플)';
-  weatherStatus.textContent = currentWeather.isLive
-    ? '김해시 실시간 날씨를 반영해 계산했습니다.'
+  weatherSourceBadge.textContent = weather.isLive ? '실시간 날씨' : '평년값(샘플)';
+  weatherStatus.textContent = weather.isLive
+    ? `${district}의 실시간 날씨를 반영해 계산했습니다.`
     : '실시간 날씨를 불러오지 못해 이번 달 평년값으로 계산했습니다.';
 
   const input = result.weather.input;
-  weatherInputText.textContent = `기온 ${input.temp_c}℃ · 습도 ${input.humidity}% · 최근 3일 강수 ${input.rain_3d_mm}mm`;
-  updatedText.textContent = currentWeather.isLive && currentWeather.observedAt
-    ? `실시간 날씨 갱신: ${new Date(currentWeather.observedAt).toLocaleString('ko-KR')}`
-    : `기준: ${currentWeather.month}월 평년값`;
+  const windText = input.wind_ms != null ? ` · 풍속 ${input.wind_ms}m/s` : '';
+  weatherInputText.textContent = `기온 ${input.temp_c}℃ · 습도 ${input.humidity}% · 최근 3일 강수 ${input.rain_3d_mm}mm${windText}`;
+  updatedText.textContent = weather.isLive && weather.observedAt
+    ? `실시간 날씨 갱신: ${new Date(weather.observedAt).toLocaleString('ko-KR')}`
+    : `기준: ${weather.month || currentMonth}월 평년값`;
 
   renderGauge(result);
   renderWeatherComponents(result);
@@ -266,8 +373,8 @@ async function init() {
     renderDistrict(districtSelect.value);
   });
 
-  // 먼저 실시간 날씨를 불러온 뒤, 방제 우선순위가 가장 높은 구역(활천동)을 기본으로 보여준다.
-  currentWeather = await loadGimhaeWeather();
+  // 먼저 17개 구역의 실시간 날씨를 한 번에 불러온 뒤, 기본 구역(활천동)을 보여준다.
+  districtWeather = await loadAllDistrictWeather();
   const defaultDistrict = districtSelect.value || GimhaeMosquitoModel.listDistricts()[0];
   renderDistrict(defaultDistrict);
 }
