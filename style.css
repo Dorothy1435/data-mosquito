@@ -1097,3 +1097,265 @@ select {
     display: none;
   }
 }
+
+/* ===== 오늘의 행동요령 카드 ===== */
+.action-top {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.action-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+}
+
+.action-item-label {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.action-item-value {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.action-tips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.action-tips li {
+  position: relative;
+  padding: 10px 14px 10px 34px;
+  border-radius: 14px;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+/* 목록 앞에 체크 아이콘을 붙여 '해야 할 일'처럼 보이게 한다 */
+.action-tips li::before {
+  content: '✓';
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  color: var(--accent);
+  font-weight: 800;
+}
+
+/* ===== 김해 구역 순위 ===== */
+.ranking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ranking-item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 120px 52px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+}
+
+/* 선택한 구역은 강조 테두리로 눈에 띄게 표시 */
+.ranking-item.ranking-current {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: rgba(15, 107, 87, 0.06);
+}
+
+.ranking-rank {
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.ranking-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-bar {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(22, 48, 45, 0.08);
+  overflow: hidden;
+}
+
+.ranking-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.ranking-score {
+  text-align: right;
+  font-weight: 800;
+}
+
+/* ===== 지수 계산 상세 (펼침) ===== */
+.calc-detail {
+  margin-top: 16px;
+  border-top: 1px dashed var(--border);
+  padding-top: 14px;
+}
+
+.calc-detail > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 0.98rem;
+  list-style-position: inside;
+}
+
+.calc-detail > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.calc-detail-body {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.calc-formula {
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 107, 87, 0.06);
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.calc-row {
+  display: grid;
+  grid-template-columns: 160px 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+}
+
+.calc-label {
+  font-weight: 700;
+}
+
+.calc-value {
+  font-weight: 800;
+  color: var(--accent);
+  text-align: right;
+}
+
+.calc-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* 마지막 '최종 모기지수' 줄은 강조 */
+.calc-row.calc-total {
+  border-color: var(--accent);
+  background: rgba(15, 107, 87, 0.06);
+}
+
+.calc-row.calc-total .calc-value {
+  font-size: 1.05rem;
+}
+
+@media (max-width: 640px) {
+  .action-top {
+    grid-template-columns: 1fr;
+  }
+
+  .ranking-item {
+    grid-template-columns: 40px minmax(0, 1fr) 48px;
+  }
+
+  /* 좁은 화면에서는 막대를 숨겨 가로 스크롤을 막는다 */
+  .ranking-bar {
+    display: none;
+  }
+
+  .calc-row {
+    grid-template-columns: minmax(0, 1fr) 56px;
+    grid-template-areas:
+      'label value'
+      'note note';
+  }
+
+  .calc-label {
+    grid-area: label;
+  }
+
+  .calc-value {
+    grid-area: value;
+  }
+
+  .calc-note {
+    grid-area: note;
+  }
+}
+
+/* ===== 한국 밖 지점: 측정 불가 안내 (빨간색) ===== */
+.status-text.status-error {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.leaflet-popup.out-of-range-popup .leaflet-popup-content-wrapper {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1.5px solid #b91c1c;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(185, 28, 28, 0.25);
+}
+
+.leaflet-popup.out-of-range-popup .leaflet-popup-content {
+  margin: 12px 16px;
+  font-weight: 800;
+  font-size: 1.05rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.leaflet-popup.out-of-range-popup .out-of-range-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.leaflet-popup.out-of-range-popup .leaflet-popup-tip {
+  background: #fee2e2;
+  border: 1.5px solid #b91c1c;
+}
+
+.leaflet-popup.out-of-range-popup a.leaflet-popup-close-button {
+  color: #b91c1c;
+}

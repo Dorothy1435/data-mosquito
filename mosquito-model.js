@@ -377,6 +377,35 @@ const DISTRICTS = {
     }
   });
 
+  // --- (v3 인구=노출도) 2026.6 주민등록 인구(외국인 제외). '누가 얼마나 물리나'를 보정 ---
+  // 모델 구역 기준 통합: 활천동 = 활천동+삼안동(행정동 병합), 장유 = 장유1·2·3동 합산.
+  // 화목동은 행정동 인구표에 없는 법정동 → 근사 추정값(★). POP_ESTIMATED로 표기.
+  const POPULATION = {
+    "활천동": 70234, "한림면": 6310, "상동면": 2852, "주촌면": 21646, "북부동": 80471,
+    "생림면": 3294, "대동면": 4848, "진영읍": 52201, "부원동": 8722, "내외동": 66323,
+    "진례면": 5370, "장유": 179538, "회현동": 7917, "불암동": 6393, "동상동": 8231,
+    "칠산서부동": 8427, "화목동": 3000
+  };
+  const POP_ESTIMATED = new Set(["화목동"]); // 행정동 인구표 미수록 → 근사 추정(신뢰도↓)
+
+  // 인구를 로그 정규화해 노출도(0.15~1.0)를 만든다. 인구가 많을수록 물릴 사람이 많다.
+  const LOGP = {};
+  Object.keys(DISTRICTS).forEach((d) => { LOGP[d] = Math.log(POPULATION[d]); });
+  const LGMIN = Math.min(...Object.values(LOGP));
+  const LGMAX = Math.max(...Object.values(LOGP));
+  function exposureOf(district) {
+    return 0.15 + 0.85 * (LOGP[district] - LGMIN) / (LGMAX - LGMIN);
+  }
+  // 보건소 현장 유충조사·민원이 미제공(결측)인 구역: 민원 0/조사 0을 '안전'이 아니라
+  // '결측'으로 취급 → 위험은 인구·발생원으로 추정하고 신뢰도는 낮게 표기한다.
+  const DATA_GAP = new Set();
+  Object.keys(DISTRICTS).forEach((d) => {
+    DISTRICTS[d].population = POPULATION[d];
+    DISTRICTS[d].exposure = roundTo(exposureOf(d), 3);
+    if ((DISTRICTS[d].larva_surveyed || 0) === 0) DATA_GAP.add(d);
+    DISTRICTS[d].data_gap = DATA_GAP.has(d);
+  });
+
   // 각 발생원 시설의 김해시 전체 최댓값 (정규화 기준)
   const MAXS = {};
   Object.keys(SRC_KOR).forEach((key) => {
@@ -384,15 +413,11 @@ const DISTRICTS = {
   });
 
   // === (v3) 산식 보정 상수 ===
-  // ① 발생원 영향 완화: 기존 (0.35 + 0.65×geo) → (0.50 + 0.50×geo).
-  //    발생원이 0이어도 날씨최대치의 50%는 나오고, 최대 배율은 2.86→2.0배로 줄인다.
-  const GEO_FLOOR = 0.50;
-  const GEO_WEIGHT = 0.50;
-  // ③ 유충 미검증 구역 자동 하향: 발생원 추정만 있는 구역은 신뢰가 낮으므로
-  //    시내 평균 쪽으로 수축(정규화)해 극단적 과대평가(예: 한림면)를 완화한다.
-  const LARVA_SHRINK = 0.7; // 자기값 70% + 시내평균 30%
-  const MEAN_SOURCE = Object.values(DISTRICTS)
-    .reduce((sum, d) => sum + d.control_priority / 100.0, 0) / Object.keys(DISTRICTS).length;
+  // 발생원 배율: 지역위험(geo)이 0이어도 날씨최대치의 35%는 나오고, geo=1이면 최대 100%.
+  //   파이썬 원본(mosquito_model_portable.py)과 동일: 100 × 날씨 × (0.35 + 0.65 × geo).
+  //   ※ 인구 과대평가 교정은 이제 geo 자체(√(발생잠재력×인구))가 담당한다.
+  const GEO_FLOOR = 0.35;
+  const GEO_WEIGHT = 0.65;
 
   // 파이썬 round()와 동일하게 "반올림(소수 자리)"을 맞추기 위한 도우미
   function roundTo(value, digits) {
@@ -602,34 +627,48 @@ const DISTRICTS = {
     return tip && level >= 2 ? base.concat([tip]) : base.slice();
   }
 
-  // 방제당국 행동요령 (등급 + 순위 + 민원 기준)
-  function authorityAdvice(level, rank, total, complaints) {
+  // 방제당국 행동요령 (등급 + 순위 + 민원 + 결측 기준)
+  function authorityAdvice(level, rank, total, complaints, dataGap) {
     const a = [];
     if (level >= 3) a.push('취약구역 방역 주기를 단축하고 유문등·포충기 가동을 강화하세요.');
     if (rank <= Math.max(3, Math.floor(total / 5))) {
       a.push('본 구역은 방제 우선순위 상위(' + rank + '/' + total + ')입니다. 정화조·하수구 유충구제(라바사이드)를 선제 시행하세요.');
     }
-    if (complaints === 0 && level >= 3) a.push('발생원은 많으나 민원 기록이 없는 사각지대입니다 — 민원 발생 전 선제 점검을 권장합니다.');
+    if (dataGap) {
+      a.push('보건소 현장 유충조사·민원 자료가 없는 결측 구역입니다 — 인구·발생원 기반 추정치이므로, 우선 현장 유충조사를 실시해 데이터를 확보하세요.');
+    } else if (complaints === 0 && level >= 3) {
+      a.push('발생원은 많으나 민원 기록이 없는 사각지대입니다 — 민원 발생 전 선제 점검을 권장합니다.');
+    }
     if (a.length === 0) a.push('정기 방역 주기를 유지하세요.');
     return a;
   }
 
-  // (A) 위험지수 실제화 — 발생원 개수 기반 점수에 '실제 유충 검출률'을 결합한다.
-  //     유충 조사 표본이 많을수록 경험적 신호의 비중을 높인다(최대 60%).
-  //     반환: { geo: 보정된 발생원위험(0~1), weight: 유충 비중, basis, larvaRate }
-  function geoEffective(rec) {
-    const sourceScore = rec.control_priority / 100.0; // 기존 발생원+민원 기반(0~1)
+  // (A) 발생 잠재력(breeding) — 발생원 시설(risk_index)에 '실제 유충 검출률'을 결합한다.
+  //     민원은 넣지 않는다(검증 타겟이므로 순환 방지). 표본 많을수록 경험비중↑(최대 60%).
+  //     반환: { breeding: 발생잠재력(0~1), weight: 유충 비중, basis, larvaRate }
+  function breedingOf(rec) {
+    const facility = rec.risk_index / 100.0; // 순수 발생원 시설(0~1, 민원 미포함)
     const surveyed = rec.larva_surveyed || 0;
     const positive = rec.larva_positive || 0;
     const larvaRate = surveyed > 0 ? positive / surveyed : null;
     if (surveyed >= 10) {
       const w = Math.min(1.0, surveyed / 100.0) * 0.6; // 표본 100건이면 경험 비중 60%
-      const geo = (1 - w) * sourceScore + w * larvaRate;
-      return { geo: clamp(geo), weight: w, basis: 'source+larva', larvaRate };
+      const b = (1 - w) * facility + w * larvaRate;
+      return { breeding: clamp(b), weight: w, basis: 'facility+larva', larvaRate };
     }
-    // ③ 조사 미실시 구역: 발생원 추정만 있어 신뢰 낮음 → 시내 평균 쪽으로 수축(과대평가 완화)
-    const shrunk = LARVA_SHRINK * sourceScore + (1 - LARVA_SHRINK) * MEAN_SOURCE;
-    return { geo: clamp(shrunk), weight: 0.0, basis: 'source_only(shrunk)', larvaRate };
+    // 조사 미실시(서부 결측 등): 발생원 시설만으로 추정
+    return { breeding: clamp(facility), weight: 0.0, basis: 'facility_only', larvaRate };
+  }
+
+  // (v3 인구 결합) 최종 지역위험 = √(발생잠재력 × 인구노출).
+  //   "많이 생기고(breeding) + 많이 물리는(exposure)" 곳이 진짜 위험.
+  //   ⇒ 발생원만 많고 인구 적은 농촌(한림 등) 과대평가를 자동 교정.
+  //   반환: { geo: 지역위험(0~1), weight, basis, larvaRate, breeding, exposure }
+  function geoEffective(rec) {
+    const { breeding, weight, basis, larvaRate } = breedingOf(rec);
+    const exposure = rec.exposure == null ? 0.15 : rec.exposure;
+    const geo = Math.sqrt(breeding * exposure);
+    return { geo: clamp(geo), weight, basis, larvaRate, breeding, exposure };
   }
 
   // ③ 발육 보정 — 최근 ~2주 누적온도(GDD, base 10.5℃)로 '지금 성충이 나올 만큼 따뜻했는가'를 0~1로.
@@ -639,16 +678,17 @@ const DISTRICTS = {
     return clamp((gdd14d - 40.0) / 140.0, 0.2, 1.0);
   }
 
-  // (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭을 정한다.
+  // (D) 불확실성 — 날씨 실측 여부 + 유충표본 수 + 인구 추정 여부로 신뢰구간 폭을 정한다.
   //     반환: { uncertainty: 상대 불확실성(0~1), label: 신뢰도 등급 }
-  function confidence(weatherObserved, surveyed) {
+  function confidence(weatherObserved, surveyed, popEstimated) {
     const wu = weatherObserved ? 0.06 : 0.22; // 날씨 불확실성(실측 vs 평년값)
     let su;
     if (surveyed >= 100) su = 0.06;
     else if (surveyed >= 30) su = 0.12;
     else if (surveyed >= 1) su = 0.18;
-    else su = 0.25; // 유충 조사 없음 → 추정 의존
-    const u = Math.sqrt(wu * wu + su * su); // 결합 상대 불확실성
+    else su = 0.25; // 유충 조사 없음(서부 결측 등) → 추정 의존
+    const pu = popEstimated ? 0.10 : 0.0; // 인구 추정값(화목동 등) 불확실성
+    const u = Math.sqrt(wu * wu + su * su + pu * pu); // 결합 상대 불확실성
     const label = u < 0.13 ? '높음' : (u < 0.21 ? '보통' : '낮음');
     return { uncertainty: u, label };
   }
@@ -685,16 +725,19 @@ const DISTRICTS = {
     // (A) 발생원 위험에 유충 검출률을 결합한 '실효 발생원위험'을 사용한다.
     const geoInfo = geoEffective(rec);
     const geo = geoInfo.geo;
-    // ① 발생원 영향 완화 + ③ 발육 보정 적용
+    // 지역위험(발생잠재력×인구) × 날씨 × 발육 보정
     const index = roundTo(100 * act * dev * (GEO_FLOOR + GEO_WEIGHT * geo), 1);
     const [lv, nm, col] = grade(index);
 
-    // (D) 신뢰구간: 날씨 실측/직접입력 여부 + 유충 표본 수 기반
+    const dataGap = !!rec.data_gap;
+    const popEstimated = POP_ESTIMATED.has(district);
+
+    // (D) 신뢰구간: 날씨 실측/직접입력 여부 + 유충 표본 수 + 인구 추정 여부
     // weather_observed 옵션이 없으면 기온이 직접 입력됐는지로 판단한다.
     const weatherObserved = options.weather_observed != null
       ? !!options.weather_observed
       : (options.temp_c != null);
-    const conf = confidence(weatherObserved, rec.larva_surveyed || 0);
+    const conf = confidence(weatherObserved, rec.larva_surveyed || 0, popEstimated);
     const bandLow = roundTo(Math.max(0.0, index * (1 - conf.uncertainty)), 1);
     const bandHigh = roundTo(Math.min(100.0, index * (1 + conf.uncertainty)), 1);
 
@@ -735,15 +778,21 @@ const DISTRICTS = {
         reasons: {
           weather: weatherObserved ? '실측/실시간' : '월평년값(추정)',
           larva_sample: rec.larva_surveyed || 0,
+          population: popEstimated ? '추정값' : '주민등록',
+          data_gap: dataGap,
         },
+        note: dataGap
+          ? '⚠ 보건소 현장조사·민원 미제공 구역 — 위험은 인구·발생원으로 추정(민원 0을 안전으로 보지 마세요).'
+          : null,
       },
       level: lv,
       grade: nm,
       color: col,
       summary: district + '의 모기지수는 ' + pyNum(index, 1) + '점(' + lv + '단계 ' + nm
         + ', 신뢰도 ' + conf.label + ', ' + pyNum(bandLow, 1) + '~' + pyNum(bandHigh, 1) + '점)입니다. '
-        + actTxt + '하며, 발생원 위험은 ' + pyNum(rec.control_priority, 1)
-        + '점(시내 ' + rank + '/' + total + '위)입니다.',
+        + actTxt + '하며, 발생 잠재력 ' + Math.round(geoInfo.breeding * 100) + '점 × 인구노출('
+        + rec.population.toLocaleString('en-US') + '명)을 결합해 시내 ' + rank + '/' + total + '위입니다.'
+        + (dataGap ? ' ※ 서부 등 현장조사 미제공 구역으로 추정치입니다.' : ''),
       weather: {
         input: {
           temp_c: tempC,
@@ -777,9 +826,21 @@ const DISTRICTS = {
             ? ' (시간대·바람·현재 강수로 ' + Math.round((1 - behaviorFactor(behaviorOpts)) * 100) + '% 하향)'
             : ''),
       },
+      // (v3) 인구 노출도 — 발생 잠재력과 결합해 실제 피해규모를 보정
+      exposure: {
+        population: rec.population,
+        exposure_index: roundTo(geoInfo.exposure, 3),
+        estimated: popEstimated,
+        comment: '인구 ' + rec.population.toLocaleString('en-US') + '명 → 노출도 '
+          + pyNum(geoInfo.exposure, 2)
+          + (popEstimated ? ' (인구표 미수록, 추정)' : '')
+          + '. 발생 잠재력과 결합해 실제 피해규모를 보정.',
+      },
       source_risk: {
         score: rec.control_priority,
         raw_risk_index: rec.risk_index,
+        breeding_potential: roundTo(geoInfo.breeding, 3),
+        exposure_index: roundTo(geoInfo.exposure, 3),
         effective_geo: roundTo(geo, 3),
         // (A) 유충 실태조사 결과(있으면 실측 반영, 없으면 발생원 추정)
         larva: {
@@ -809,7 +870,7 @@ const DISTRICTS = {
       complaints_2025: rec.complaints,
       advice: {
         citizen: citizenAdvice(lv, topName),
-        authority: authorityAdvice(lv, rank, total, rec.complaints),
+        authority: authorityAdvice(lv, rank, total, rec.complaints, dataGap),
       },
       active_hours: activeHours,
       recommended_repellent: repellent,

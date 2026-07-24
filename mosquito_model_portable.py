@@ -24,10 +24,15 @@ v2 보완점:
   C. 실시간 기상 API — Open-Meteo 연동(fetch_weather), 표준 라이브러리만으로 동작.
   D. 불확실성 출력 — 단일 점수 대신 신뢰구간(low~high)과 신뢰도 등급을 함께 반환.
 
-v3 보완점 (발생원 과의존 완화 + 날씨 시차):
-  ① 발생원 영향 완화 — 산식을 (0.35+0.65×geo) → (0.50+0.50×geo)로. 발생원 최대 배율 2.86→2.0배.
-  ③ 유충 미검증 구역 자동 하향 — 발생원 추정만 있는 구역은 시내 평균 쪽으로 수축(과대평가 완화).
-  ③ 날씨 시차(GDD) — 최근 ~2주 누적온도로 발육 보정(gdd_14d). 봄·가을 개체수 과대평가 방지.
+v3 보완점(인구 결합):
+  E. 인구 노출도 결합 — 지역위험 = sqrt(발생잠재력 × 인구노출).
+     발생원만 많고 인구 적은 농촌(한림 등) 과대평가를 자동 교정.
+     발생잠재력(발생원+유충, 민원 미포함)은 민원과 스피어만 +0.58였으나,
+     인구노출을 곱하면 +0.81로 개선(민원은 검증에만 사용 → 순환 없음).
+  F. 서부 결측 처리 — 보건소 현장조사·민원 미제공 구역(DATA_GAP)은 '민원 0/조사 0'을
+     안전이 아니라 결측으로 보고, 위험을 인구·발생원으로 추정 + 신뢰도 낮게 표기.
+  주의: 면적(㎢) 데이터가 없어 '인구밀도'가 아닌 '인구수(노출 규모)'로 반영함.
+        면적이 확보되면 발생원 밀도(발생원/면적)까지 추가 교정 가능.
 """
 import math
 import json
@@ -335,14 +340,33 @@ for _d, (_s, _p) in _LARVA.items():
         DISTRICTS[_d]['larva_surveyed'] = _s
         DISTRICTS[_d]['larva_positive'] = _p
 
-_MAXS = {k: max((d['sources'].get(k,0) for d in DISTRICTS.values()), default=0) for k in SRC_KOR}
+# --- (인구=노출도) 2026.6 주민등록 인구(외국인 제외). '누가 얼마나 물리나'를 보정 ---
+# 모델 구역 기준 통합: 활천동 = 활천동+삼안동(행정동 병합), 장유 = 장유1·2·3동 합산.
+# 화목동은 행정동 인구표에 없는 법정동 → 근사 추정값(★). POP_ESTIMATED로 표기.
+POPULATION = {
+    '활천동': 70234, '한림면': 6310, '상동면': 2852, '주촌면': 21646, '북부동': 80471,
+    '생림면': 3294, '대동면': 4848, '진영읍': 52201, '부원동': 8722, '내외동': 66323,
+    '진례면': 5370, '장유': 179538, '회현동': 7917, '불암동': 6393, '동상동': 8231,
+    '칠산서부동': 8427, '화목동': 3000,
+}
+POP_ESTIMATED = {'화목동'}     # 행정동 인구표 미수록 → 근사 추정(신뢰도↓)
 
-# === (v3) 산식 보정 상수 ===
-# ① 발생원 영향 완화: (0.35 + 0.65×geo) → (0.50 + 0.50×geo). 최대 배율 2.86→2.0배.
-GEO_FLOOR, GEO_WEIGHT = 0.50, 0.50
-# ③ 유충 미검증 구역 자동 하향: 발생원 추정만 있는 구역은 시내 평균 쪽으로 수축(과대평가 완화).
-LARVA_SHRINK = 0.7  # 자기값 70% + 시내평균 30%
-_MEAN_SOURCE = sum(d['control_priority'] / 100.0 for d in DISTRICTS.values()) / len(DISTRICTS)
+# 보건소 자료상 서부 등 일부 구역은 현장 유충조사·민원이 미제공(결측).
+# 이들의 '민원 0 / 조사 0'은 안전이 아니라 결측이므로, 위험은 인구+발생원으로 추정하고
+# 신뢰도는 낮게 표기한다(0을 안전으로 오판 금지).
+DATA_GAP = {_d for _d in DISTRICTS if DISTRICTS[_d].get('larva_surveyed', 0) == 0}
+
+_LOGP  = {_d: math.log(POPULATION[_d]) for _d in DISTRICTS}
+_LGMIN, _LGMAX = min(_LOGP.values()), max(_LOGP.values())
+def _exposure(district):
+    """인구 노출도(0.15~1.0). 로그 정규화 — 인구가 많을수록 물릴 사람이 많다."""
+    return 0.15 + 0.85 * (_LOGP[district] - _LGMIN) / (_LGMAX - _LGMIN)
+for _d in DISTRICTS:
+    DISTRICTS[_d]['population'] = POPULATION[_d]
+    DISTRICTS[_d]['exposure']  = round(_exposure(_d), 3)
+    DISTRICTS[_d]['data_gap']  = _d in DATA_GAP
+
+_MAXS = {k: max((d['sources'].get(k,0) for d in DISTRICTS.values()), default=0) for k in SRC_KOR}
 
 def _clamp(x, lo=0.0, hi=1.0): return max(lo, min(hi, x))
 
@@ -374,10 +398,56 @@ def _rain_suit(R):
     else:         v = 0.5; s = '폭우 — 유충 다수 유실(일시적 감소)'
     return round(_clamp(v,0.3,1.0),3), s
 
-def weather_activity(temp_c, humidity, rain_3d_mm):
+# --- (웹 JS와 동일) '지금 이 순간' 보정: 시간대·풍속·현재강수·발육(GDD) ---
+# 시간대별 활동 강도(0~1). 일몰 직후(19~22시)·새벽(04~06시) 피크, 한낮·심야 저조.
+_HOUR_ACTIVITY = [
+    0.55, 0.50, 0.50, 0.55, 0.80, 0.95,   # 0~5시 (4~5시 새벽 피크 시작)
+    0.90, 0.70, 0.60, 0.55, 0.50, 0.50,   # 6~11시 (아침→한낮 하강)
+    0.50, 0.50, 0.50, 0.50, 0.55, 0.65,   # 12~17시 (한낮 저조)
+    0.85, 1.00, 1.00, 0.95, 0.85, 0.70,   # 18~23시 (일몰 직후 피크)
+]
+def _time_suit(hour):
+    raw = _HOUR_ACTIVITY[(int(math.floor(hour)) % 24 + 24) % 24]
+    if   raw >= 0.85: s = '활동 피크 — 일몰 직후·새벽'
+    elif raw <= 0.55: s = '활동 저조 — 한낮·심야'
+    else: s = '활동 보통 시간대'
+    return round(raw, 3), s
+
+def _wind_suit(wind_ms):
+    """풍속 적합도: 강풍이면 모기가 비행을 못 해 흡혈 활동이 준다."""
+    if wind_ms is None: return 1.0, '풍속 정보 없음'
+    if   wind_ms <= 2: v, s = 1.0, '미풍 — 활동에 영향 적음'
+    elif wind_ms <= 6: v, s = 1.0 - 0.4 * ((wind_ms - 2) / 4.0), '바람 — 비행 다소 억제'
+    else: v, s = 0.6, '강풍 — 비행 억제'
+    return round(v, 3), s
+
+def _rain_now_suit(precip_now):
+    """현재 강수 적합도: 지금 비가 오면 모기가 못 날아 활동이 일시적으로 준다."""
+    if precip_now is None: return 1.0, '실시간 강수 정보 없음'
+    if   precip_now <= 0.1: v, s = 1.0, '현재 비 없음'
+    elif precip_now < 1.0:  v, s = 0.85, '약한 비 — 활동 다소 감소'
+    else: v, s = 0.65, '비 내리는 중 — 활동 감소'
+    return round(v, 3), s
+
+def _behavior_factor(hour=None, wind_ms=None, precip_now=None):
+    """번식 환경과 별개로 '지금 실제로 날아다니며 흡혈 가능한가'를 0.45~1.0으로 보정.
+    입력이 없으면 1.0(보정 없음)이라 기존 계산과 동일하게 동작한다."""
+    tm = 1.0 if hour is None else (0.6 + 0.4 * _time_suit(hour)[0])
+    wm = _wind_suit(wind_ms)[0]
+    rm = _rain_now_suit(precip_now)[0]
+    return _clamp(tm * wm * rm, 0.45, 1.0)
+
+def _dev_factor(gdd_14d=None):
+    """발육 보정 — 최근 ~2주 누적온도(GDD, base 10.5℃)로 '성충이 나올 만큼 따뜻했나'.
+    gdd 미제공 시 1.0(보정 없음). 봄·가을엔 누적온도 부족으로 활동 적합일이라도 개체수↓."""
+    if gdd_14d is None: return 1.0
+    return _clamp((gdd_14d - 40.0) / 140.0, 0.2, 1.0)
+
+def weather_activity(temp_c, humidity, rain_3d_mm, hour=None, wind_ms=None, precip_now=None):
     t,_ = _temp_suit(temp_c); h,_ = _hum_suit(humidity); r,_ = _rain_suit(rain_3d_mm)
     env = 0.6 * h + 0.4 * r
-    return _clamp(t * (0.5 + 0.5 * env))
+    base = _clamp(t * (0.5 + 0.5 * env))
+    return _clamp(base * _behavior_factor(hour, wind_ms, precip_now))
 
 # ---------------------------------------------------------------------------
 # (C) 실시간 기상 연동 — Open-Meteo (무료/키 불필요). 표준 라이브러리만 사용.
@@ -474,55 +544,63 @@ def _citizen_advice(level, top_source_name):
            '공중화장실':'공중화장실 주변 정화조에서 유충이 생길 수 있습니다.'}.get(top_source_name)
     return base + ([tip] if tip and level >= 2 else [])
 
-def _authority_advice(level, rank, total, complaints):
+def _authority_advice(level, rank, total, complaints, data_gap=False):
     a = []
     if level >= 3: a.append('취약구역 방역 주기를 단축하고 유문등·포충기 가동을 강화하세요.')
     if rank <= max(3, total//5): a.append('본 구역은 방제 우선순위 상위(' + str(rank) + '/' + str(total) + ')입니다. 정화조·하수구 유충구제(라바사이드)를 선제 시행하세요.')
-    if complaints == 0 and level >= 3: a.append('발생원은 많으나 민원 기록이 없는 사각지대입니다 — 민원 발생 전 선제 점검을 권장합니다.')
+    if data_gap:
+        a.append('보건소 현장 유충조사·민원 자료가 없는 결측 구역입니다 — 인구·발생원 기반 추정치이므로, 우선 현장 유충조사를 실시해 데이터를 확보하세요.')
+    elif complaints == 0 and level >= 3:
+        a.append('발생원은 많으나 민원 기록이 없는 사각지대입니다 — 민원 발생 전 선제 점검을 권장합니다.')
     if not a: a.append('정기 방역 주기를 유지하세요.')
     return a
 
 # ---------------------------------------------------------------------------
-# (A) 위험지수 실제화 — 발생원 개수 기반 점수에 '실제 유충 검출률'을 결합.
-#     유충 조사 표본이 많을수록 경험적 신호의 비중↑ (최대 60%까지).
+# (A) 발생 잠재력(breeding) — 발생원 시설(risk_index)에 '실제 유충 검출률'을 결합.
+#     민원은 넣지 않는다(검증 타겟이므로 순환 방지). 표본 많을수록 경험비중↑(최대 60%).
 # ---------------------------------------------------------------------------
-def _geo_effective(rec):
-    source_score = rec['control_priority'] / 100.0          # 기존 발생원+민원 기반(0~1)
+def _breeding(rec):
+    facility = rec['risk_index'] / 100.0                    # 순수 발생원 시설(0~1, 민원 미포함)
     surveyed = rec.get('larva_surveyed', 0)
     positive = rec.get('larva_positive', 0)
     larva_rate = (positive / surveyed) if surveyed > 0 else None
     if surveyed >= 10:
-        w = min(1.0, surveyed / 100.0) * 0.6                # 표본 100건이면 경험 비중 60%
-        geo = (1 - w) * source_score + w * larva_rate
-        basis = 'source+larva'
+        w = min(1.0, surveyed / 100.0) * 0.6               # 표본 100건이면 경험 비중 60%
+        b = (1 - w) * facility + w * larva_rate
+        basis = 'facility+larva'
     else:
-        # ③ 조사 미실시 구역: 신뢰 낮음 → 시내 평균 쪽으로 수축(과대평가 완화)
-        geo = LARVA_SHRINK * source_score + (1 - LARVA_SHRINK) * _MEAN_SOURCE
-        w, basis = 0.0, 'source_only(shrunk)'
-    return _clamp(geo), w, basis, larva_rate
+        b, w, basis = facility, 0.0, 'facility_only'        # 조사 미실시(서부 결측 등)
+    return _clamp(b), w, basis, larva_rate
 
-# ③ 발육 보정 — 최근 ~2주 누적온도(GDD, base 10.5℃)로 '지금 성충이 나올 만큼 따뜻했는가'를 0~1로.
-#    gdd가 None이면 1.0(보정 없음). 봄·가을엔 누적온도가 부족해 활동 적합일이라도 개체수가 적다.
-def _dev_factor(gdd_14d):
-    if gdd_14d is None:
-        return 1.0
-    return _clamp((gdd_14d - 40.0) / 140.0, 0.2, 1.0)
+# ---------------------------------------------------------------------------
+# (인구 결합) 최종 지역위험 = sqrt(발생잠재력 × 인구노출).
+#   "많이 생기고(breeding) + 많이 물리는(exposure)" 곳이 진짜 위험.
+#   ⇒ 발생원만 많고 인구 적은 농촌(한림 등) 과대평가를 자동 교정.
+#   검증: 민원 완전 제외한 이 지수 ↔ 실제 민원 스피어만 +0.81 (발생원 단독 +0.58).
+# ---------------------------------------------------------------------------
+def _geo_effective(rec):
+    """반환: (geo, larva_w, basis, larva_rate, breeding, exposure)"""
+    breeding, w, basis, larva_rate = _breeding(rec)
+    exposure = rec.get('exposure', 0.15)
+    geo = math.sqrt(breeding * exposure)
+    return _clamp(geo), w, basis, larva_rate, round(breeding, 3), round(exposure, 3)
 
 # ---------------------------------------------------------------------------
 # (D) 불확실성 — 날씨가 실측인지/유충표본이 충분한지에 따라 신뢰구간 폭 결정.
 # ---------------------------------------------------------------------------
-def _confidence(weather_observed, surveyed):
+def _confidence(weather_observed, surveyed, pop_estimated=False):
     wu = 0.06 if weather_observed else 0.22                 # 날씨 불확실성(실측 vs 평년값)
     if   surveyed >= 100: su = 0.06
     elif surveyed >= 30:  su = 0.12
     elif surveyed >= 1:   su = 0.18
-    else:                 su = 0.25                         # 유충 조사 없음 → 추정 의존
-    u = (wu ** 2 + su ** 2) ** 0.5                          # 결합 상대 불확실성
+    else:                 su = 0.25                         # 유충 조사 없음(서부 결측 등) → 추정 의존
+    pu = 0.10 if pop_estimated else 0.0                    # 인구 추정값(화목동 등) 불확실성
+    u = (wu ** 2 + su ** 2 + pu ** 2) ** 0.5               # 결합 상대 불확실성
     label = '높음' if u < 0.13 else ('보통' if u < 0.21 else '낮음')
     return u, label, wu, su
 
 def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=None,
-                   live_weather=False, gdd_14d=None):
+                   live_weather=False, hour=None, wind_ms=None, precip_now=None, gdd_14d=None):
     if district not in DISTRICTS:
         raise KeyError("unknown district: " + str(district))
     if month is None: month = 6
@@ -549,16 +627,20 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
     rain_3d_mm = sr if rain_3d_mm is None else rain_3d_mm
 
     tv, ts = _temp_suit(temp_c); hv, hs = _hum_suit(humidity); rv, rs = _rain_suit(rain_3d_mm)
-    act = weather_activity(temp_c, humidity, rain_3d_mm)
-    dev = _dev_factor(gdd_14d)                                  # ③ 발육 보정(누적온도)
+    wv, ws = _wind_suit(wind_ms); nv, ns = _rain_now_suit(precip_now)
+    time_v, time_s = (_time_suit(hour) if hour is not None else (None, '시간대 정보 없음'))
+    act = weather_activity(temp_c, humidity, rain_3d_mm, hour, wind_ms, precip_now)
+    dev = _dev_factor(gdd_14d)                              # 발육 보정(GDD). 미제공 시 1.0
+    bfac = _behavior_factor(hour, wind_ms, precip_now)      # 시간대·풍속·현재강수 보정
     rec = DISTRICTS[district]
-    geo, larva_w, geo_basis, larva_rate = _geo_effective(rec)   # (A) 유충 검출률 반영
-    # ① 발생원 영향 완화 + ③ 발육 보정 적용
-    index = round(100 * act * dev * (GEO_FLOOR + GEO_WEIGHT * geo), 1)
+    geo, larva_w, geo_basis, larva_rate, breeding, exposure = _geo_effective(rec)  # 발생원×인구
+    index = round(100 * act * dev * (0.35 + 0.65 * geo), 1)
     lv, nm, col = grade(index)
+    data_gap = rec.get('data_gap', False)
+    pop_estimated = district in POP_ESTIMATED
 
-    # (D) 신뢰구간: 날씨 실측/입력 여부 + 유충 표본 수 기반
-    u, conf_label, wu, su = _confidence(weather_known, rec.get('larva_surveyed', 0))
+    # (D) 신뢰구간: 날씨 실측/입력 여부 + 유충 표본 수 + 인구 추정 여부
+    u, conf_label, wu, su = _confidence(weather_known, rec.get('larva_surveyed', 0), pop_estimated)
     band_low  = round(max(0.0,   index * (1 - u)), 1)
     band_high = round(min(100.0, index * (1 + u)), 1)
 
@@ -566,7 +648,7 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
     top_name = breakdown[0]['source'] if breakdown else None
     area_type = '농촌형(축산·정화조 밀집)' if district.endswith(('읍','면')) else '도심형(생활하수·타이어·수경시설)'
 
-    all_idx = sorted(((d, round(100*act*dev*(GEO_FLOOR+GEO_WEIGHT*_geo_effective(DISTRICTS[d])[0]),1))
+    all_idx = sorted(((d, round(100*act*dev*(0.35+0.65*_geo_effective(DISTRICTS[d])[0]),1))
                       for d in DISTRICTS), key=lambda x:-x[1])
     rank = [d for d,_ in all_idx].index(district) + 1
     total = len(all_idx)
@@ -590,31 +672,55 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
                 'weather': ('실측(Open-Meteo)' if weather_observed
                             else ('직접입력' if caller_provided else '월평년값(추정)')),
                 'larva_sample': rec.get('larva_surveyed', 0),
+                'population': '추정값' if pop_estimated else '주민등록',
+                'data_gap': data_gap,
             },
+            'note': ('⚠ 보건소 현장조사·민원 미제공 구역 — 위험은 인구·발생원으로 추정(민원 0을 안전으로 보지 마세요).'
+                     if data_gap else None),
         },
         'level': lv, 'grade': nm, 'color': col,
         'summary': district + '의 모기지수는 ' + str(index) + '점(' + str(lv) + '단계 ' + nm
                    + ', 신뢰도 ' + conf_label + ', ' + str(band_low) + '~' + str(band_high) + '점)입니다. '
-                   + act_txt + '하며, 발생원 위험은 ' + str(rec['control_priority'])
-                   + '점(시내 ' + str(rank) + '/' + str(total) + '위)입니다.',
+                   + act_txt + '하며, 발생 잠재력 ' + str(round(breeding*100)) + '점 × 인구노출('
+                   + format(rec['population'], ',') + '명)을 결합해 시내 ' + str(rank) + '/' + str(total) + '위입니다.'
+                   + (' ※ 서부 등 현장조사 미제공 구역으로 추정치입니다.' if data_gap else ''),
         'weather': {
-            'input': {'temp_c': temp_c, 'humidity': humidity, 'rain_3d_mm': rain_3d_mm, 'month': month},
+            'input': {'temp_c': temp_c, 'humidity': humidity, 'rain_3d_mm': rain_3d_mm, 'month': month,
+                      'wind_ms': wind_ms, 'precip_now': precip_now, 'hour': hour},
             'source': weather_src,
             'observed': weather_observed,
             'activity_index': round(act,3),
-            'development_factor': round(dev,3),   # ③ 누적온도(GDD) 발육 보정
+            'behavior_factor': round(bfac,3),                  # 시간대·풍속·현재강수 보정(1.0=보정없음)
+            'development_factor': round(dev,3),                # 발육 보정(GDD, 1.0=보정없음)
             'gdd_14d': gdd_14d,
             'components': {
-                'temperature': {'score': tv, 'status': ts},
-                'humidity':    {'score': hv, 'status': hs},
-                'rainfall':    {'score': rv, 'status': rs},
+                'temperature':  {'score': tv, 'status': ts},
+                'humidity':     {'score': hv, 'status': hs},
+                'rainfall':     {'score': rv, 'status': rs},
+                'wind':         {'score': wv, 'status': ws},
+                'time_of_day':  {'score': time_v, 'status': time_s},
+                'current_rain': {'score': nv, 'status': ns},
             },
             'comment': '기온 ' + str(temp_c) + '℃, 습도 ' + str(humidity) + '%, 최근3일 강수 '
-                       + str(rain_3d_mm) + 'mm 기준 활동지수 ' + str(round(act,2)),
+                       + str(rain_3d_mm) + 'mm'
+                       + ((', 풍속 ' + str(wind_ms) + 'm/s') if wind_ms is not None else '')
+                       + ((', ' + str(hour) + '시') if hour is not None else '')
+                       + ' 기준 활동지수 ' + str(round(act,2))
+                       + ((' (시간대·바람·현재 강수로 ' + str(round((1-bfac)*100)) + '% 하향)') if bfac < 0.999 else ''),
+        },
+        'exposure': {
+            'population': rec['population'],
+            'exposure_index': round(exposure, 3),
+            'estimated': pop_estimated,
+            'comment': '인구 ' + format(rec['population'], ',') + '명 → 노출도 ' + str(round(exposure,2))
+                       + (' (인구표 미수록, 추정)' if pop_estimated else '')
+                       + '. 발생 잠재력과 결합해 실제 피해규모를 보정.',
         },
         'source_risk': {
             'score': rec['control_priority'],
             'raw_risk_index': rec['risk_index'],
+            'breeding_potential': round(breeding, 3),
+            'exposure_index': round(exposure, 3),
             'effective_geo': round(geo, 3),
             'larva': {
                 'surveyed': rec.get('larva_surveyed', 0),
@@ -639,7 +745,7 @@ def mosquito_index(district, month=None, temp_c=None, humidity=None, rain_3d_mm=
         'complaints_2025': rec['complaints'],
         'advice': {
             'citizen': _citizen_advice(lv, top_name),
-            'authority': _authority_advice(lv, rank, total, rec['complaints']),
+            'authority': _authority_advice(lv, rank, total, rec['complaints'], data_gap),
         },
         'active_hours': active_hours,
         'recommended_repellent': repellent,

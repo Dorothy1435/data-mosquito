@@ -154,11 +154,19 @@ const peakDangerTime = document.getElementById('peakDangerTime');
 const peakDangerNote = document.getElementById('peakDangerNote');
 const peakSafeTime = document.getElementById('peakSafeTime');
 const peakSafeNote = document.getElementById('peakSafeNote');
+// 오늘의 행동요령 / 김해 구역 순위 / 지수 계산 상세 영역
+const repellentText = document.getElementById('repellentText');
+const activeHoursText = document.getElementById('activeHoursText');
+const actionTips = document.getElementById('actionTips');
+const rankingSection = document.getElementById('ranking-section');
+const rankingList = document.getElementById('rankingList');
+const calcDetailBody = document.getElementById('calcDetailBody');
 
 let map;
 let regionMarkers = [];
 let currentLocationMarker = null;
 let selectedPointMarker = null;
+let outOfRangePopup = null;   // 한국 밖 클릭 시 뜨는 '측정 불가' 빨간 팝업
 let gimhaeSourceLayer = null; // 김해 발생원 히트맵 레이어 (켜면 생성, 끄면 null)
 let gimhaeLayerWeather = null; // 히트맵용으로 한 번 받아온 김해 날씨 (재사용 캐시)
 let regionData = [];
@@ -313,6 +321,13 @@ function computeConfidence({ isLive, historyHours, observedAt }) {
 
 // 김해시 경계(근사 바운딩 박스). 이 범위 안이면 정밀 모델을 적용한다.
 const GIMHAE_BOUNDS = { minLat: 35.10, maxLat: 35.40, minLng: 128.70, maxLng: 129.00 };
+// 대한민국(남한) 대략 경계. 이 범위를 벗어난 지도 클릭은 '측정 불가'로 안내한다.
+const KOREA_BOUNDS = { minLat: 33.0, maxLat: 38.7, minLng: 124.5, maxLng: 131.9 };
+// 좌표가 대한민국 범위 안인지 판별한다.
+function isInKorea(lat, lng) {
+  return lat >= KOREA_BOUNDS.minLat && lat <= KOREA_BOUNDS.maxLat
+    && lng >= KOREA_BOUNDS.minLng && lng <= KOREA_BOUNDS.maxLng;
+}
 // 김해시 대표 좌표(시청 부근). 발생원 히트맵용 날씨를 한 번 받아올 때 사용한다.
 const GIMHAE_CENTER = { lat: 35.2342, lng: 128.8811 };
 
@@ -909,6 +924,136 @@ function renderAnalysis(region, weatherData, index, precision) {
   analysisList.innerHTML = reasons.map((reason) => `<li>${reason}</li>`).join('');
 }
 
+// === 오늘의 행동요령 ===
+// 일반(비김해) 지역용 행동요령 — 정밀 모델과 동일한 4단계 기준으로 만든다.
+function generalActionGuide(index) {
+  const level = index < 25 ? 1 : (index < 50 ? 2 : (index < 75 ? 3 : 4));
+  const repellent = {
+    1: '불필요',
+    2: '가벼운 기피제(시트로넬라 등)',
+    3: 'DEET 10~20% 또는 이카리딘 + 긴팔 권장',
+    4: 'DEET 20%+ 또는 이카리딘 고농도, 노출 최소화',
+  }[level];
+  const activeHours = level >= 2 ? '일몰 직후(19~22시)와 새벽(04~06시)에 가장 활발' : '활동 미약';
+  const tips = {
+    1: ['특별한 조치가 필요 없습니다.'],
+    2: ['야간 외출 시 가벼운 기피제를 사용하세요.', '집 주변 화분받침·빈 용기의 고인물을 비우세요.'],
+    3: ['방충망·기피제를 사용하고 야간 활동을 줄이세요.', '집 주변 정화조·하수구 뚜껑 주변을 점검하세요.', '고인물 용기를 뒤집어 두세요.'],
+    4: ['야외활동을 자제하고 긴팔·긴바지를 착용하세요.', '농도 높은 기피제(DEET·이카리딘)를 사용하세요.', '집 안팎 모든 고인물을 즉시 제거하세요.'],
+  }[level];
+  return { repellent, activeHours, tips };
+}
+
+// 게이지 아래 '오늘의 행동요령' 카드를 채운다.
+// 김해 정밀 모델이 있으면 모델이 계산한 맞춤 요령을, 없으면 일반 요령을 쓴다.
+function renderActionGuide(index, precision) {
+  if (!repellentText || !activeHoursText || !actionTips) return;
+  const guide = precision
+    ? {
+        repellent: precision.recommended_repellent,
+        activeHours: precision.active_hours,
+        tips: precision.advice && precision.advice.citizen ? precision.advice.citizen : [],
+      }
+    : generalActionGuide(index);
+  repellentText.textContent = guide.repellent;
+  activeHoursText.textContent = guide.activeHours;
+  actionTips.innerHTML = guide.tips.map((tip) => `<li>${tip}</li>`).join('');
+}
+
+// === 김해 구역 순위 (김해시 안일 때만 표시) ===
+function renderGimhaeRanking(district, weatherData) {
+  if (!rankingSection || !rankingList) return;
+  if (!district) {
+    rankingSection.hidden = true;
+    return;
+  }
+
+  let ranked;
+  try {
+    // 모든 구역에 같은 날씨를 적용해 '발생원·인구' 차이에 따른 순위를 낸다.
+    ranked = GimhaeMosquitoModel.allIndices(gimhaeModelOptions(weatherData));
+  } catch (error) {
+    console.warn('김해 구역 순위 계산 실패', error);
+    rankingSection.hidden = true;
+    return;
+  }
+
+  const total = ranked.length;
+  const currentRank = ranked.findIndex((item) => item.district === district) + 1;
+  // 상위 5개를 보여주고, 선택한 구역이 5위 밖이면 그 구역도 함께 붙인다.
+  const shown = ranked.slice(0, 5);
+  if (currentRank > 5 && ranked[currentRank - 1]) {
+    shown.push(ranked[currentRank - 1]);
+  }
+
+  rankingList.innerHTML = shown.map((item) => {
+    const rank = ranked.findIndex((row) => row.district === item.district) + 1;
+    const isCurrent = item.district === district;
+    const score = Math.round(item.mosquito_index);
+    const stage = getCurrentStage(score);
+    return `
+      <li class="ranking-item${isCurrent ? ' ranking-current' : ''}">
+        <span class="ranking-rank">${rank}위</span>
+        <span class="ranking-name">${item.district}${isCurrent ? ' · 선택한 구역' : ''}</span>
+        <span class="ranking-bar"><span class="ranking-fill" style="width:${score}%;background:${stage.color}"></span></span>
+        <span class="ranking-score">${score}점</span>
+      </li>`;
+  }).join('');
+
+  rankingSection.hidden = false;
+}
+
+// === 지수 계산 상세 (날씨 · 발생원 · 인구) ===
+function calcRow(label, value, note) {
+  return `<div class="calc-row"><span class="calc-label">${label}</span>`
+    + `<span class="calc-value">${value}</span><span class="calc-note">${note || ''}</span></div>`;
+}
+
+// 지수가 어떤 요소를 곱해서 나왔는지 펼침 영역에 표시한다.
+function renderCalcDetail(region, weatherData, index, precision) {
+  if (!calcDetailBody) return;
+
+  if (precision) {
+    // 김해 정밀 모델: 날씨활동 × 발육 × (0.35 + 0.65 × 지역위험)
+    const w = precision.weather;
+    const sr = precision.source_risk;
+    const ex = precision.exposure;
+    const rows = [
+      calcRow('날씨 활동지수', w.activity_index, '기온·습도·강수로 계산(0~1)'),
+      calcRow('발생 잠재력', sr.breeding_potential, '발생원 시설 + 유충 검출률'),
+      calcRow('인구 노출도', ex.exposure_index, `${Number(ex.population).toLocaleString('ko-KR')}명 기준`),
+      calcRow('지역위험 √(잠재력×노출)', sr.effective_geo, '"많이 생기고 + 많이 물리는" 결합'),
+      calcRow('발육 보정(GDD)', w.development_factor, w.development_factor < 1 ? '누적온도 부족으로 하향' : '보정 없음'),
+      calcRow('행동 보정', w.behavior_factor, w.behavior_factor < 1 ? '시간대·바람·현재강수로 하향' : '보정 없음'),
+    ];
+    calcDetailBody.innerHTML = `<p class="calc-formula">모기지수 = 100 × 날씨활동 × 발육보정 × (0.35 + 0.65 × 지역위험)</p>`
+      + rows.join('')
+      + `<div class="calc-row calc-total"><span class="calc-label">최종 모기지수</span>`
+      + `<span class="calc-value">${index}점</span><span class="calc-note">${precision.grade} 단계</span></div>`;
+    return;
+  }
+
+  // 일반 지역: 요소별 가중 점수를 그대로 보여준다.
+  const lw = weatherData || createFallbackWeather(region);
+  const temp = Number(lw.temperature24h ?? lw.temperature);
+  const hum = Number(lw.humidity24h ?? lw.humidity);
+  const rain3d = Number(lw.rainfall3d ?? lw.rainfall24h);
+  const now = new Date();
+  const rows = [
+    calcRow('기온 점수', Math.round(getTemperatureScore(temp)), '가중치 24% · 약 28℃ 최적'),
+    calcRow('습도 점수', Math.round(getHumidityScore(hum)), '가중치 24% · 높을수록↑'),
+    calcRow('강수 점수', Math.round(getRainScore(lw.currentRain, rain3d)), '가중치 20% · 최근 3일 누적'),
+    calcRow('풍속 점수', Math.round(getWindScore(Number(lw.windSpeed))), '가중치 12% · 강풍은↓'),
+    calcRow('시간대 점수', Math.round(getTimeScore(now.getHours())), '가중치 10% · 새벽·일몰 피크'),
+    calcRow('계절 점수', getSeasonScore(now.getMonth() + 1), '가중치 5%'),
+    calcRow('지역 밀도', Number(region.mosquitoDensity || 0), '가중치 5% · 지역 상수'),
+  ];
+  calcDetailBody.innerHTML = `<p class="calc-formula">여러 요소 점수를 가중치로 합산해 0~100점으로 만듭니다.</p>`
+    + rows.join('')
+    + `<div class="calc-row calc-total"><span class="calc-label">최종 모기지수</span>`
+    + `<span class="calc-value">${index}점</span><span class="calc-note">${getCurrentStage(index).label} 단계</span></div>`;
+}
+
 function updateStageStyles(index) {
   const stage = getCurrentStage(index);
   stageText.textContent = stage.label;
@@ -972,6 +1117,30 @@ function renderRange(index, weatherData, precision) {
   rangeText.textContent = `예상 범위 ${low}~${high}점 · 신뢰도 ${confidence.label}`;
   if (precisionBadge) {
     precisionBadge.hidden = true;
+  }
+}
+
+// 한국 밖 지점을 클릭하면 빨간 '측정 불가' 팝업과 안내 문구를 표시한다.
+function showOutOfRangeNotice(lat, lng) {
+  if (map) {
+    if (outOfRangePopup) {
+      outOfRangePopup.remove();
+    }
+    outOfRangePopup = L.popup({ className: 'out-of-range-popup', closeButton: true, autoClose: true })
+      .setLatLng([lat, lng])
+      .setContent('측정 불가<br><span class="out-of-range-sub">대한민국(한국) 밖 지점입니다.</span>')
+      .openOn(map);
+  }
+  statusText.textContent = '측정 불가 · 대한민국 밖 지점은 모기지수를 제공하지 않습니다.';
+  statusText.classList.add('status-error');
+}
+
+// 정상 지점을 다시 다루기 시작할 때 '측정 불가' 표시를 걷어낸다.
+function clearOutOfRangeNotice() {
+  statusText.classList.remove('status-error');
+  if (outOfRangePopup) {
+    outOfRangePopup.remove();
+    outOfRangePopup = null;
   }
 }
 
@@ -1134,6 +1303,7 @@ function renderPeakTimes(series) {
 // 한 지역(또는 좌표)의 날씨를 불러와 게이지·카드·예보·분석·지도까지 한 번에 갱신하는 핵심 함수
 async function loadAndRenderRegion(region, options = {}) {
   currentRegion = region;
+  clearOutOfRangeNotice();   // 정상 지점을 그리기 시작하면 '측정 불가' 표시 제거
   const lat = options.lat ?? region.lat;
   const lng = options.lng ?? region.lng;
   const isGps = Boolean(options.isGps);
@@ -1185,6 +1355,9 @@ async function loadAndRenderRegion(region, options = {}) {
   renderRange(index, weatherData, precision);
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index, precision);
+  renderActionGuide(index, precision);
+  renderCalcDetail(region, weatherData, index, precision);
+  renderGimhaeRanking(gimhaeDistrict, weatherData);
   renderForecast(series, weatherData, Boolean(gimhaeDistrict));
 
   if (map) {
@@ -1288,11 +1461,17 @@ function renderMap(regions) {
   });
 
   map.on('click', (event) => {
-    const nearestRegion = findNearestRegion(event.latlng.lat, event.latlng.lng);
+    const { lat, lng } = event.latlng;
+    // 한국 밖을 클릭하면 '측정 불가'만 빨간색으로 안내하고 게이지는 그대로 둔다.
+    if (!isInKorea(lat, lng)) {
+      showOutOfRangeNotice(lat, lng);
+      return;
+    }
+    const nearestRegion = findNearestRegion(lat, lng);
     regionSelect.value = nearestRegion.name;
     loadAndRenderRegion(nearestRegion, {
-      lat: event.latlng.lat,
-      lng: event.latlng.lng,
+      lat,
+      lng,
       isGps: false,
       label: '지도 클릭 지점',
       locationTitle: `지도 클릭 지점 · 기준 지역 ${nearestRegion.name}`,
@@ -1445,6 +1624,14 @@ function setupEvents() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         const accuracy = position.coords.accuracy;
+        // 현재 위치가 한국 밖이면 측정 불가 안내(빨간색)만 표시한다.
+        if (!isInKorea(latitude, longitude)) {
+          if (map) {
+            map.setView([latitude, longitude], 6, { animate: true });
+          }
+          showOutOfRangeNotice(latitude, longitude);
+          return;
+        }
         const nearestRegion = findNearestRegion(latitude, longitude);
         regionSelect.value = nearestRegion.name;
         await loadAndRenderRegion(nearestRegion, {

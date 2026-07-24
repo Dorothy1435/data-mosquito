@@ -66,6 +66,27 @@
         </div>
       </section>
 
+      <section id="action-section" class="panel-card action-card" aria-labelledby="actionTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">오늘의 행동요령</p>
+            <h3 id="actionTitle">지금 무엇을 하면 좋을까요</h3>
+          </div>
+          <p class="helper-text">선택한 지역의 모기지수에 맞춰 추천 대응을 안내합니다.</p>
+        </div>
+        <div class="action-top">
+          <article class="action-item">
+            <p class="action-item-label">추천 기피제</p>
+            <p id="repellentText" class="action-item-value">-</p>
+          </article>
+          <article class="action-item">
+            <p class="action-item-label">모기 활동 시간대</p>
+            <p id="activeHoursText" class="action-item-value">-</p>
+          </article>
+        </div>
+        <ul id="actionTips" class="action-tips" aria-label="시민 행동요령"></ul>
+      </section>
+
       <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">
         <div class="panel-heading">
           <div>
@@ -147,6 +168,17 @@
         <p id="forecastSourceText" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
       </section>
 
+      <section id="ranking-section" class="panel-card" aria-labelledby="rankingTitle" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">김해 구역 순위</p>
+            <h3 id="rankingTitle">오늘 김해에서 모기 위험이 높은 구역</h3>
+          </div>
+          <p class="helper-text">발생원·유충·인구를 반영한 김해 정밀 모델 순위입니다.</p>
+        </div>
+        <ol id="rankingList" class="ranking-list"></ol>
+      </section>
+
       <section class="panel-card" aria-labelledby="analysisTitle">
         <div class="panel-heading">
           <div>
@@ -155,6 +187,12 @@
           </div>
         </div>
         <ul id="analysisList" class="analysis-list"></ul>
+
+        <!-- 지수가 어떤 요소를 곱해서 나왔는지 펼쳐 볼 수 있는 상세 영역 -->
+        <details class="calc-detail">
+          <summary>지수 계산 상세 보기 (날씨 · 발생원 · 인구)</summary>
+          <div id="calcDetailBody" class="calc-detail-body"></div>
+        </details>
       </section>
     </main>
 
