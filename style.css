@@ -1424,3 +1424,97 @@ select {
     display: none;
   }
 }
+
+/* ===== (A3) 한글 줄바꿈 — 좁은 화면에서 텍스트가 카드 밖으로 잘리지 않게 ===== */
+.hero-copy { min-width: 0; }
+
+.hero-copy h2,
+.hero-description,
+.location-text,
+.updated-text,
+.advice-text,
+.status-text,
+.gauge-stage,
+.metric-note,
+.helper-text {
+  /* 한글은 단어(띄어쓰기) 단위로 끊고, 그래도 긴 토큰은 강제로 줄바꿈 */
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+/* ===== (A2) 날씨 다시 불러오기 버튼 ===== */
+.retry-button {
+  margin-top: 6px;
+  align-self: flex-start;
+  border-color: var(--risk);
+  color: var(--risk);
+  font-weight: 700;
+}
+
+.retry-button::before {
+  content: '↻';
+  margin-right: 6px;
+  font-weight: 800;
+}
+
+/* ===== (B1) 모델 종류 배지: 김해 정밀 vs 날씨 기반 추정 ===== */
+.precision-badge.estimate {
+  background: rgba(22, 48, 45, 0.08);
+  color: var(--muted);
+}
+
+/* ===== (A1) 이용 안내 · 데이터 출처 (면책) ===== */
+.disclaimer-card {
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+
+.disclaimer-title {
+  margin: 0 0 12px;
+  font-weight: 800;
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
+.disclaimer-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.disclaimer-list strong {
+  color: var(--text);
+}
+
+/* 데이터 구분 태그 (실측/예상/샘플) */
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.tag-live {
+  background: rgba(47, 158, 100, 0.15);
+  color: #237a4b;
+}
+
+.tag-est {
+  background: rgba(215, 162, 26, 0.18);
+  color: #a9790a;
+}
+
+.tag-sample {
+  background: rgba(22, 48, 45, 0.1);
+  color: var(--muted);
+}

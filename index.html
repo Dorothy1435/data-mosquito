@@ -49,6 +49,7 @@
           <p id="statusText" class="status-text">실제 날씨와 GPS를 연결할 준비를 하고 있습니다.</p>
           <p id="locationText" class="location-text">서울 기준 샘플 데이터</p>
           <p id="updatedText" class="updated-text">최종 갱신: -</p>
+          <button id="retryButton" class="secondary-button retry-button" type="button" hidden>날씨 다시 불러오기</button>
         </div>
         <div class="gauge-wrap">
           <div id="gauge" class="gauge" role="img" aria-label="모기지수 원형 게이지">
@@ -197,7 +198,16 @@
     </main>
 
     <footer class="footer-note">
-      본 모기지수는 실제 날씨와 지역 데이터를 바탕으로 계산한 참고용 예상값입니다.
+      <div class="disclaimer-card">
+        <p class="disclaimer-title">ℹ️ 이용 안내 · 데이터 출처</p>
+        <ul class="disclaimer-list">
+          <li><strong>참고용 예상값입니다.</strong> 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요.</li>
+          <li><strong>데이터 구분</strong> — <span class="tag tag-live">실측</span> 실제 날씨 API 값 · <span class="tag tag-est">예상</span> 모델이 계산한 지수 · <span class="tag tag-sample">샘플</span> 날씨 미연결 시 대체값. 화면의 신뢰도 배지에서 확인할 수 있습니다.</li>
+          <li><strong>김해 정밀 모델 데이터 기준</strong> — 발생원 시설·유충 실태조사(김해시 보건소), 방역민원(2025년), 주민등록 인구(2026. 6. 기준, 외국인 제외).</li>
+          <li><strong>김해 외 지역</strong>은 발생원·유충 데이터 없이 <strong>날씨만으로 추정</strong>한 값이라 정밀도가 낮습니다.</li>
+          <li>날씨 <strong>Open-Meteo</strong>(무료 공개 API) · 지도 <strong>OpenStreetMap</strong>.</li>
+        </ul>
+      </div>
     </footer>
   </div>
 

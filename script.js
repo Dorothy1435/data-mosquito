@@ -161,6 +161,7 @@ const actionTips = document.getElementById('actionTips');
 const rankingSection = document.getElementById('ranking-section');
 const rankingList = document.getElementById('rankingList');
 const calcDetailBody = document.getElementById('calcDetailBody');
+const retryButton = document.getElementById('retryButton');
 
 let map;
 let regionMarkers = [];
@@ -171,6 +172,7 @@ let gimhaeSourceLayer = null; // 김해 발생원 히트맵 레이어 (켜면 �
 let gimhaeLayerWeather = null; // 히트맵용으로 한 번 받아온 김해 날씨 (재사용 캐시)
 let regionData = [];
 let currentRegion = null;
+let lastRenderContext = null;   // 재시도용: 마지막으로 그린 지역·옵션·좌표 보관
 let activeWeatherData = null;
 let dataUpdatedAt = defaultRegionData.updatedAt;
 let weatherCache = new Map();
@@ -861,6 +863,11 @@ function renderAnalysis(region, weatherData, index, precision) {
 
   reasons.push(`현재 지역은 ${region.name}이며, 지수 ${index}점으로 ${getCurrentStage(index).label} 단계입니다.`);
 
+  // 김해 외 지역은 발생원·유충 데이터가 없어 날씨 기반 추정임을 분명히 안내한다.
+  if (!precision) {
+    reasons.push('이 지역은 발생원·유충 데이터가 없어 날씨만으로 추정한 값입니다. (발생원까지 반영한 정밀 모델은 김해시에 적용됩니다.)');
+  }
+
   // 김해 정밀 모델이 적용된 경우, 발생원·유충 근거를 먼저 안내한다.
   if (precision) {
     const sr = precision.source_risk;
@@ -1104,6 +1111,7 @@ function renderRange(index, weatherData, precision) {
     rangeText.textContent = `예상 범위 ${r.low}~${r.high}점 · 신뢰도 ${precision.confidence.level}`;
     if (precisionBadge) {
       precisionBadge.hidden = false;
+      precisionBadge.classList.remove('estimate');
       precisionBadge.textContent = `김해 정밀 모델 · ${precision.district}`;
     }
     return;
@@ -1115,8 +1123,11 @@ function renderRange(index, weatherData, precision) {
   const low = Math.max(0, Math.round(index * (1 - uncertainty)));
   const high = Math.min(100, Math.round(index * (1 + uncertainty)));
   rangeText.textContent = `예상 범위 ${low}~${high}점 · 신뢰도 ${confidence.label}`;
+  // 김해 외 지역: 발생원 데이터 없이 날씨로만 추정한 값임을 배지로 명확히 알린다.
   if (precisionBadge) {
-    precisionBadge.hidden = true;
+    precisionBadge.hidden = false;
+    precisionBadge.classList.add('estimate');
+    precisionBadge.textContent = '날씨 기반 추정';
   }
 }
 
@@ -1303,6 +1314,7 @@ function renderPeakTimes(series) {
 // 한 지역(또는 좌표)의 날씨를 불러와 게이지·카드·예보·분석·지도까지 한 번에 갱신하는 핵심 함수
 async function loadAndRenderRegion(region, options = {}) {
   currentRegion = region;
+  lastRenderContext = { region, options };   // 재시도 시 같은 지역·좌표로 다시 부른다
   clearOutOfRangeNotice();   // 정상 지점을 그리기 시작하면 '측정 불가' 표시 제거
   const lat = options.lat ?? region.lat;
   const lng = options.lng ?? region.lng;
@@ -1316,6 +1328,11 @@ async function loadAndRenderRegion(region, options = {}) {
 
   const weatherData = await loadWeatherData(lat, lng, region);
   activeWeatherData = weatherData;
+
+  // 실제 날씨를 못 불러와 샘플로 대체된 경우에만 '다시 시도' 버튼을 보여준다.
+  if (retryButton) {
+    retryButton.hidden = weatherData.isLive === true;
+  }
 
   // 시간대별 예보 시리즈를 먼저 만든다(실시간 시간별 예보 or 샘플 기반).
   let series = (weatherData.hourlyForecast && weatherData.hourlyForecast.length)
@@ -1611,6 +1628,26 @@ function setupEvents() {
         console.error('발생원 히트맵 처리 실패', error);
         heatmapButton.textContent = '김해 발생원 히트맵 보기';
       });
+    });
+  }
+
+  // '날씨 다시 불러오기' — 캐시를 지우고 마지막으로 본 지역을 실제 날씨로 다시 시도한다.
+  if (retryButton) {
+    retryButton.addEventListener('click', () => {
+      const ctx = lastRenderContext;
+      if (!ctx) return;
+      const lat = ctx.options.lat ?? ctx.region.lat;
+      const lng = ctx.options.lng ?? ctx.region.lng;
+      // 이 좌표의 캐시(샘플로 굳은 값)를 비워 실제 API를 다시 부르게 한다.
+      weatherCache.delete(`${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`);
+      retryButton.disabled = true;
+      retryButton.textContent = '다시 불러오는 중…';
+      loadAndRenderRegion(ctx.region, ctx.options)
+        .catch((error) => console.error('날씨 다시 불러오기 실패', error))
+        .finally(() => {
+          retryButton.disabled = false;
+          retryButton.textContent = '날씨 다시 불러오기';
+        });
     });
   }
 
