@@ -1359,3 +1359,68 @@ select {
 .leaflet-popup.out-of-range-popup a.leaflet-popup-close-button {
   color: #b91c1c;
 }
+
+/* ===== (김해) v3 지역위험 결합: 발생 잠재력 × 인구 노출 = 지역위험 ===== */
+.geo-breakdown {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.geo-item {
+  flex: 1 1 0;
+  min-width: 120px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  text-align: center;
+}
+
+.geo-label {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.geo-value {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.geo-note {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* 결과(지역위험) 카드는 강조 */
+.geo-item.geo-result {
+  border-color: var(--accent);
+  background: rgba(15, 107, 87, 0.06);
+}
+
+/* × 와 = 연산자 */
+.geo-op {
+  display: flex;
+  align-items: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  /* 좁은 화면에서는 연산자를 숨기고 3개를 세로로 쌓는다(가로 스크롤 방지) */
+  .geo-breakdown {
+    flex-direction: column;
+  }
+
+  .geo-op {
+    display: none;
+  }
+}

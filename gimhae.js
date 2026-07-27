@@ -30,6 +30,7 @@ const larvaText = document.getElementById('larvaText');
 const larvaFill = document.getElementById('larvaFill');
 const weatherComponents = document.getElementById('weatherComponents');
 const weatherComment = document.getElementById('weatherComment');
+const geoBreakdown = document.getElementById('geoBreakdown');
 const sourceList = document.getElementById('sourceList');
 const sourceComment = document.getElementById('sourceComment');
 const areaTypeText = document.getElementById('areaTypeText');
@@ -260,6 +261,31 @@ function renderWeatherComponents(result) {
 function renderSources(result) {
   const sources = result.source_risk.top_sources;
   areaTypeText.textContent = `${result.source_risk.area_type} · 발생원 위험 ${result.source_risk.score}점`;
+
+  // (v3) 지역위험 = √(발생 잠재력 × 인구 노출). 새 모델의 핵심을 카드로 보여준다.
+  if (geoBreakdown) {
+    const ex = result.exposure;
+    const breeding = result.source_risk.breeding_potential;
+    const geo = result.source_risk.effective_geo;
+    geoBreakdown.innerHTML = `
+      <article class="geo-item">
+        <p class="geo-label">발생 잠재력</p>
+        <p class="geo-value">${Math.round(breeding * 100)}점</p>
+        <p class="geo-note">발생원 시설 + 유충 검출률</p>
+      </article>
+      <span class="geo-op" aria-hidden="true">×</span>
+      <article class="geo-item">
+        <p class="geo-label">인구 노출도</p>
+        <p class="geo-value">${ex.exposure_index.toFixed(2)}</p>
+        <p class="geo-note">${Number(ex.population).toLocaleString('ko-KR')}명${ex.estimated ? ' (추정)' : ''}</p>
+      </article>
+      <span class="geo-op" aria-hidden="true">=</span>
+      <article class="geo-item geo-result">
+        <p class="geo-label">지역위험</p>
+        <p class="geo-value">${geo.toFixed(2)}</p>
+        <p class="geo-note">√(잠재력 × 노출)</p>
+      </article>`;
+  }
 
   if (!sources.length) {
     sourceList.innerHTML = '<li class="source-empty">등록된 발생원이 없습니다.</li>';
