@@ -1713,8 +1713,63 @@ async function init() {
   populateSelect(regionData);
   setupEvents();
   renderMap(regionData);
-  regionSelect.value = regionData[0].name;
-  await loadAndRenderRegion(regionData[0], { isGps: false, preserveZoom: false });
+
+  // 초기 위치: 현재 위치(GPS)를 먼저 시도하고, 실패·거부·한국 밖이면 서울로 표시한다.
+  await showInitialLocation();
+}
+
+// 페이지 진입 시 현재 위치를 자동으로 잡는다.
+// - 성공(대한민국 안): 내 주변 지역으로 표시
+// - 실패/거부/시간초과/한국 밖: 서울(기본 지역)로 표시
+async function showInitialLocation() {
+  // 폴백 기본 지역은 '서울'. 데이터에 없으면 목록 첫 번째를 쓴다.
+  const fallbackRegion = regionData.find((region) => region.name === '서울') || regionData[0];
+
+  // 위치 기능이 없으면 바로 서울로.
+  if (!navigator.geolocation) {
+    regionSelect.value = fallbackRegion.name;
+    await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
+    return;
+  }
+
+  statusText.textContent = '현재 위치를 확인하는 중입니다… (권한을 허용하면 내 주변으로 표시됩니다)';
+
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 6000,
+        maximumAge: 60000,
+      });
+    });
+
+    const { latitude, longitude, accuracy } = position.coords;
+
+    // 현재 위치가 대한민국 밖이면 서울로 대체한다.
+    if (!isInKorea(latitude, longitude)) {
+      regionSelect.value = fallbackRegion.name;
+      await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
+      statusText.textContent = '현재 위치가 대한민국 밖이라 기본 지역(서울)으로 표시합니다.';
+      return;
+    }
+
+    const nearestRegion = findNearestRegion(latitude, longitude);
+    regionSelect.value = nearestRegion.name;
+    await loadAndRenderRegion(nearestRegion, {
+      lat: latitude,
+      lng: longitude,
+      isGps: true,
+      label: '현재 위치',
+      accuracy,
+      preserveZoom: false,
+    });
+  } catch (error) {
+    // 권한 거부·시간초과·기타 오류 → 서울(기본 지역)으로 표시
+    console.warn('현재 위치를 가져오지 못해 기본 지역(서울)으로 표시합니다.', error);
+    regionSelect.value = fallbackRegion.name;
+    await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
+    statusText.textContent = '현재 위치를 사용할 수 없어 기본 지역(서울)으로 표시합니다. 상단 “현재 위치” 버튼으로 다시 시도할 수 있습니다.';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
