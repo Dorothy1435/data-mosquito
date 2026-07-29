@@ -751,6 +751,14 @@ function getTimeScore(hour) {
   return 35 + 55 * Math.max(dusk, dawn);
 }
 
+// === 김해 외 지역 척도 보정 ===
+// 김해 정밀 모델은 100 × 날씨 × (0.35 + 0.65 × 지역위험geo)로 계산하는데,
+// 김해 외 지역은 발생원 데이터가 없어 이 지역위험을 알 수 없다.
+// 그래서 '김해 구역들의 인구가중 평균 지역위험'(geo≈0.491)을 평균 지역값으로 써서
+// 같은 척도로 맞춘다. 이렇게 하지 않으면 일반 모델(날씨 가중합)만 유독 높게 나와
+// 김해 점수와 직접 비교했을 때 김해가 안전한 것처럼 오해된다.
+const NON_GIMHAE_REGIONAL = 0.669; // = 0.35 + 0.65 × 0.491 (김해 인구가중 평균 geo)
+
 // 여러 요소 점수를 가중치로 합산해 0~100 사이의 모기지수를 계산하는 핵심 함수
 function computeIndexFromFactors({ temperature, humidity, rainfall3d, currentRain, windSpeed, hour, month, regionalDensity }) {
   const weightedValue = (
@@ -763,7 +771,8 @@ function computeIndexFromFactors({ temperature, humidity, rainfall3d, currentRai
     Number(regionalDensity || 0) * 0.05
   );
 
-  return Math.round(clampValue(weightedValue, 0, 100));
+  // 김해 정밀 모델과 같은 척도가 되도록 '평균 지역위험' 배율을 곱한다.
+  return Math.round(clampValue(weightedValue * NON_GIMHAE_REGIONAL, 0, 100));
 }
 
 // 현재 시각 기준 모기지수 계산 (지역 + 현재 날씨 사용)
