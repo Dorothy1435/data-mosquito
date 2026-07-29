@@ -141,7 +141,12 @@ const weatherSourceBadge = document.getElementById('weatherSourceBadge');
 const locationSourceBadge = document.getElementById('locationSourceBadge');
 const confidenceBadge = document.getElementById('confidenceBadge');
 const weatherGrid = document.getElementById('weatherGrid');
+const weatherGridMore = document.getElementById('weatherGridMore');
 const analysisList = document.getElementById('analysisList');
+const analysisMore = document.getElementById('analysisMore');
+const analysisMoreDetails = document.querySelector('.analysis-more');
+const heroSummary = document.getElementById('heroSummary');
+const deltaBadge = document.getElementById('deltaBadge');
 const gauge = document.getElementById('gauge');
 const rangeText = document.getElementById('rangeText');
 const precisionBadge = document.getElementById('precisionBadge');
@@ -612,9 +617,30 @@ function normalizeWeatherData(apiData, fallbackRegion) {
   // 현재 시각부터 앞으로 24시간 동안의 시간대별 예보 데이터를 만든다.
   const hourlyForecast = buildLiveHourlyForecast(hourly, times, currentIndex, fallbackRegion);
 
+  // (B1) 어제 같은 시각(24시간 전) 스냅샷 — '어제 대비' 변화 계산용. 데이터 부족하면 null.
+  let yesterday = null;
+  const yIdx = currentIndex - 24;
+  if (yIdx >= 0 && times[yIdx]) {
+    const yRecent = (hourly.precipitation || []).slice(Math.max(0, yIdx - 71), yIdx + 1);
+    const yRain3d = yRecent.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const yPrecipNow = Number(hourly.precipitation?.[yIdx] ?? 0);
+    const yDate = new Date(times[yIdx]);
+    yesterday = {
+      temperature: Number(hourly.temperature_2m?.[yIdx] ?? current.temperature),
+      humidity: Number(hourly.relative_humidity_2m?.[yIdx] ?? humidity),
+      rainfall3d: yRain3d,
+      windSpeed: Number(hourly.windspeed_10m?.[yIdx] ?? current.windspeed),
+      precipNow: yPrecipNow,
+      currentRain: yPrecipNow > 0.1 || isRainWeatherCode(hourly.weathercode?.[yIdx]),
+      hourOfDay: yDate.getHours(),
+      month: yDate.getMonth() + 1,
+    };
+  }
+
   return {
     isLive: true,
     hourlyForecast,
+    yesterday,
     confidence,
     gdd_14d: gdd14d,
     sourceLabel: '실제 날씨',
@@ -760,11 +786,37 @@ function calculateMosquitoIndex(region, weatherData = null) {
 
 function buildWeatherCards(region, index) {
   const liveWeather = activeWeatherData || createFallbackWeather(region);
+  // primary: true → 기본 노출(핵심 5개), false → '날씨 상세 더보기'로 접어 둠(난잡함 완화)
   const cards = [
     {
+      primary: true,
       name: '기온',
       value: `${Number(liveWeather.temperature).toFixed(1)}°C`,
       note: liveWeather.temperature >= 24 && liveWeather.temperature <= 30 ? '모기 활동에 적당한 기온입니다.' : '기온 영향이 상대적으로 적습니다.',
+    },
+    {
+      primary: true,
+      name: '습도',
+      value: `${Math.round(liveWeather.humidity)}%`,
+      note: liveWeather.humidity >= 60 ? '습도가 높아 모기가 활동하기 좋습니다.' : '습도가 낮아 활동성이 조금 줄어듭니다.',
+    },
+    {
+      primary: true,
+      name: '오늘 강수량',
+      value: `${Number(liveWeather.dailyRainfall ?? liveWeather.rainfall24h).toFixed(1)}mm`,
+      note: (liveWeather.dailyRainfall ?? liveWeather.rainfall24h) >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '오늘 비 영향은 크지 않습니다.',
+    },
+    {
+      primary: true,
+      name: '풍속',
+      value: `${Number(liveWeather.windSpeed).toFixed(1)}m/s`,
+      note: liveWeather.windSpeed < 3 ? '바람이 약해 모기 활동 가능성이 높습니다.' : '바람이 있어 활동성이 줄 수 있습니다.',
+    },
+    {
+      primary: true,
+      name: '날씨 상태',
+      value: liveWeather.weatherText,
+      note: liveWeather.isLive ? '실제 날씨 API에서 받아온 값입니다.' : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.',
     },
     {
       name: '체감 기온',
@@ -777,24 +829,9 @@ function buildWeatherCards(region, index) {
       note: '하루 기온 범위를 함께 보면 모기 활동 시간대를 예측하기 쉽습니다.',
     },
     {
-      name: '습도',
-      value: `${Math.round(liveWeather.humidity)}%`,
-      note: liveWeather.humidity >= 60 ? '습도가 높아 모기가 활동하기 좋습니다.' : '습도가 낮아 활동성이 조금 줄어듭니다.',
-    },
-    {
-      name: '오늘 강수량',
-      value: `${Number(liveWeather.dailyRainfall ?? liveWeather.rainfall24h).toFixed(1)}mm`,
-      note: (liveWeather.dailyRainfall ?? liveWeather.rainfall24h) >= 3 ? '고인 물이 생겼을 가능성이 있습니다.' : '오늘 비 영향은 크지 않습니다.',
-    },
-    {
       name: '강수 확률',
       value: liveWeather.dailyRainProbability == null ? '정보 없음' : `${Math.round(liveWeather.dailyRainProbability)}%`,
       note: '비가 올 가능성이 높으면 이후 모기 활동이 더 활발해질 수 있습니다.',
-    },
-    {
-      name: '풍속',
-      value: `${Number(liveWeather.windSpeed).toFixed(1)}m/s`,
-      note: liveWeather.windSpeed < 3 ? '바람이 약해 모기 활동 가능성이 높습니다.' : '바람이 있어 활동성이 줄 수 있습니다.',
     },
     {
       name: '최대 풍속',
@@ -813,20 +850,20 @@ function buildWeatherCards(region, index) {
       value: liveWeather.uvIndexMax == null ? '정보 없음' : `${Number(liveWeather.uvIndexMax).toFixed(1)}`,
       note: '자외선이 높을수록 낮 시간대 외출 체감이 달라질 수 있습니다.',
     },
-    {
-      name: '날씨 상태',
-      value: liveWeather.weatherText,
-      note: liveWeather.isLive ? '실제 날씨 API에서 받아온 값입니다.' : '실제 날씨를 불러오지 못해 샘플 데이터로 표시합니다.',
-    },
   ];
 
-  weatherGrid.innerHTML = cards.map((card) => `
+  const cardHtml = (card) => `
     <article class="metric-card">
       <p class="metric-name">${card.name}</p>
       <p class="metric-value">${card.value}</p>
       <p class="metric-note">${card.note}</p>
     </article>
-  `).join('');
+  `;
+
+  weatherGrid.innerHTML = cards.filter((card) => card.primary).map(cardHtml).join('');
+  if (weatherGridMore) {
+    weatherGridMore.innerHTML = cards.filter((card) => !card.primary).map(cardHtml).join('');
+  }
 
   gauge.style.background = `conic-gradient(${getGaugeGradient(index)})`;
 }
@@ -928,7 +965,16 @@ function renderAnalysis(region, weatherData, index, precision) {
   const confidence = liveWeather.confidence || computeConfidence({ isLive: liveWeather.isLive, historyHours: 0, observedAt: null });
   reasons.push(`이 계산의 신뢰도는 '${confidence.label}'입니다. (${confidence.reasons.join(', ')})`);
 
-  analysisList.innerHTML = reasons.map((reason) => `<li>${reason}</li>`).join('');
+  // 핵심 3줄만 기본 노출하고, 나머지는 '분석 근거 자세히 보기'로 접어 둔다.
+  const li = (reason) => `<li>${reason}</li>`;
+  analysisList.innerHTML = reasons.slice(0, 3).map(li).join('');
+  const rest = reasons.slice(3);
+  if (analysisMore) {
+    analysisMore.innerHTML = rest.map(li).join('');
+  }
+  if (analysisMoreDetails) {
+    analysisMoreDetails.hidden = rest.length === 0;
+  }
 }
 
 // === 오늘의 행동요령 ===
@@ -1155,6 +1201,41 @@ function clearOutOfRangeNotice() {
   }
 }
 
+// (A3) 상단 한 줄 핵심 요약: "지금 OO 74점 · 위험 · 오늘 20시 가장 위험(80점)"
+function renderHeroSummary(regionName, index, stage, series) {
+  if (!heroSummary) return;
+  let text = `지금 ${regionName} ${index}점 · ${stage.label}`;
+  if (series && series.length) {
+    const peak = series.reduce((max, point) => (point.index > max.index ? point : max), series[0]);
+    text += ` · 오늘 ${peak.hourLabel} 가장 위험(${peak.index}점)`;
+  }
+  heroSummary.textContent = text;
+  heroSummary.hidden = false;
+  heroSummary.style.setProperty('--summary-color', stage.color);
+}
+
+// (B1) 어제 같은 시각 대비 변화 배지. 모기지수는 높을수록 나쁘므로 상승=빨강, 하락=초록.
+function renderDelta(index, yesterdayIndex) {
+  if (!deltaBadge) return;
+  if (yesterdayIndex == null) {
+    deltaBadge.hidden = true;
+    return;
+  }
+  const diff = index - yesterdayIndex;
+  deltaBadge.hidden = false;
+  deltaBadge.classList.remove('delta-up', 'delta-down', 'delta-same');
+  if (diff > 0) {
+    deltaBadge.textContent = `▲${diff} 어제보다 높음`;
+    deltaBadge.classList.add('delta-up');
+  } else if (diff < 0) {
+    deltaBadge.textContent = `▼${Math.abs(diff)} 어제보다 낮음`;
+    deltaBadge.classList.add('delta-down');
+  } else {
+    deltaBadge.textContent = '어제와 같음';
+    deltaBadge.classList.add('delta-same');
+  }
+}
+
 function updateSelectedPointMarker(lat, lng, label, accuracy) {
   if (!map) {
     return;
@@ -1367,9 +1448,37 @@ async function loadAndRenderRegion(region, options = {}) {
   stageText.className = `gauge-stage ${stage.className}`;
   adviceText.textContent = stage.advice;
 
+  // (B1) 어제 같은 시각 대비 변화 — 오늘과 같은 모델(김해면 정밀, 아니면 일반)로 계산한다.
+  let yesterdayIndex = null;
+  if (weatherData.yesterday) {
+    const ys = weatherData.yesterday;
+    if (gimhaeDistrict) {
+      try {
+        yesterdayIndex = Math.round(
+          GimhaeMosquitoModel.mosquitoIndex(gimhaeDistrict, gimhaeForecastPointOptions(ys, weatherData)).mosquito_index,
+        );
+      } catch (error) {
+        yesterdayIndex = null;
+      }
+    } else {
+      yesterdayIndex = computeIndexFromFactors({
+        temperature: ys.temperature,
+        humidity: ys.humidity,
+        rainfall3d: ys.rainfall3d,
+        currentRain: ys.currentRain,
+        windSpeed: ys.windSpeed,
+        hour: ys.hourOfDay,
+        month: ys.month,
+        regionalDensity: region.mosquitoDensity,
+      });
+    }
+  }
+
   updateStageStyles(index);
   updateDataBadges(weatherData, isGps, precision);
   renderRange(index, weatherData, precision);
+  renderDelta(index, yesterdayIndex);
+  renderHeroSummary(region.name, index, stage, series);
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index, precision);
   renderActionGuide(index, precision);

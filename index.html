@@ -40,6 +40,7 @@
         <div class="hero-copy">
           <p class="section-label">오늘의 모기지수</p>
           <h2 id="mosquitoTitle">오늘의 모기 위험도를 한눈에 확인하세요</h2>
+          <p id="heroSummary" class="hero-summary" hidden></p>
           <p class="hero-description">실제 날씨와 GPS 위치를 연결해서, 선택한 지역의 모기 위험도를 보여줍니다.</p>
           <div class="data-pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="data-pill">실제 날씨</span>
@@ -62,6 +63,7 @@
           <p id="adviceText" class="advice-text">데이터를 불러오는 중입니다.</p>
           <div id="rangeBox" class="range-box">
             <span id="rangeText" class="range-value">예상 범위 -</span>
+            <span id="deltaBadge" class="delta-badge" hidden></span>
             <span id="precisionBadge" class="precision-badge" hidden>김해 정밀 모델</span>
           </div>
         </div>
@@ -117,6 +119,11 @@
           <p class="helper-text">실제 날씨가 불러와지지 않으면 샘플 데이터로 자동 전환됩니다.</p>
         </div>
         <div id="weatherGrid" class="metric-grid"></div>
+        <!-- 핵심 5개만 위에 보이고, 나머지 상세 날씨는 접어 둔다(난잡함 완화) -->
+        <details class="more-details weather-more">
+          <summary>날씨 상세 더보기</summary>
+          <div id="weatherGridMore" class="metric-grid"></div>
+        </details>
       </section>
 
       <section id="forecast-section" class="panel-card" aria-labelledby="forecastTitle">
@@ -187,7 +194,12 @@
             <h3 id="analysisTitle">왜 이런 지수가 나왔는지</h3>
           </div>
         </div>
+        <!-- 핵심 근거 3줄만 보이고, 나머지는 접어 둔다 -->
         <ul id="analysisList" class="analysis-list"></ul>
+        <details class="more-details analysis-more">
+          <summary>분석 근거 자세히 보기</summary>
+          <ul id="analysisMore" class="analysis-list"></ul>
+        </details>
 
         <!-- 지수가 어떤 요소를 곱해서 나왔는지 펼쳐 볼 수 있는 상세 영역 -->
         <details class="calc-detail">
