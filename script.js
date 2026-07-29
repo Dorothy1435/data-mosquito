@@ -155,6 +155,7 @@ const heatmapLegend = document.getElementById('heatmapLegend');
 const heatmapInfo = document.getElementById('heatmapInfo');
 const forecastChartCanvas = document.getElementById('forecastChart');
 const forecastSourceText = document.getElementById('forecastSourceText');
+const diurnalNote = document.getElementById('diurnalNote');
 const peakDangerTime = document.getElementById('peakDangerTime');
 const peakDangerNote = document.getElementById('peakDangerNote');
 const peakSafeTime = document.getElementById('peakSafeTime');
@@ -1292,6 +1293,11 @@ function updateCurrentLocationMarker(lat, lng, accuracy, label) {
 function renderForecast(series, weatherData, isGimhae) {
   renderForecastChart(series);
   renderPeakTimes(series);
+
+  // 일변화 안내 문구는 김해 지역(정밀 모델)일 때만 보여준다.
+  if (diurnalNote) {
+    diurnalNote.hidden = !isGimhae;
+  }
 
   if (isGimhae) {
     forecastSourceText.textContent = weatherData.isLive
