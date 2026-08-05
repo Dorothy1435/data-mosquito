@@ -35,16 +35,22 @@
         <p class="section-label">사이트 소개</p>
         <h2>모기제로는 김해시 발생원 데이터로 <strong>방역 우선순위</strong>를 계산하는 모기 위험 예보 서비스입니다.</h2>
         <p class="page-lead">발생원 시설·유충 실태조사·인구를 읍·면·동 단위로 결합한 모델에 실시간 날씨를 더해, 구역별 모기 위험과 방제 우선순위를 예보합니다. 단순 날씨 기반 지수가 아니라 <strong>실제 발생원 데이터</strong>에서 출발합니다.</p>
+        <div class="metric-grid metric-grid-4 stat-hero">
+          <article class="stat-tile"><p class="stat-name">발생원 시설</p><p class="stat-value">11,914곳</p><p class="stat-note">7개 유형 합계</p></article>
+          <article class="stat-tile"><p class="stat-name">유충 실태조사</p><p class="stat-value">1,000+건</p><p class="stat-note">구역별 검출률</p></article>
+          <article class="stat-tile"><p class="stat-name">민원 검증</p><p class="stat-value">+0.81</p><p class="stat-note">실제 방역민원 상관</p></article>
+          <article class="stat-tile"><p class="stat-name">대상 구역</p><p class="stat-value">17개</p><p class="stat-note">김해시 읍·면·동</p></article>
+        </div>
       </section>
 
       <section class="panel-card">
         <div class="detail-stack">
           <article class="detail-card">
-            <h3>무엇을 하는 서비스인가요?</h3>
+            <h3><span class="card-icon" aria-hidden="true">🦟</span> 무엇을 하는 서비스인가요?</h3>
             <p>모기는 고인 물과 유기물이 있는 <strong>발생원</strong>에서 번식합니다. 모기제로는 김해시의 발생원 시설을 읍·면·동별로 집계하고 유충 실태조사·인구·날씨를 결합해, <strong>어느 구역이 위험하고 어디부터 방제해야 하는지</strong>를 점수로 보여줍니다. 지자체에는 방제 우선순위를, 시민에게는 오늘의 위험 예보를 제공합니다.</p>
           </article>
           <article class="detail-card">
-            <h3>어떤 데이터로 만드나요?</h3>
+            <h3><span class="card-icon" aria-hidden="true">📊</span> 어떤 데이터로 만드나요?</h3>
             <p>김해시 보건소의 발생원 시설 현황과 유충 실태조사를 핵심 데이터로 사용합니다.</p>
             <ul class="detail-list">
               <li>개인하수처리시설(정화조·오수) 9,579곳 · 공중화장실 563곳</li>
@@ -55,15 +61,24 @@
             </ul>
           </article>
           <article class="detail-card">
-            <h3>어떻게 계산하나요?</h3>
-            <p><strong>발생 잠재력</strong>(발생원 시설 + 유충 검출률)과 <strong>인구 노출</strong>을 결합해 구역별 지역위험을 만들고(√(발생잠재력 × 인구)), 여기에 실시간 날씨로 계산한 활동지수를 곱해 오늘의 모기지수(0~100)를 산출합니다. 날씨는 기온·습도·최근 강수에 시간대(일몰·새벽 피크)·풍속·현재 강수를 더해 보정합니다.</p>
+            <h3><span class="card-icon" aria-hidden="true">🧮</span> 어떻게 계산하나요?</h3>
+            <div class="geo-breakdown about-flow">
+              <article class="geo-item"><p class="geo-label">발생 잠재력</p><p class="geo-value">발생원+유충</p><p class="geo-note">얼마나 생기나</p></article>
+              <span class="geo-op" aria-hidden="true">×</span>
+              <article class="geo-item"><p class="geo-label">인구 노출</p><p class="geo-value">인구</p><p class="geo-note">얼마나 물리나</p></article>
+              <span class="geo-op" aria-hidden="true">×</span>
+              <article class="geo-item"><p class="geo-label">날씨</p><p class="geo-value">실시간</p><p class="geo-note">오늘 활동성</p></article>
+              <span class="geo-op" aria-hidden="true">=</span>
+              <article class="geo-item geo-result"><p class="geo-label">모기지수</p><p class="geo-value">0~100</p><p class="geo-note">오늘 위험</p></article>
+            </div>
+            <p>발생 잠재력(발생원 시설 + 유충 검출률)과 인구 노출을 결합해 구역별 지역위험을 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 오늘의 모기지수를 산출합니다. 날씨는 기온·습도·최근 강수에 시간대(일몰·새벽 피크)·풍속·현재 강수를 더해 보정합니다.</p>
           </article>
           <article class="detail-card verify-card">
-            <h3>믿을 수 있나요? — 검증</h3>
+            <h3><span class="card-icon" aria-hidden="true">🔬</span> 믿을 수 있나요? — 검증</h3>
             <p>모델이 예측한 구역별 위험을 <strong>실제 2025년 방역민원</strong>과 비교한 결과 순위 상관 <strong>+0.81</strong>로 강하게 일치했습니다(발생원만 볼 때는 +0.55 → 유충·인구 결합 후 +0.81). 민원은 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환 오류가 없습니다.</p>
           </article>
           <article class="detail-card">
-            <h3>어떻게 활용하나요?</h3>
+            <h3><span class="card-icon" aria-hidden="true">🏛️</span> 어떻게 활용하나요?</h3>
             <ul class="detail-list">
               <li><strong>지자체(방역)</strong> — 위험·발생원이 높은 구역부터 유충 구제(라바사이드) 선제 시행, 방제 인력·예산 배분</li>
               <li><strong>시민</strong> — 오늘 우리 동네 모기 위험, 조심할 장소·시간대, 예방·대처 안내</li>
@@ -71,15 +86,15 @@
             </ul>
           </article>
           <article class="detail-card">
-            <h3>김해 외 지역은 어떻게 되나요?</h3>
+            <h3><span class="card-icon" aria-hidden="true">📍</span> 김해 외 지역은 어떻게 되나요?</h3>
             <p>발생원·유충 데이터가 있는 <strong>김해시는 정밀 모델</strong>이 적용됩니다. 그 외 지역은 발생원 데이터가 없어 <strong>날씨 기반 추정값</strong>으로 표시되며, 화면에 '날씨 기반 추정'으로 구분해 안내합니다.</p>
           </article>
           <article class="detail-card">
-            <h3>사용 방법</h3>
+            <h3><span class="card-icon" aria-hidden="true">🖱️</span> 사용 방법</h3>
             <p>상단에서 지역을 선택하거나 '현재 위치'를 누르면 해당 지역의 날씨로 지수를 계산합니다. 지도를 클릭하면 그 지점 기준으로 갱신되고, '김해 모델' 메뉴에서는 17개 구역의 발생원·순위·방역 우선순위를 자세히 볼 수 있습니다.</p>
           </article>
           <article class="detail-card warning-card">
-            <h3>주의할 점</h3>
+            <h3><span class="card-icon" aria-hidden="true">⚠️</span> 주의할 점</h3>
             <p>이 값은 <strong>참고용 예상값</strong>입니다. 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요. 구역 단위가 17개로 작아 예측형보다 위험 스크리닝·방제 우선순위용으로 적합합니다.</p>
           </article>
         </div>

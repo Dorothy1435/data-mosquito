@@ -1721,6 +1721,47 @@ select {
   color: var(--muted);
 }
 
+/* ===== 소개·정보 페이지 시각화 (아이콘·체크리스트·플로우) ===== */
+/* 카드 제목 아이콘 */
+.card-icon {
+  margin-right: 6px;
+  font-size: 1.05em;
+}
+
+/* about 상단 핵심 숫자 타일 여백 */
+.stat-hero {
+  margin-top: 18px;
+}
+
+/* 계산 과정 플로우(발생잠재력 × 인구 × 날씨 = 지수) 카드 내 여백 */
+.about-flow {
+  margin: 4px 0 14px;
+}
+
+/* 예방 체크리스트 */
+.check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.check-list li {
+  position: relative;
+  padding-left: 26px;
+  line-height: 1.6;
+}
+
+.check-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  color: var(--accent);
+  font-weight: 800;
+}
+
 /* 모델 검증 카드 — 신뢰 근거(초록 강조) */
 .verify-card {
   border-color: var(--accent);
