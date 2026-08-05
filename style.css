@@ -1606,11 +1606,25 @@ select {
   font-weight: 800;
 }
 
+/* 꽉 찬 초록 pill 버튼(CTA) — 밋밋한 테두리 버튼 대신 눈에 띄게 */
 .teaser-link {
   white-space: nowrap;
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 20px;
+  background: linear-gradient(135deg, #12876f, #0f6b57);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(15, 107, 87, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.teaser-link:hover,
+.teaser-link:focus-visible {
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 107, 87, 0.34);
+  filter: brightness(1.05);
 }
 
 /* ===== (A3) 상단 한 줄 핵심 요약 ===== */
