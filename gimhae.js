@@ -216,7 +216,7 @@ function sourceRiskColor(score) {
 function initGimhaeMap() {
   if (!window.L || gimhaeMap) return;
   const coords = GimhaeMosquitoModel.COORDS;
-  gimhaeMap = L.map('gimhaeMap', { scrollWheelZoom: false }).setView([35.23, 128.87], 11);
+  gimhaeMap = L.map('gimhaeMap', { scrollWheelZoom: true }).setView([35.23, 128.87], 11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '&copy; OpenStreetMap 기여자',
