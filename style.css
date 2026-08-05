@@ -818,7 +818,8 @@ select {
 
 .source-item {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr) 52px 64px;
+  /* 이름 · 막대 · 시설 수(강조) · 기여도%(보조) */
+  grid-template-columns: 110px minmax(0, 1fr) 72px 48px;
   align-items: center;
   gap: 12px;
 }
@@ -843,19 +844,69 @@ select {
   background: linear-gradient(90deg, #2f9e64, #e6822d);
 }
 
-.source-pct {
+/* 시설 수 = 이제 주 지표(강조) */
+.source-count {
   font-weight: 800;
   text-align: right;
 }
 
-.source-count {
+/* 위험 기여도 % = 보조(연하게) */
+.source-pct {
   text-align: right;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .source-empty {
   color: var(--muted);
+}
+
+/* 발생원 분석 범례 */
+.source-legend {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* A2: 김해시 전체 발생원 총량 요약(지도 섹션 상단) */
+.source-totals {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(15, 107, 87, 0.06);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.source-totals .totals-label {
+  font-weight: 800;
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+/* C1: 지도 구역명 라벨(Leaflet 툴팁 커스텀) */
+.leaflet-tooltip.district-label {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.leaflet-tooltip.district-label::before {
+  display: none;   /* 말풍선 꼬리 제거(깔끔하게) */
+}
+
+.leaflet-tooltip.district-label-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
 /* 시민/방제당국 행동요령 2단 배치 */

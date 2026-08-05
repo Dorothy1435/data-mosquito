@@ -212,6 +212,24 @@ function sourceRiskColor(score) {
   return '#86efac';
 }
 
+// A2: 김해시 전체 발생원 총량 요약(17개 구역 합산). 실제 데이터로 계산한다.
+function renderSourceTotals() {
+  const el = document.getElementById('sourceTotals');
+  if (!el) return;
+  const SRC_KOR = GimhaeMosquitoModel.SRC_KOR;
+  const totals = {};
+  Object.values(GimhaeMosquitoModel.DISTRICTS).forEach((d) => {
+    Object.entries(d.sources || {}).forEach(([key, count]) => {
+      totals[key] = (totals[key] || 0) + count;
+    });
+  });
+  const parts = Object.entries(totals)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([key, count]) => `${SRC_KOR[key]} <strong>${count.toLocaleString('ko-KR')}</strong>곳`);
+  el.innerHTML = `<span class="totals-label">김해시 전체 발생원</span> ${parts.join(' · ')}`;
+}
+
 // 지도를 처음 한 번 만든다(타일 + 김해 영역으로 맞춤).
 function initGimhaeMap() {
   if (!window.L || gimhaeMap) return;
@@ -246,7 +264,12 @@ function renderGimhaeMap(activeDistrict) {
     }).addTo(gimhaeMap).bindPopup(
       `<strong>${district}</strong><br>발생원 위험 ${score}점 (시내 ${r.ranking.rank}/${r.ranking.total_districts}위)`
       + `<br>오늘 모기지수 ${today}점 · ${r.grade}`,
-    );
+    ).bindTooltip(district, {
+      permanent: true,
+      direction: 'top',
+      offset: [0, -4],
+      className: `district-label${isActive ? ' district-label-active' : ''}`,
+    });
     marker.on('click', () => {
       districtSelect.value = district;
       renderDistrict(district);
@@ -386,15 +409,21 @@ function renderSources(result) {
       </article>`;
   }
 
+  let topCountName = null;
   if (!sources.length) {
     sourceList.innerHTML = '<li class="source-empty">등록된 발생원이 없습니다.</li>';
   } else {
-    sourceList.innerHTML = sources.map((item) => `
+    // A1: 핵심 진단(개수순)과 통일 — 시설 '개수' 많은 순으로 정렬하고 막대도 개수 기준.
+    // %는 '시내 위험 기여도'로 보조 표기(순서·막대 혼란 방지).
+    const byCount = sources.slice().sort((a, b) => b.count - a.count);
+    topCountName = byCount[0].source;
+    const maxCount = Math.max(...byCount.map((s) => s.count), 1);
+    sourceList.innerHTML = byCount.map((item) => `
       <li class="source-item">
         <span class="source-name">${item.source}</span>
-        <span class="source-bar"><span class="source-bar-fill" style="width:${item.risk_contribution_pct}%"></span></span>
-        <span class="source-pct">${item.risk_contribution_pct}%</span>
+        <span class="source-bar"><span class="source-bar-fill" style="width:${Math.round((item.count / maxCount) * 100)}%"></span></span>
         <span class="source-count">${item.count.toLocaleString('ko-KR')}곳</span>
+        <span class="source-pct">${item.risk_contribution_pct}%</span>
       </li>
     `).join('');
   }
@@ -413,7 +442,16 @@ function renderSources(result) {
     larvaFill.parentElement.style.visibility = 'hidden';
   }
 
-  sourceComment.textContent = result.source_risk.comment;
+  // 코멘트도 개수 기준으로 통일(막대·진단과 어긋나지 않게).
+  if (topCountName) {
+    const larvaNote = larva.surveyed > 0
+      ? ` 유충 검출률 ${Math.round(larva.detection_rate * 100)}%로 실측 반영됨.`
+      : ' (유충 조사 미실시 — 발생원 시설 기반 추정.)';
+    sourceComment.textContent = `시설 수가 가장 많은 발생원은 ${topCountName}이며, `
+      + `이 구역은 ${result.source_risk.area_type}입니다.${larvaNote}`;
+  } else {
+    sourceComment.textContent = result.source_risk.comment;
+  }
 }
 
 // 시내 순위 요약 카드를 그린다.
@@ -520,7 +558,8 @@ async function init() {
   }
 
   populateDistricts();
-  initGimhaeMap();   // 발생원 지도 생성(마커는 구역 렌더 시 채움)
+  renderSourceTotals();   // 김해시 전체 발생원 총량(정적)
+  initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)
 
   districtSelect.addEventListener('change', () => {
     renderDistrict(districtSelect.value);

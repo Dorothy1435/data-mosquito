@@ -86,6 +86,7 @@
           </div>
           <p class="helper-text">원이 크고 진할수록 발생원 위험이 높습니다. 원을 누르면 해당 구역으로 이동합니다.</p>
         </div>
+        <p id="sourceTotals" class="source-totals">-</p>
         <div id="gimhaeMap" class="map-area" aria-label="김해 구역별 발생원 위험 지도"></div>
         <div class="legend heatmap-legend" aria-label="발생원 위험 범례">
           <span class="legend-title">발생원 위험</span>
@@ -121,7 +122,8 @@
         </div>
         <!-- v3 핵심: 발생 잠재력 × 인구 노출 = 지역위험 (새 모델이 눈에 보이는 부분) -->
         <div id="geoBreakdown" class="geo-breakdown" aria-label="지역위험 결합 (발생 잠재력 × 인구 노출)"></div>
-        <ul id="sourceList" class="source-list" aria-label="발생원 유형별 위험 기여율"></ul>
+        <ul id="sourceList" class="source-list" aria-label="발생원 유형별 시설 수"></ul>
+        <p class="source-legend">막대 길이 = 시설 수 · % = 시내 위험 기여도(곤충학 가중치 반영)</p>
         <div id="larvaBox" class="larva-box">
           <span class="larva-label">유충 실태조사</span>
           <span id="larvaText" class="larva-text">-</span>
