@@ -1704,6 +1704,12 @@ select {
   margin-right: 4px;
 }
 
+.place-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .place-chip {
   display: inline-flex;
   align-items: center;

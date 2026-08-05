@@ -475,6 +475,34 @@ function renderRankSummary(result) {
   `).join('');
 }
 
+// 발생원 유형 → 시민이 조심할 '장소' 문구 매핑.
+const SOURCE_PLACE = {
+  septic_sewage: '정화조·하수구 주변',
+  public_toilet: '공중화장실 주변',
+  livestock_farm: '축사·가축 분뇨 주변',
+  reservoir: '저수지·물웅덩이',
+  tire_shop: '폐타이어 야적장',
+  waste_recycle: '폐기물 재활용장 주변',
+  waste_treat: '폐기물 처리장 주변',
+  water_feature: '분수·바닥분수 등 수경시설',
+};
+
+// 이 구역의 주요 발생원(개수 상위)에 맞춰 '조심할 장소' 칩을 구역별로 다르게 만든다.
+function renderPlaceChips(district) {
+  const el = document.getElementById('placeChips');
+  if (!el) return;
+  const raw = (GimhaeMosquitoModel.DISTRICTS[district] || {}).sources || {};
+  const topPlaces = Object.entries(raw)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([key]) => SOURCE_PLACE[key])
+    .filter(Boolean);
+  // 공원·물가·하천변은 어디나 해당하므로 항상 앞에 둔다. 중복은 제거.
+  const chips = Array.from(new Set(['공원·물가·하천변', ...topPlaces]));
+  el.innerHTML = chips.map((c) => `<span class="place-chip">${c}</span>`).join('');
+}
+
 // 시민·방제당국 행동요령과 부가 정보를 그린다.
 function renderAdvice(result) {
   // 모델 행동요령 + 물렸을 때 대처(보건소 요청 반영). '조심할 장소 유형'은 아래 칩으로 표시.
@@ -541,6 +569,7 @@ function renderDistrict(district) {
   renderSources(result);
   renderRankSummary(result);
   renderAdvice(result);
+  renderPlaceChips(district);
   renderDistrictRanking(district);
 }
 
