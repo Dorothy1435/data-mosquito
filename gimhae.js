@@ -291,10 +291,38 @@ function renderVerifyChart() {
     if (r.confidence.reasons.data_gap) return;   // 서부 결측 구역은 검증에서 제외
     points.push({ x: Math.round(r.source_risk.effective_geo * 100), y: r.complaints_2025, district: d });
   });
+
+  // 추세선(단순 선형회귀) — 상관이 한눈에 보이도록 점 위에 겹쳐 그린다.
+  const n = points.length;
+  const mx = points.reduce((s, p) => s + p.x, 0) / n;
+  const my = points.reduce((s, p) => s + p.y, 0) / n;
+  let cov = 0;
+  let varx = 0;
+  points.forEach((p) => { cov += (p.x - mx) * (p.y - my); varx += (p.x - mx) ** 2; });
+  const slope = varx ? cov / varx : 0;
+  const intercept = my - slope * mx;
+  const xmin = Math.min(...points.map((p) => p.x));
+  const xmax = Math.max(...points.map((p) => p.x));
+  const trend = [{ x: xmin, y: slope * xmin + intercept }, { x: xmax, y: slope * xmax + intercept }];
+
   if (verifyChart) verifyChart.destroy();
   verifyChart = new Chart(canvas, {
     type: 'scatter',
-    data: { datasets: [{ data: points, backgroundColor: 'rgba(15, 107, 87, 0.75)', pointRadius: 6, pointHoverRadius: 9 }] },
+    data: {
+      datasets: [
+        {
+          type: 'line', label: '추세', data: trend,
+          borderColor: 'rgba(217, 130, 45, 0.9)', borderWidth: 2, borderDash: [6, 4],
+          pointRadius: 0, fill: false, order: 2,
+        },
+        {
+          label: '구역', data: points,
+          backgroundColor: points.map((p) => (p.district === '활천동' ? '#ef4444' : 'rgba(15, 107, 87, 0.75)')),
+          pointRadius: points.map((p) => (p.district === '활천동' ? 8 : 6)),
+          pointHoverRadius: 9, order: 1,
+        },
+      ],
+    },
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
@@ -305,7 +333,9 @@ function renderVerifyChart() {
       },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.raw.district} · 예측위험 ${ctx.raw.x} · 실제민원 ${ctx.raw.y}건` } },
+        tooltip: { callbacks: { label: (ctx) => (ctx.raw.district
+          ? `${ctx.raw.district} · 예측위험 ${ctx.raw.x} · 실제민원 ${ctx.raw.y}건`
+          : `추세선`) } },
       },
     },
   });
