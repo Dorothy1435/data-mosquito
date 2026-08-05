@@ -209,6 +209,10 @@
           <article class="detail-card verify-card">
             <h3>모델 검증 — 실제 민원과 얼마나 맞나</h3>
             <p>모델이 예측한 구역별 위험을 <strong>실제 2025년 방역민원</strong>과 비교한 결과, 순위 상관계수 <strong>+0.81</strong>로 강하게 일치했습니다. 발생원 시설만 볼 때는 +0.55였지만, <strong>유충 실측과 인구까지 결합하자 +0.81</strong>로 올라갔습니다(다중회귀 설명력 R²도 0.45 → 0.66). 민원 데이터는 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아, ‘민원 많은 곳을 위험하다고 하는’ 순환 오류가 없습니다.</p>
+            <div class="chart-area verify-chart-area">
+              <canvas id="verifyChart" role="img" aria-label="예측 위험과 실제 방역민원 비교 산점도"></canvas>
+            </div>
+            <p class="helper-text">각 점은 구역 하나입니다. <strong>오른쪽 위로 갈수록</strong> ‘예측 위험이 높고 실제 민원도 많음’ — 점들이 우상향으로 몰릴수록 예측과 실제가 일치합니다. (현장조사 완료 13개 구역)</p>
           </article>
           <article class="detail-card">
             <h3>데이터</h3>

@@ -1774,6 +1774,16 @@ select {
   background: rgba(15, 107, 87, 0.05);
 }
 
+/* 검증 산점도 — 카드 안에서 아담하게 */
+.verify-chart-area {
+  height: 300px;
+  margin: 14px 0 10px;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+}
+
 .verify-card h3 {
   color: var(--accent);
 }

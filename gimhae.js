@@ -280,6 +280,37 @@ function renderGimhaeMap(activeDistrict) {
   gimhaeMap.invalidateSize();
 }
 
+// === 검증 산점도: 예측 지역위험 ↔ 실제 방역민원 (한 번만 그림) ===
+let verifyChart = null;
+function renderVerifyChart() {
+  const canvas = document.getElementById('verifyChart');
+  if (!canvas || !window.Chart) return;
+  const points = [];
+  GimhaeMosquitoModel.listDistricts().forEach((d) => {
+    const r = GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 });
+    if (r.confidence.reasons.data_gap) return;   // 서부 결측 구역은 검증에서 제외
+    points.push({ x: Math.round(r.source_risk.effective_geo * 100), y: r.complaints_2025, district: d });
+  });
+  if (verifyChart) verifyChart.destroy();
+  verifyChart = new Chart(canvas, {
+    type: 'scatter',
+    data: { datasets: [{ data: points, backgroundColor: 'rgba(15, 107, 87, 0.75)', pointRadius: 6, pointHoverRadius: 9 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: '예측 지역위험 (발생원·인구, 0~100)', color: '#56706b' },
+          min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
+        y: { title: { display: true, text: '실제 방역민원 (2025, 건)', color: '#56706b' },
+          min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.raw.district} · 예측위험 ${ctx.raw.x} · 실제민원 ${ctx.raw.y}건` } },
+      },
+    },
+  });
+}
+
 // === 선택 구역의 24시간 예보 ===
 const districtForecastCache = {};   // 구역별 시간별 날씨 응답 캐시
 let gimhaeForecastChart = null;
@@ -724,6 +755,7 @@ async function init() {
 
   populateDistricts();
   renderSourceTotals();   // 김해시 전체 발생원 총량(정적)
+  renderVerifyChart();    // 검증 산점도(정적)
   initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)
 
   districtSelect.addEventListener('change', () => {
