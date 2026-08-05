@@ -1618,7 +1618,7 @@ select {
 /* ===== 넓은 화면: 김해 페이지 2단 대시보드 (양옆 빈 공간 채움) ===== */
 @media (min-width: 1024px) {
   .page-wide {
-    width: min(1320px, calc(100% - 40px));
+    width: min(1500px, calc(100% - 40px));
   }
 
   .content-grid.dashboard {
