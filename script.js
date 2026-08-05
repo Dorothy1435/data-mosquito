@@ -331,6 +331,8 @@ function computeConfidence({ isLive, historyHours, observedAt }) {
 const GIMHAE_BOUNDS = { minLat: 35.10, maxLat: 35.40, minLng: 128.70, maxLng: 129.00 };
 // 대한민국(남한) 대략 경계. 이 범위를 벗어난 지도 클릭은 '측정 불가'로 안내한다.
 const KOREA_BOUNDS = { minLat: 33.0, maxLat: 38.7, minLng: 124.5, maxLng: 131.9 };
+// 위치 오차가 이 값(m)보다 크면 부정확 안내를 띄운다. PC는 GPS가 없어 와이파이/IP 기반이라 오차가 큼.
+const GPS_ACCURACY_WARN_M = 3000;
 // 좌표가 대한민국 범위 안인지 판별한다.
 function isInKorea(lat, lng) {
   return lat >= KOREA_BOUNDS.minLat && lat <= KOREA_BOUNDS.maxLat
@@ -1202,12 +1204,21 @@ function showOutOfRangeNotice(lat, lng) {
   statusText.classList.add('status-error');
 }
 
-// 정상 지점을 다시 다루기 시작할 때 '측정 불가' 표시를 걷어낸다.
+// 정상 지점을 다시 다루기 시작할 때 '측정 불가'·'위치 부정확' 표시를 걷어낸다.
 function clearOutOfRangeNotice() {
-  statusText.classList.remove('status-error');
+  statusText.classList.remove('status-error', 'status-warn');
   if (outOfRangePopup) {
     outOfRangePopup.remove();
     outOfRangePopup = null;
+  }
+}
+
+// 위치 오차가 크면(주로 PC 와이파이/IP) 부정확할 수 있음을 안내한다.
+function maybeWarnLowAccuracy(accuracy) {
+  if (accuracy && accuracy > GPS_ACCURACY_WARN_M) {
+    statusText.textContent = `현재 위치 오차가 약 ${Math.round(accuracy / 1000)}km로 큽니다. `
+      + '컴퓨터·와이파이 환경은 위치가 부정확할 수 있어요 — 정확히 보려면 상단에서 지역을 직접 선택하세요.';
+    statusText.classList.add('status-warn');
   }
 }
 
@@ -1803,6 +1814,7 @@ function setupEvents() {
           accuracy,
           preserveZoom: true,
         });
+        maybeWarnLowAccuracy(accuracy);   // PC 등 오차가 크면 안내
       },
       () => {
         alert('위치정보를 가져오지 못해 기본 지역의 실제 날씨로 표시합니다.');
@@ -1887,6 +1899,7 @@ async function showInitialLocation() {
       accuracy,
       preserveZoom: false,
     });
+    maybeWarnLowAccuracy(accuracy);   // PC 등 오차가 크면 안내
   } catch (error) {
     // 권한 거부·시간초과·기타 오류 → 서울(기본 지역)으로 표시
     console.warn('현재 위치를 가져오지 못해 기본 지역(서울)으로 표시합니다.', error);

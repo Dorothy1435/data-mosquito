@@ -30,6 +30,7 @@ const larvaText = document.getElementById('larvaText');
 const larvaFill = document.getElementById('larvaFill');
 const weatherComponents = document.getElementById('weatherComponents');
 const weatherComment = document.getElementById('weatherComment');
+const diagnosisBody = document.getElementById('diagnosisBody');
 const geoBreakdown = document.getElementById('geoBreakdown');
 const sourceList = document.getElementById('sourceList');
 const sourceComment = document.getElementById('sourceComment');
@@ -257,6 +258,40 @@ function renderWeatherComponents(result) {
   weatherComment.textContent = result.weather.comment;
 }
 
+// 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (지자체가 가장 필요로 하는 부분).
+function renderDiagnosis(result) {
+  if (!diagnosisBody) return;
+  const sr = result.source_risk;
+  const larva = sr.larva;
+  const ranking = result.ranking;
+
+  // 주원인: 위험 기여도 상위 발생원 2개 + 유충 검출률
+  const topSources = sr.top_sources.slice(0, 2)
+    .map((s) => `${s.source} ${s.count.toLocaleString('ko-KR')}곳`)
+    .join(' · ');
+  const larvaLine = larva.surveyed > 0
+    ? `유충 검출률 <strong>${Math.round(larva.detection_rate * 100)}%</strong>(${larva.surveyed}건 조사)`
+    : '유충 조사 미실시 — 발생원 시설 기반 추정';
+  const cause = topSources ? `${topSources} · ${larvaLine}` : '등록된 발생원이 없습니다.';
+
+  // 권장 방역 조치: 모델의 방제당국 행동요령 중 핵심 한 줄
+  const action = (result.advice.authority && result.advice.authority[0])
+    || '정기 방역 주기를 유지하세요.';
+
+  diagnosisBody.innerHTML = `
+    <div class="diag-row">
+      <span class="diag-tag diag-tag-cause">원인</span>
+      <p class="diag-value">${cause}</p>
+    </div>
+    <div class="diag-row">
+      <span class="diag-tag diag-tag-action">권장 조치</span>
+      <p class="diag-value">${action}</p>
+    </div>
+    <p class="diag-foot">방제 우선순위 <strong>${ranking.rank}/${ranking.total_districts}위</strong>
+      · 발생원 위험 ${sr.score}점 · 지역위험(발생잠재력×인구) ${sr.effective_geo}</p>
+  `;
+}
+
 // 발생원 분석(시설 유형별 위험 기여율)을 그린다.
 function renderSources(result) {
   const sources = result.source_risk.top_sources;
@@ -330,17 +365,24 @@ function renderRankSummary(result) {
   ];
 
   rankSummary.innerHTML = cards.map((card) => `
-    <article class="metric-card">
-      <p class="metric-name">${card.name}</p>
-      <p class="metric-value">${card.value}</p>
-      <p class="metric-note">${card.note}</p>
+    <article class="stat-tile">
+      <p class="stat-name">${card.name}</p>
+      <p class="stat-value">${card.value}</p>
+      <p class="stat-note">${card.note}</p>
     </article>
   `).join('');
 }
 
 // 시민·방제당국 행동요령과 부가 정보를 그린다.
 function renderAdvice(result) {
-  citizenAdvice.innerHTML = result.advice.citizen.map((text) => `<li>${text}</li>`).join('');
+  // 모델 행동요령 + 조심할 장소 유형 + 물렸을 때 대처(보건소 요청 반영).
+  // ※ 하천·공원별 실제 데이터가 없어 '장소 유형' 일반 안내로 제공한다.
+  const placeAndCare = [
+    '공원·물가·하천변, 정화조·하수구 주변 등 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요.',
+    '물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·통증이 심하면 진료를 받으세요.',
+  ];
+  const citizen = result.advice.citizen.concat(placeAndCare);
+  citizenAdvice.innerHTML = citizen.map((text) => `<li>${text}</li>`).join('');
   authorityAdvice.innerHTML = result.advice.authority.map((text) => `<li>${text}</li>`).join('');
   extraInfoText.textContent = `모기 활동 시간대: ${result.active_hours} · 추천 기피제: ${result.recommended_repellent}`;
 }
@@ -395,6 +437,7 @@ function renderDistrict(district) {
     : `기준: ${weather.month || currentMonth}월 평년값`;
 
   renderGauge(result);
+  renderDiagnosis(result);
   renderWeatherComponents(result);
   renderSources(result);
   renderRankSummary(result);

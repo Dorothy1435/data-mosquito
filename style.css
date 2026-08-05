@@ -1327,6 +1327,12 @@ select {
   font-weight: 800;
 }
 
+/* 위치 오차가 큰 경우(주로 PC) 안내 — 주황 */
+.status-text.status-warn {
+  color: #a9790a;
+  font-weight: 700;
+}
+
 .leaflet-popup.out-of-range-popup .leaflet-popup-content-wrapper {
   background: #fee2e2;
   color: #b91c1c;
@@ -1607,6 +1613,102 @@ select {
 
 .delta-badge[hidden] {
   display: none;
+}
+
+/* ===== (김해) 이 구역 핵심 진단 — 발생원 원인 → 방역 조치 ===== */
+.diagnosis-card {
+  border-left: 5px solid var(--accent);
+}
+
+.diagnosis-body {
+  display: grid;
+  gap: 12px;
+}
+
+.diag-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* 원인 / 권장 조치 라벨 (상태색 + 글자, 색만으로 구분하지 않음) */
+.diag-tag {
+  flex: 0 0 auto;
+  min-width: 70px;
+  text-align: center;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.diag-tag-cause {
+  background: rgba(215, 162, 26, 0.18);
+  color: #a9790a;
+}
+
+.diag-tag-action {
+  background: rgba(47, 158, 100, 0.15);
+  color: #237a4b;
+}
+
+.diag-value {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.diag-value strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.diag-foot {
+  margin: 2px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.diag-foot strong {
+  color: var(--text);
+}
+
+/* ===== 스탯 타일 (구글시트 느낌 → 전문 대시보드) ===== */
+.stat-tile {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--panel-strong);
+}
+
+.stat-name {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.stat-note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 /* 24시간 예보 밑 '왜 하루 안에서 오르내리나' 안내 */
