@@ -1835,6 +1835,21 @@ function setupEvents() {
   });
 }
 
+// 메인 상단 '김해 위험 TOP3' 티저 — 발생원 정밀 모델로 유도한다(순위는 발생원·인구가 지배).
+function renderGimhaeTeaser() {
+  const el = document.getElementById('gimhaeTop3');
+  if (!el || !window.GimhaeMosquitoModel) return;
+  try {
+    const month = new Date().getMonth() + 1;
+    const ranked = GimhaeMosquitoModel.allIndices({ month });
+    const marks = ['①', '②', '③'];
+    const top3 = ranked.slice(0, 3).map((r, i) => `${marks[i]} ${r.district}`).join('  ');
+    el.innerHTML = `오늘 위험 높은 구역 <strong>${top3}</strong> · 발생원·유충·인구 반영`;
+  } catch (error) {
+    console.warn('김해 TOP3 티저 계산 실패', error);
+  }
+}
+
 // 페이지가 열릴 때 한 번 실행되어 데이터 로딩, 지도/이벤트 설정, 첫 화면 렌더링을 담당한다.
 async function init() {
   const [sampleData, regionsData] = await Promise.all([
@@ -1855,6 +1870,7 @@ async function init() {
   regionData = mergedRegions.map((region) => ({ ...region }));
 
   populateSelect(regionData);
+  renderGimhaeTeaser();   // 상단 김해 위험 TOP3 티저
   setupEvents();
   renderMap(regionData);
 

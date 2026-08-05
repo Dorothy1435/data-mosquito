@@ -41,7 +41,7 @@
           <p class="section-label">오늘의 모기지수</p>
           <h2 id="mosquitoTitle">오늘의 모기 위험도를 한눈에 확인하세요</h2>
           <p id="heroSummary" class="hero-summary" hidden></p>
-          <p class="hero-description">실제 날씨와 GPS 위치를 연결해서, 선택한 지역의 모기 위험도를 보여줍니다.</p>
+          <p class="hero-description">날씨로 전국 어디나 모기지수를 계산하고, <strong>김해는 발생원 데이터로 정밀하게</strong> 예보합니다.</p>
           <div class="data-pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="data-pill">실제 날씨</span>
             <span id="locationSourceBadge" class="data-pill">지역 선택</span>
@@ -67,6 +67,15 @@
             <span id="precisionBadge" class="precision-badge" hidden>김해 정밀 모델</span>
           </div>
         </div>
+      </section>
+
+      <!-- 김해 발생원 정밀 모델로 유도하는 티저 -->
+      <section class="gimhae-teaser panel-card" aria-labelledby="teaserTitle">
+        <div class="teaser-main">
+          <p class="section-label" id="teaserTitle">🔬 김해 발생원 정밀 모델</p>
+          <p class="teaser-lead" id="gimhaeTop3">오늘 김해에서 모기 위험이 높은 구역을 불러오는 중…</p>
+        </div>
+        <a class="secondary-button teaser-link" href="gimhae.html">구역별 방역 리포트 →</a>
       </section>
 
       <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">

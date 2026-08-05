@@ -1576,6 +1576,43 @@ select {
   color: var(--muted);
 }
 
+/* ===== 김해 정밀 모델 티저(메인 상단) ===== */
+.gimhae-teaser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  padding: 18px 22px;
+  border-left: 5px solid var(--accent);
+}
+
+.teaser-main {
+  min-width: 0;
+}
+
+.teaser-lead {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.teaser-lead strong {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.teaser-link {
+  white-space: nowrap;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* ===== (A3) 상단 한 줄 핵심 요약 ===== */
 .hero-summary {
   margin: 0;
