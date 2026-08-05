@@ -870,9 +870,15 @@ function buildWeatherCards(region, index) {
     },
   ];
 
+  // 날씨 카드 아이콘(이름으로 매핑) — 스캔이 쉽도록 시각 앵커를 붙인다.
+  const weatherIcons = {
+    '기온': '🌡️', '체감 기온': '🌡️', '최고 / 최저': '🌡️', '습도': '💧',
+    '오늘 강수량': '🌧️', '강수 확률': '☔', '풍속': '💨', '최대 풍속': '💨',
+    '일출 / 일몰': '🌅', '자외선 최대': '☀️', '날씨 상태': '☁️',
+  };
   const cardHtml = (card) => `
     <article class="metric-card">
-      <p class="metric-name">${card.name}</p>
+      <p class="metric-name"><span class="metric-icon" aria-hidden="true">${weatherIcons[card.name] || ''}</span>${card.name}</p>
       <p class="metric-value">${card.value}</p>
       <p class="metric-note">${card.note}</p>
     </article>

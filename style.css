@@ -381,6 +381,10 @@ select {
   color: var(--muted);
 }
 
+.metric-icon {
+  margin-right: 5px;
+}
+
 .metric-value {
   margin: 0;
   font-size: 1.32rem;
