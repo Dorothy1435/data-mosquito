@@ -275,7 +275,13 @@ function formatTime(isoString) {
 }
 
 function formatCoordinateLabel(lat, lng, accuracy) {
-  const accuracyText = accuracy ? ` · 정확도 약 ${Math.round(accuracy)}m` : '';
+  // 오차가 크면(주로 PC) m 단위 큰 숫자 대신 km로 간단히 표기한다.
+  let accuracyText = '';
+  if (accuracy) {
+    accuracyText = accuracy >= 1000
+      ? ` · 정확도 약 ${(accuracy / 1000).toFixed(1)}km`
+      : ` · 정확도 약 ${Math.round(accuracy)}m`;
+  }
   return `위도 ${lat.toFixed(5)}, 경도 ${lng.toFixed(5)}${accuracyText}`;
 }
 
@@ -1216,8 +1222,8 @@ function clearOutOfRangeNotice() {
 // 위치 오차가 크면(주로 PC 와이파이/IP) 부정확할 수 있음을 안내한다.
 function maybeWarnLowAccuracy(accuracy) {
   if (accuracy && accuracy > GPS_ACCURACY_WARN_M) {
-    statusText.textContent = `현재 위치 오차가 약 ${Math.round(accuracy / 1000)}km로 큽니다. `
-      + '컴퓨터·와이파이 환경은 위치가 부정확할 수 있어요 — 정확히 보려면 상단에서 지역을 직접 선택하세요.';
+    statusText.textContent = '현재 위치가 정확하지 않을 수 있어요. 컴퓨터·와이파이 환경은 GPS가 없어 '
+      + '위치 오차가 큽니다 — 정확히 보려면 상단에서 지역을 직접 선택하세요.';
     statusText.classList.add('status-warn');
   }
 }
@@ -1287,8 +1293,10 @@ function updateCurrentLocationMarker(lat, lng, accuracy, label) {
     currentLocationMarker.remove();
   }
 
+  // 오차 원이 지도를 다 덮지 않도록 최대 1km로 제한한다(PC는 오차가 수십 km일 수 있음).
+  const circleRadius = Math.min(Math.max(accuracy || 30, 20), 1000);
   currentLocationMarker = L.circle([lat, lng], {
-    radius: Math.max(accuracy || 30, 20),
+    radius: circleRadius,
     color: '#0f6b57',
     weight: 2,
     fillColor: '#7dd3fc',
