@@ -111,6 +111,22 @@
         <p id="weatherComment" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
       </section>
 
+      <!-- 선택한 구역의 24시간 모기지수 예보 -->
+      <section class="panel-card" aria-labelledby="forecastTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">시간대별 예보</p>
+            <h3 id="forecastTitle">이 구역 앞으로 24시간 모기지수</h3>
+          </div>
+          <p class="helper-text" id="gimhaeForecastPeak">-</p>
+        </div>
+        <div class="chart-area">
+          <canvas id="gimhaeForecastChart" role="img" aria-label="선택한 구역의 24시간 모기지수 예보"></canvas>
+        </div>
+        <p id="gimhaeForecastNote" class="helper-text forecast-source">시간대별 예보를 불러오는 중입니다.</p>
+        <p class="diurnal-note">💡 모기는 <strong>해질녘(19~22시)과 새벽(4~6시)</strong>에 활동이 급증하고 한낮·심야엔 크게 줄어듭니다. 하루 안에서도 지수가 크게 오르내립니다.</p>
+      </section>
+
       <!-- 발생원 분석: 시설 유형별 위험 기여율 -->
       <section class="panel-card" aria-labelledby="sourceTitle">
         <div class="panel-heading">
@@ -224,6 +240,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="mosquito-model.js"></script>
   <script src="nav.js"></script>
   <script src="gimhae.js"></script>

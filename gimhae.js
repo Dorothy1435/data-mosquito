@@ -280,6 +280,141 @@ function renderGimhaeMap(activeDistrict) {
   gimhaeMap.invalidateSize();
 }
 
+// === 선택 구역의 24시간 예보 ===
+const districtForecastCache = {};   // 구역별 시간별 날씨 응답 캐시
+let gimhaeForecastChart = null;
+
+// 선택한 구역의 시간별 예보 날씨를 받아온다(구역당 1회, 캐시). 실패 시 null.
+async function loadDistrictForecast(district) {
+  if (district in districtForecastCache) return districtForecastCache[district];
+  const coord = DISTRICT_COORDS[district];
+  if (!coord) { districtForecastCache[district] = null; return null; }
+  const params = new URLSearchParams({
+    latitude: coord[0], longitude: coord[1], current_weather: 'true',
+    hourly: 'temperature_2m,relative_humidity_2m,precipitation,windspeed_10m',
+    past_days: '3', forecast_days: '1', timezone: 'Asia/Seoul',
+    temperature_unit: 'celsius', wind_speed_unit: 'ms', precipitation_unit: 'mm',
+  });
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+    if (!res.ok) throw new Error(`예보 요청 실패: ${res.status}`);
+    const data = await res.json();
+    districtForecastCache[district] = data;
+    return data;
+  } catch (error) {
+    console.warn('구역 예보를 불러오지 못했습니다.', error);
+    districtForecastCache[district] = null;
+    return null;
+  }
+}
+
+// 실시간 시간별 날씨로 24시간 모기지수 시리즈를 만든다(게이지와 같은 정밀 모델 사용).
+function buildDistrictSeries(district, data) {
+  const hourly = (data && data.hourly) || {};
+  const times = hourly.time || [];
+  if (!times.length) return [];
+  const temps = hourly.temperature_2m || [];
+  const hums = hourly.relative_humidity_2m || [];
+  const precs = hourly.precipitation || [];
+  const winds = hourly.windspeed_10m || [];
+  const curTime = (data.current_weather && data.current_weather.time) || '';
+  let ci = times.findIndex((t) => t.slice(0, 13) === curTime.slice(0, 13));
+  if (ci === -1) {
+    for (let i = times.length - 1; i >= 0; i -= 1) { if (times[i] <= curTime) { ci = i; break; } }
+    if (ci === -1) ci = Math.max(0, times.length - 25);
+  }
+  const gdd = (districtWeather[district] || {}).gdd_14d;
+  const series = [];
+  const end = Math.min(ci + 24, times.length);
+  for (let i = ci; i < end; i += 1) {
+    const d = new Date(times[i]);
+    const rain3d = precs.slice(Math.max(0, i - 71), i + 1).reduce((s, v) => s + (Number(v) || 0), 0);
+    const opts = {
+      month: d.getMonth() + 1, hour: d.getHours(), weather_observed: true,
+      temp_c: Number(temps[i]), humidity: Number(hums[i]),
+      rain_3d_mm: Math.round(rain3d * 10) / 10, wind_ms: Number(winds[i]),
+      precip_now: Number(precs[i] || 0),
+    };
+    if (gdd != null) opts.gdd_14d = gdd;
+    const r = GimhaeMosquitoModel.mosquitoIndex(district, opts);
+    series.push({ label: `${d.getHours()}시`, index: Math.round(r.mosquito_index), color: r.color });
+  }
+  return series;
+}
+
+// 실시간 실패 시: 이번 달 평년값 + 시간대 변화만 반영한 대체 시리즈.
+function buildFallbackSeries(district) {
+  const series = [];
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const w = districtWeather[district] || {};
+  for (let h = 0; h < 24; h += 1) {
+    const hour = (now.getHours() + h) % 24;
+    const opts = { month, hour };
+    if (w.temp_c != null) { opts.temp_c = w.temp_c; opts.humidity = w.humidity; opts.rain_3d_mm = w.rain_3d_mm; }
+    const r = GimhaeMosquitoModel.mosquitoIndex(district, opts);
+    series.push({ label: `${hour}시`, index: Math.round(r.mosquito_index), color: r.color });
+  }
+  return series;
+}
+
+// 선택한 구역의 24시간 예보 차트를 그린다.
+async function renderGimhaeForecast(district) {
+  const canvas = document.getElementById('gimhaeForecastChart');
+  const note = document.getElementById('gimhaeForecastNote');
+  const peakEl = document.getElementById('gimhaeForecastPeak');
+  if (!canvas || !window.Chart) return;
+
+  const data = await loadDistrictForecast(district);
+  // 사용자가 그새 다른 구역을 눌렀으면 이 렌더는 버린다(경합 방지).
+  if (districtSelect.value !== district) return;
+
+  let series = data ? buildDistrictSeries(district, data) : [];
+  const live = series.length > 0;
+  if (!series.length) series = buildFallbackSeries(district);
+
+  if (peakEl && series.length) {
+    const peak = series.reduce((mx, p) => (p.index > mx.index ? p : mx), series[0]);
+    const safe = series.reduce((mn, p) => (p.index < mn.index ? p : mn), series[0]);
+    peakEl.innerHTML = `가장 위험 <strong>${peak.label} ${peak.index}점</strong> · 가장 안전 ${safe.label} ${safe.index}점`;
+  }
+  if (note) {
+    note.textContent = live
+      ? `${district}의 실시간 날씨로 계산한 24시간 예보입니다. (게이지와 동일 모델)`
+      : `실시간 날씨를 불러오지 못해, ${district}의 이번 달 평년값에 시간대 변화만 반영한 예상값입니다.`;
+  }
+
+  const labels = series.map((p) => p.label);
+  const values = series.map((p) => p.index);
+  const colors = series.map((p) => p.color);
+  if (gimhaeForecastChart) gimhaeForecastChart.destroy();
+  gimhaeForecastChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: '모기지수', data: values,
+        borderColor: '#0f6b57', borderWidth: 2, fill: true,
+        backgroundColor: 'rgba(15, 107, 87, 0.12)', tension: 0.35,
+        pointRadius: 3, pointHoverRadius: 6,
+        pointBackgroundColor: colors, pointBorderColor: '#ffffff', pointBorderWidth: 1.5,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { min: 0, max: 100, ticks: { stepSize: 20, color: '#56706b' },
+          grid: { color: 'rgba(22, 48, 45, 0.08)' },
+          title: { display: true, text: '모기지수(점)', color: '#56706b' } },
+        x: { ticks: { color: '#56706b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+          grid: { display: false } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
 // 0~1 적합도 점수를 퍼센트 막대로 그리는 작은 도우미
 function scoreBar(score) {
   const pct = Math.round(score * 100);
@@ -571,6 +706,7 @@ function renderDistrict(district) {
   renderAdvice(result);
   renderPlaceChips(district);
   renderDistrictRanking(district);
+  renderGimhaeForecast(district).catch((error) => console.warn('예보 차트 실패', error));
 }
 
 // 구역 선택 드롭다운을 채운다.
