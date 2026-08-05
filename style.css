@@ -1670,6 +1670,16 @@ select {
   color: var(--muted);
 }
 
+/* 모델 검증 카드 — 신뢰 근거(초록 강조) */
+.verify-card {
+  border-color: var(--accent);
+  background: rgba(15, 107, 87, 0.05);
+}
+
+.verify-card h3 {
+  color: var(--accent);
+}
+
 /* ===== (김해) 이 구역 핵심 진단 — 발생원 원인 → 방역 조치 ===== */
 .diagnosis-card {
   border-left: 5px solid var(--accent);
