@@ -199,6 +199,64 @@ function buildModelOptions(district) {
   return options;
 }
 
+// === 발생원 지도 (김해 17개 구역) ===
+let gimhaeMap = null;
+let gimhaeMarkers = {};
+
+// 발생원 위험(0~100)에 따른 원 색상. 높을수록 진한 빨강.
+function sourceRiskColor(score) {
+  if (score >= 75) return '#b91c1c';
+  if (score >= 50) return '#ef4444';
+  if (score >= 30) return '#f59e0b';
+  if (score >= 15) return '#facc15';
+  return '#86efac';
+}
+
+// 지도를 처음 한 번 만든다(타일 + 김해 영역으로 맞춤).
+function initGimhaeMap() {
+  if (!window.L || gimhaeMap) return;
+  const coords = GimhaeMosquitoModel.COORDS;
+  gimhaeMap = L.map('gimhaeMap', { scrollWheelZoom: false }).setView([35.23, 128.87], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap 기여자',
+  }).addTo(gimhaeMap);
+  const lats = [];
+  const lngs = [];
+  Object.values(coords).forEach(([la, lo]) => { lats.push(la); lngs.push(lo); });
+  gimhaeMap.fitBounds([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]], { padding: [28, 28] });
+}
+
+// 17개 구역의 발생원 위험을 원형 마커로 그린다. 선택 구역은 강조하고, 누르면 이동한다.
+function renderGimhaeMap(activeDistrict) {
+  if (!gimhaeMap) return;
+  Object.values(gimhaeMarkers).forEach((m) => m.remove());
+  gimhaeMarkers = {};
+  Object.entries(GimhaeMosquitoModel.COORDS).forEach(([district, point]) => {
+    const r = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions(district));
+    const score = r.source_risk.score;
+    const today = Math.round(r.mosquito_index);
+    const isActive = district === activeDistrict;
+    const marker = L.circleMarker(point, {
+      radius: 9 + (score / 100) * 20,
+      color: isActive ? '#0f6b57' : '#ffffff',
+      weight: isActive ? 4 : 1.5,
+      fillColor: sourceRiskColor(score),
+      fillOpacity: isActive ? 0.85 : 0.6,
+    }).addTo(gimhaeMap).bindPopup(
+      `<strong>${district}</strong><br>발생원 위험 ${score}점 (시내 ${r.ranking.rank}/${r.ranking.total_districts}위)`
+      + `<br>오늘 모기지수 ${today}점 · ${r.grade}`,
+    );
+    marker.on('click', () => {
+      districtSelect.value = district;
+      renderDistrict(district);
+      document.getElementById('top').scrollIntoView({ behavior: 'smooth' });
+    });
+    gimhaeMarkers[district] = marker;
+  });
+  gimhaeMap.invalidateSize();
+}
+
 // 0~1 적합도 점수를 퍼센트 막대로 그리는 작은 도우미
 function scoreBar(score) {
   const pct = Math.round(score * 100);
@@ -265,14 +323,20 @@ function renderDiagnosis(result) {
   const larva = sr.larva;
   const ranking = result.ranking;
 
-  // 주원인: 위험 기여도 상위 발생원 2개 + 유충 검출률
-  const topSources = sr.top_sources.slice(0, 2)
-    .map((s) => `${s.source} ${s.count.toLocaleString('ko-KR')}곳`)
+  // 주원인: 실제 시설 '개수'가 많은 발생원 상위 3개 + 유충 검출률
+  // (보건소가 강조하는 정화조 등 '많은 시설'이 드러나도록 절대 개수 기준으로 보여준다)
+  const rawSources = (GimhaeMosquitoModel.DISTRICTS[result.district] || {}).sources || {};
+  const SRC_KOR = GimhaeMosquitoModel.SRC_KOR;
+  const topByCount = Object.entries(rawSources)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([key, count]) => `${SRC_KOR[key]} ${count.toLocaleString('ko-KR')}곳`)
     .join(' · ');
   const larvaLine = larva.surveyed > 0
     ? `유충 검출률 <strong>${Math.round(larva.detection_rate * 100)}%</strong>(${larva.surveyed}건 조사)`
     : '유충 조사 미실시 — 발생원 시설 기반 추정';
-  const cause = topSources ? `${topSources} · ${larvaLine}` : '등록된 발생원이 없습니다.';
+  const cause = topByCount ? `${topByCount} · ${larvaLine}` : '등록된 발생원이 없습니다.';
 
   // 권장 방역 조치: 모델의 방제당국 행동요령 중 핵심 한 줄
   const action = (result.advice.authority && result.advice.authority[0])
@@ -375,13 +439,9 @@ function renderRankSummary(result) {
 
 // 시민·방제당국 행동요령과 부가 정보를 그린다.
 function renderAdvice(result) {
-  // 모델 행동요령 + 조심할 장소 유형 + 물렸을 때 대처(보건소 요청 반영).
-  // ※ 하천·공원별 실제 데이터가 없어 '장소 유형' 일반 안내로 제공한다.
-  const placeAndCare = [
-    '공원·물가·하천변, 정화조·하수구 주변 등 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요.',
-    '물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·통증이 심하면 진료를 받으세요.',
-  ];
-  const citizen = result.advice.citizen.concat(placeAndCare);
+  // 모델 행동요령 + 물렸을 때 대처(보건소 요청 반영). '조심할 장소 유형'은 아래 칩으로 표시.
+  const biteCare = ['물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·통증이 심하면 진료를 받으세요.'];
+  const citizen = result.advice.citizen.concat(biteCare);
   citizenAdvice.innerHTML = citizen.map((text) => `<li>${text}</li>`).join('');
   authorityAdvice.innerHTML = result.advice.authority.map((text) => `<li>${text}</li>`).join('');
   extraInfoText.textContent = `모기 활동 시간대: ${result.active_hours} · 추천 기피제: ${result.recommended_repellent}`;
@@ -438,6 +498,7 @@ function renderDistrict(district) {
 
   renderGauge(result);
   renderDiagnosis(result);
+  renderGimhaeMap(district);
   renderWeatherComponents(result);
   renderSources(result);
   renderRankSummary(result);
@@ -459,6 +520,7 @@ async function init() {
   }
 
   populateDistricts();
+  initGimhaeMap();   // 발생원 지도 생성(마커는 구역 렌더 시 채움)
 
   districtSelect.addEventListener('change', () => {
     renderDistrict(districtSelect.value);

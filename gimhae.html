@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>모기제로 | 김해시 모기 위험 모델</title>
   <meta name="description" content="김해시 행정 데이터(발생원 시설·방역민원)와 실시간 날씨를 결합해 읍·면·동별 모기 발생 위험도와 방제 우선순위를 보여주는 모델입니다.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="page-shell" id="top">
+  <div class="page-shell page-wide" id="top">
     <header class="topbar">
       <div class="topbar-main">
         <div class="brand-block">
@@ -32,9 +33,9 @@
       </nav>
     </header>
 
-    <main class="content-grid">
+    <main class="content-grid dashboard">
       <!-- 모델 소개 + 실시간 날씨 입력 상태 -->
-      <section class="hero-card" aria-labelledby="gimhaeTitle">
+      <section class="hero-card span-2" aria-labelledby="gimhaeTitle">
         <div class="hero-copy">
           <p class="section-label">김해시 모기 발생 위험도 모델</p>
           <h2 id="gimhaeTitle">행정 데이터 + 실시간 날씨로 보는 구역별 모기 위험</h2>
@@ -65,7 +66,7 @@
       </section>
 
       <!-- 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (지자체용 핵심) -->
-      <section class="panel-card diagnosis-card" aria-labelledby="diagnosisTitle">
+      <section class="panel-card diagnosis-card span-2" aria-labelledby="diagnosisTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">이 구역 핵심 진단</p>
@@ -74,6 +75,26 @@
           <p class="helper-text">발생원·유충 데이터로 본 이 구역의 원인과 방역 우선 조치입니다.</p>
         </div>
         <div id="diagnosisBody" class="diagnosis-body"></div>
+      </section>
+
+      <!-- 김해 17개 구역 발생원 지도 -->
+      <section class="panel-card map-card span-2" aria-labelledby="gimhaeMapTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">발생원 지도</p>
+            <h3 id="gimhaeMapTitle">김해 17개 구역 발생원 위험</h3>
+          </div>
+          <p class="helper-text">원이 크고 진할수록 발생원 위험이 높습니다. 원을 누르면 해당 구역으로 이동합니다.</p>
+        </div>
+        <div id="gimhaeMap" class="map-area" aria-label="김해 구역별 발생원 위험 지도"></div>
+        <div class="legend heatmap-legend" aria-label="발생원 위험 범례">
+          <span class="legend-title">발생원 위험</span>
+          <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
+          <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
+          <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
+          <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
+          <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
+        </div>
       </section>
 
       <!-- 기상 분석: 기온·습도·강수 적합도 분해 -->
@@ -110,7 +131,7 @@
       </section>
 
       <!-- 지역 순위 + 민원 요약 -->
-      <section class="panel-card" aria-labelledby="rankTitle">
+      <section class="panel-card span-2" aria-labelledby="rankTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">시내 위치</p>
@@ -121,7 +142,7 @@
       </section>
 
       <!-- 행동요령: 시민 / 방제당국 -->
-      <section class="panel-card" aria-labelledby="adviceTitle">
+      <section class="panel-card span-2" aria-labelledby="adviceTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">행동요령</p>
@@ -139,6 +160,14 @@
             <ul id="authorityAdvice" class="detail-list"></ul>
           </article>
         </div>
+        <div class="place-note" aria-label="조심할 장소 유형">
+          <span class="place-note-label">조심할 장소 유형</span>
+          <span class="place-chip">공원·물놀이터</span>
+          <span class="place-chip">물가·하천변</span>
+          <span class="place-chip">정화조·하수구 주변</span>
+          <span class="place-chip">축사·저수지 주변</span>
+        </div>
+        <p class="place-caution">※ 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요. 김해시 공원·하천 위치 데이터가 확보되면 지도에 개별 표시할 예정입니다.</p>
       </section>
 
       <!-- 김해시 17개 구역 오늘의 모기지수 순위 -->
@@ -191,6 +220,7 @@
     </footer>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="mosquito-model.js"></script>
   <script src="nav.js"></script>
   <script src="gimhae.js"></script>
