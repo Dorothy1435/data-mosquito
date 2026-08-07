@@ -6,3 +6,6 @@ config.js
 .vercel
 __pycache__/
 *.pyc
+
+# 논문/문서 PDF는 저장소에 올리지 않음
+*.pdf
