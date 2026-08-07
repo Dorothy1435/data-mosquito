@@ -1601,7 +1601,8 @@ function renderMap(regions) {
   }
 
   if (!map) {
-    map = L.map('map', { scrollWheelZoom: true }).setView([36.5, 127.8], 7);
+    // 김해 중심으로 시작한다(전국 뷰 대신). 필요하면 축소해 다른 지역도 볼 수 있다.
+    map = L.map('map', { scrollWheelZoom: true }).setView([35.2285, 128.8894], 11);
     window.mosquitoMap = map;
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1880,16 +1881,23 @@ async function init() {
   setupEvents();
   renderMap(regionData);
 
-  // 초기 위치: 현재 위치(GPS)를 먼저 시도하고, 실패·거부·한국 밖이면 서울로 표시한다.
+  // 초기 위치: 현재 위치(GPS)를 먼저 시도하고, 실패·거부·한국 밖이면 김해로 표시한다.
   await showInitialLocation();
+
+  // 김해 중심 서비스 — 기본 위치가 김해면 발생원 히트맵을 자동으로 켜서 발생원을 바로 보여준다.
+  if (currentRegion && currentRegion.name === '김해') {
+    toggleGimhaeHeatmap().catch((error) => console.warn('발생원 히트맵 자동 표시 실패', error));
+  }
 }
 
 // 페이지 진입 시 현재 위치를 자동으로 잡는다.
 // - 성공(대한민국 안): 내 주변 지역으로 표시
 // - 실패/거부/시간초과/한국 밖: 서울(기본 지역)로 표시
 async function showInitialLocation() {
-  // 폴백 기본 지역은 '서울'. 데이터에 없으면 목록 첫 번째를 쓴다.
-  const fallbackRegion = regionData.find((region) => region.name === '서울') || regionData[0];
+  // 김해 중심 서비스이므로 기본 지역은 '김해'. 데이터에 없으면 서울, 그다음 목록 첫 번째.
+  const fallbackRegion = regionData.find((region) => region.name === '김해')
+    || regionData.find((region) => region.name === '서울')
+    || regionData[0];
 
   // 위치 기능이 없으면 바로 서울로.
   if (!navigator.geolocation) {
@@ -1911,11 +1919,11 @@ async function showInitialLocation() {
 
     const { latitude, longitude, accuracy } = position.coords;
 
-    // 현재 위치가 대한민국 밖이면 서울로 대체한다.
+    // 현재 위치가 대한민국 밖이면 기본 지역(김해)으로 대체한다.
     if (!isInKorea(latitude, longitude)) {
       regionSelect.value = fallbackRegion.name;
       await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
-      statusText.textContent = '현재 위치가 대한민국 밖이라 기본 지역(서울)으로 표시합니다.';
+      statusText.textContent = `현재 위치가 대한민국 밖이라 기본 지역(${fallbackRegion.name})으로 표시합니다.`;
       return;
     }
 
@@ -1931,11 +1939,11 @@ async function showInitialLocation() {
     });
     maybeWarnLowAccuracy(accuracy);   // PC 등 오차가 크면 안내
   } catch (error) {
-    // 권한 거부·시간초과·기타 오류 → 서울(기본 지역)으로 표시
-    console.warn('현재 위치를 가져오지 못해 기본 지역(서울)으로 표시합니다.', error);
+    // 권한 거부·시간초과·기타 오류 → 기본 지역(김해)으로 표시
+    console.warn('현재 위치를 가져오지 못해 기본 지역으로 표시합니다.', error);
     regionSelect.value = fallbackRegion.name;
     await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
-    statusText.textContent = '현재 위치를 사용할 수 없어 기본 지역(서울)으로 표시합니다. 상단 “현재 위치” 버튼으로 다시 시도할 수 있습니다.';
+    statusText.textContent = `현재 위치를 사용할 수 없어 기본 지역(${fallbackRegion.name})으로 표시합니다. 상단 “현재 위치” 버튼으로 다시 시도할 수 있습니다.`;
   }
 }
 

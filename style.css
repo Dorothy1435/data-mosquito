@@ -1783,6 +1783,81 @@ select {
   color: var(--muted);
 }
 
+/* ===== 국내 감염병 매개모기(종별) — 논문 기반 ===== */
+.vector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.vector-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--panel-strong);
+}
+
+.vector-name {
+  margin: 0 0 8px;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.vector-latin {
+  font-weight: 500;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.vector-disease {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.disease-je { background: rgba(217, 76, 69, 0.15); color: #c0392f; }
+.disease-wn { background: rgba(215, 162, 26, 0.18); color: #a9790a; }
+.disease-dengue { background: rgba(230, 130, 45, 0.16); color: #c96a1e; }
+.disease-malaria { background: rgba(47, 158, 100, 0.15); color: #237a4b; }
+
+.vector-source {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.vector-note {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 107, 87, 0.06);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.vector-note strong { color: var(--accent); }
+
+.vector-cite {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .vector-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== 소개·정보 페이지 시각화 (아이콘·체크리스트·플로우) ===== */
 /* 카드 제목 아이콘 */
 .card-icon {
