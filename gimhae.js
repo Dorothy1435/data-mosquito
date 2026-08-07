@@ -747,12 +747,53 @@ function buildAuthorityAdvice(result) {
   return out;
 }
 
+// 발생원 유형 → 시민이 알아둘 '조심 포인트'(매개종·감염병 포함).
+const SOURCE_CITIZEN = {
+  septic_sewage: '이 구역은 정화조·하수구가 많습니다. 하수구·정화조 환기구 주변(빨간집모기 서식)을 특히 조심하세요.',
+  public_toilet: '공중화장실 정화조 주변에 모기가 모일 수 있으니 야간 이용 시 주의하세요.',
+  livestock_farm: '축산농가 주변은 일본뇌염을 옮기는 작은빨간집모기가 많을 수 있습니다. 축사 근처 저녁 활동을 피하고, 일본뇌염 예방접종 대상(어린이 등)은 접종하세요.',
+  reservoir: '저수지·물웅덩이 주변(말라리아 매개 얼룩날개모기 서식)에서는 해질녘 활동을 줄이세요.',
+  tire_shop: '폐타이어·인공용기의 고인물(뎅기·지카 매개 흰줄숲모기 서식)을 조심하고, 집 주변 빈 용기는 뒤집어 두세요.',
+  waste_recycle: '폐기물 야적지의 고인물 주변을 조심하세요.',
+  waste_treat: '폐기물 처리장 주변 정체수 구역을 피하세요.',
+  water_feature: '분수·바닥분수 등 수경시설 정체수 주변을 조심하세요.',
+};
+
+// 시민 행동요령을 구역 발생원·위험등급 기반으로 '항상 알차게' 생성한다.
+function buildCitizenAdvice(result) {
+  const lv = result.level;
+  const rawSources = (GimhaeMosquitoModel.DISTRICTS[result.district] || {}).sources || {};
+  const topKey = Object.entries(rawSources)
+    .filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1])[0];
+  const out = [];
+
+  // 1) 시간대·복장·기피제 (등급별)
+  if (lv >= 3) {
+    out.push('해질녘(19~22시)·새벽(04~06시)엔 야외활동을 줄이고, 긴팔·긴바지에 DEET(10~20%)·이카리딘 기피제를 사용하세요.');
+  } else if (lv === 2) {
+    out.push('야간 외출 시 노출 부위에 기피제(이카리딘·시트로넬라 등)를 바르고, 밝은 색 옷을 입으세요.');
+  } else {
+    out.push('현재 위험은 낮지만, 해질녘·새벽에 물가·풀숲을 지날 때는 가벼운 기피제를 권장합니다.');
+  }
+
+  // 2) 이 구역 발생원 기반 조심 포인트(+매개종·감염병)
+  if (topKey && SOURCE_CITIZEN[topKey[0]]) {
+    out.push(SOURCE_CITIZEN[topKey[0]]);
+  }
+
+  // 3) 집 주변 예방(발생원 제거) — 항상 유효
+  out.push('집 주변 화분받침·빈 용기·막힌 배수구의 고인물을 주 1회 비우면 모기 번식을 크게 줄일 수 있습니다.');
+
+  // 4) 물림 대처
+  out.push('물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·발열이 심하면 진료를 받으세요.');
+
+  return out;
+}
+
 // 시민·방제당국 행동요령과 부가 정보를 그린다.
 function renderAdvice(result) {
-  // 모델 행동요령 + 물렸을 때 대처(보건소 요청 반영). '조심할 장소 유형'은 아래 칩으로 표시.
-  const biteCare = ['물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·통증이 심하면 진료를 받으세요.'];
-  const citizen = result.advice.citizen.concat(biteCare);
-  citizenAdvice.innerHTML = citizen.map((text) => `<li>${text}</li>`).join('');
+  // 시민 행동요령: 구역 발생원·매개종 기반으로 항상 알차게 생성(등급만 보던 빈약함 해소).
+  citizenAdvice.innerHTML = buildCitizenAdvice(result).map((text) => `<li>${text}</li>`).join('');
   // 방제당국 행동요령: 일반론 대신 구역 발생원·매개종 기반 전문 지침으로 대체.
   authorityAdvice.innerHTML = buildAuthorityAdvice(result).map((text) => `<li>${text}</li>`).join('');
   extraInfoText.textContent = `모기 활동 시간대: ${result.active_hours} · 추천 기피제: ${result.recommended_repellent}`;
