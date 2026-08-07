@@ -699,13 +699,62 @@ function renderPlaceChips(district) {
   el.innerHTML = chips.map((c) => `<span class="place-chip">${c}</span>`).join('');
 }
 
+// 발생원 유형 → (서식 매개모기·감염병) + 구체적 방제 지침. 논문(이동규, 2017) 기반.
+const SOURCE_CONTROL = {
+  septic_sewage: { sp: '빨간집모기(웨스트나일 매개)', act: '정화조·오수받이 유충 서식면에 IGR(곤충성장조절제)·라바사이드 정기 투입, 환기구 방충망·봉인 상태 점검' },
+  public_toilet: { sp: '빨간집모기', act: '공중화장실 정화조 유충구제, 주변 집수정·배수구 정체수 제거' },
+  livestock_farm: { sp: '작은빨간집모기(일본뇌염)·얼룩날개모기(말라리아) 매개', act: '축사 주변 물웅덩이·분뇨처리조·수로 정비, 성충 대상 잔류분무·공간분무 병행' },
+  reservoir: { sp: '얼룩날개모기(말라리아 매개)', act: '저수지 가장자리 정체수·수초대에 라바사이드, 수위 관리로 산란처 축소' },
+  tire_shop: { sp: '흰줄숲모기(뎅기·지카 매개)', act: '폐타이어 실내 보관·구멍 내기로 물 고임 차단, 소량 정체수 라바사이드 처리' },
+  waste_recycle: { sp: '흰줄숲모기 등', act: '야적 용기·폐기물의 고인물 제거(발생원 정비) 및 소량수 유충구제' },
+  waste_treat: { sp: '', act: '처리장 집수조·정체수 관리, 주변 발생원 정비' },
+  water_feature: { sp: '빨간집모기·흰줄숲모기', act: '분수·바닥분수 순환 가동·주기적 배수, 정체수 발생 구간 제거' },
+};
+
+// 그 구역의 발생원·유충·순위를 바탕으로 '전문 방제 지침'을 생성한다(일반론 대신 구역 맞춤).
+function buildAuthorityAdvice(result) {
+  const rank = result.ranking;
+  const larva = result.source_risk.larva;
+  const rawSources = (GimhaeMosquitoModel.DISTRICTS[result.district] || {}).sources || {};
+  const SRC_KOR = GimhaeMosquitoModel.SRC_KOR;
+  const topSrc = Object.entries(rawSources)
+    .filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const out = [];
+
+  // 1) 우선순위·검출률 기반 판단
+  if (rank.rank <= Math.max(3, Math.floor(rank.total_districts / 5))) {
+    out.push(`방제 우선순위 상위(${rank.rank}/${rank.total_districts}위) 구역 — 발생원 유충구제를 선제 시행하고 취약지 방역 주기를 단축하세요.`);
+  }
+  if (larva.surveyed > 0 && larva.detection_rate >= 0.4) {
+    out.push(`유충 검출률 ${Math.round(larva.detection_rate * 100)}%로 높음 — 성충 방제보다 발생원 유충구제(라바사이드·IGR)를 우선하는 것이 효율적입니다.`);
+  }
+
+  // 2) 발생원별 매개종·전문 방제 (구역 실제 발생원에 맞춤)
+  topSrc.forEach(([key, count]) => {
+    const c = SOURCE_CONTROL[key];
+    if (!c) return;
+    const sp = c.sp ? ` — ${c.sp} 서식 가능` : '';
+    out.push(`${SRC_KOR[key]} ${count.toLocaleString('ko-KR')}곳${sp}: ${c.act}.`);
+  });
+
+  // 3) 방제 원칙(IPM) + 모니터링
+  out.push('방제 순서: ① 발생원 제거(고인물 정비) → ② 유충구제(라바사이드·IGR) → ③ 성충방제(공간·잔류분무). 유문등·CO₂ 유인 포집기로 개체 밀도를 모니터링해 방제 효과를 확인하세요.');
+
+  // 4) 결측 구역
+  if (result.confidence.reasons.data_gap) {
+    out.push('현장 유충조사·민원 자료가 없는 구역 — 우선 현장 유충조사로 발생원·검출률을 확보한 뒤 방제 강도를 조정하세요.');
+  }
+  return out;
+}
+
 // 시민·방제당국 행동요령과 부가 정보를 그린다.
 function renderAdvice(result) {
   // 모델 행동요령 + 물렸을 때 대처(보건소 요청 반영). '조심할 장소 유형'은 아래 칩으로 표시.
   const biteCare = ['물렸을 때는 긁지 말고 항히스타민·스테로이드 연고를 바르고, 붓기·통증이 심하면 진료를 받으세요.'];
   const citizen = result.advice.citizen.concat(biteCare);
   citizenAdvice.innerHTML = citizen.map((text) => `<li>${text}</li>`).join('');
-  authorityAdvice.innerHTML = result.advice.authority.map((text) => `<li>${text}</li>`).join('');
+  // 방제당국 행동요령: 일반론 대신 구역 발생원·매개종 기반 전문 지침으로 대체.
+  authorityAdvice.innerHTML = buildAuthorityAdvice(result).map((text) => `<li>${text}</li>`).join('');
   extraInfoText.textContent = `모기 활동 시간대: ${result.active_hours} · 추천 기피제: ${result.recommended_repellent}`;
 }
 

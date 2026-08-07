@@ -1845,6 +1845,18 @@ select {
 
 .vector-note strong { color: var(--accent); }
 
+.vector-ratio-note {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(22, 48, 45, 0.05);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.vector-ratio-note strong { color: var(--accent); }
+
 .vector-cite {
   margin: 10px 0 0;
   font-size: 0.85rem;
