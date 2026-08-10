@@ -1,19 +1,17 @@
 // 모기제로 AI 도우미 — Vercel 서버리스 함수
-// 역할: 브라우저가 보낸 질문을, '사이트 안의 사실'에만 근거해 Gemini로 답하게 한다.
-// - API 키(GEMINI_API_KEY)는 이 서버에서만 읽으므로 브라우저에 노출되지 않는다.
-// - 사이트로 답할 수 없는 질문(치즈케이크 레시피 등)은 정중히 거절한다.
-// - 숫자(구역 점수 등)는 LLM이 만들지 않고, 브라우저가 '모델로 계산해 보낸 값'만 쓴다.
+// 역할: 브라우저가 보낸 질문을, '사이트 안의 사실'에만 근거해 답한다.
+// 제공자(아무거나 1개 키만 설정하면 됨, 우선순위: OpenAI > Groq > Gemini):
+//   - OPENAI_API_KEY (유료·저렴, gpt-4o-mini 등)
+//   - GROQ_API_KEY   (무료·빠름, Llama 등)
+//   - GEMINI_API_KEY (무료, 단 신규 계정은 모델 제한이 있을 수 있음)
+// 키는 이 서버에서만 읽으므로 브라우저에 노출되지 않는다.
+// 숫자(구역 점수 등)는 LLM이 만들지 않고, 브라우저가 계산해 보낸 값만 쓴다(환각 방지).
+// 사이트로 답할 수 없는 질문(치즈케이크 등)은 정중히 거절한다.
 
-// 무료 티어 모델 후보. 앞에서부터 시도하고, 실패(404/429 등)하면 다음 것으로 자동 대체.
-// 모델마다 무료 한도(quota)가 따로라, 한 모델이 429여도 다른 모델은 될 수 있다.
-// 경량(-lite) 모델을 앞에 둬서 무료 한도를 아낀다.
-const GEMINI_MODELS = [
-  'gemini-2.0-flash-lite',
-  'gemini-2.5-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.5-flash',
-];
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+// Gemini는 계정마다 되는 모델이 달라, 여러 개를 순차 시도한다.
+const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
 // === 사이트가 답할 수 있는 '고정 지식' (사람이 검수한 사실만) ===
 const KNOWLEDGE = `
@@ -67,11 +65,14 @@ function buildSystemPrompt(districtsText, today) {
 [반드시 지킬 규칙]
 1) 아래 <사이트 지식>과 <오늘 데이터>에 있는 내용으로만 답하세요.
 2) 거기에 없는 통계·수치·사실을 절대 지어내지 마세요(환각 금지). 특히 감염자 수·구역 점수 같은 숫자는 <오늘 데이터>에 있는 값만 쓰고, 없으면 "화면에서 확인해 주세요"라고 하세요.
-3) 모기·모기지수·발생원·김해 구역·예방/방제·매개모기 감염병과 무관한 질문(예: 요리 레시피, 주식, 일반 잡담)에는 답하지 말고 정확히 이렇게만 답하세요:
+3) 모기·모기지수·발생원·김해 구역·예방/방제·매개모기 감염병과 무관한 질문(예: 요리 레시피, 주식, 일반 잡담)에는 답하지 말고 answer에 정확히 이렇게만 쓰세요:
    "죄송해요, 저는 김해 모기 위험 정보만 안내할 수 있어요 🦟 모기지수·발생원·예방법 같은 걸 물어봐 주세요."
 4) 짧고 쉽게(2~4문장), 한국어로, 초보자도 이해되게 답하세요.
 5) 답이 참고용임을 필요할 때 덧붙이세요. 의학적 진단은 하지 마세요.
-6) 답변(answer)과 함께, 사용자가 이어서 궁금해할 만한 후속 질문 3개(followups)를 제안하세요. 짧은 질문 형태(각 20자 이내), 반드시 이 사이트가 답할 수 있는 주제(모기지수·발생원·구역·예방/방제·매개모기)로만. 거절하는 경우에도 답할 수 있는 예시 질문 3개를 제안하세요.
+6) followups: 사용자가 이어서 궁금해할 후속 질문 3개(각 20자 이내, 반드시 이 사이트가 답할 수 있는 주제). 거절하는 경우에도 답할 수 있는 예시 질문 3개를 넣으세요.
+
+[출력 형식] 반드시 아래 JSON 하나만 출력하세요. 다른 텍스트 금지.
+{"answer": "여기에 답변", "followups": ["질문1", "질문2", "질문3"]}
 
 오늘 날짜: ${today || '알 수 없음'}
 
@@ -83,7 +84,6 @@ ${districtsText || '(구역 데이터 없음)'}
 `;
 }
 
-// 브라우저가 보낸 구역 스냅샷을 프롬프트용 텍스트로 변환한다.
 function districtsToText(districts) {
   if (!Array.isArray(districts) || !districts.length) return '';
   return districts
@@ -95,98 +95,121 @@ function districtsToText(districts) {
     .join('\n');
 }
 
-module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'POST만 허용됩니다.' });
-    return;
+// LLM 원문(JSON 문자열 기대)을 {answer, followups}로 안전하게 파싱.
+function parseAnswer(raw) {
+  let answer = (raw || '').trim();
+  let followups = [];
+  try {
+    const p = JSON.parse(raw);
+    if (p && typeof p === 'object') {
+      answer = String(p.answer || '').trim() || answer;
+      followups = Array.isArray(p.followups) ? p.followups.slice(0, 3).map(String) : [];
+    }
+  } catch (_) { /* JSON이 아니면 원문을 그대로 답으로 */ }
+  return { answer, followups };
+}
+
+// OpenAI 호환 API(OpenAI, Groq 공통). 실패 시 Error를 던진다.
+async function callOpenAICompatible(baseUrl, key, model, systemPrompt, question) {
+  const r = await fetch(baseUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      max_tokens: 800,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question },
+      ],
+    }),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    let m = t; try { m = JSON.parse(t)?.error?.message || t; } catch (_) {}
+    throw new Error(`${r.status}: ${m}`.slice(0, 300));
   }
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const data = await r.json();
+  const raw = data?.choices?.[0]?.message?.content || '';
+  return parseAnswer(raw);
+}
+
+// Gemini API. 여러 모델을 순차 시도하고 모두 실패하면 마지막 오류를 던진다.
+async function callGemini(key, systemPrompt, question) {
+  const payload = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ role: 'user', parts: [{ text: question }] }],
+    generationConfig: {
+      temperature: 0.2, maxOutputTokens: 800, topP: 0.9,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'object',
+        properties: { answer: { type: 'string' }, followups: { type: 'array', items: { type: 'string' } } },
+        required: ['answer', 'followups'],
+      },
+    },
+  };
+  let lastErr = '알 수 없는 오류';
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    let r;
+    try {
+      r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    } catch (netErr) { lastErr = `네트워크: ${netErr.message}`; continue; }
+    if (!r.ok) {
+      const t = await r.text();
+      let m = t; try { m = JSON.parse(t)?.error?.message || t; } catch (_) {}
+      lastErr = `[${model}] ${r.status}: ${m}`.slice(0, 300);
+      if ([400, 404, 429, 500, 503].includes(r.status)) continue; // 다른 모델로 우회
+      break; // 401/403 등은 중단
+    }
+    const data = await r.json();
+    const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('').trim() || '';
+    return parseAnswer(raw);
+  }
+  throw new Error(lastErr);
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'POST만 허용됩니다.' }); return; }
+
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!openaiKey && !groqKey && !geminiKey) {
     res.status(200).json({
-      answer: '⚙️ AI 도우미가 아직 설정되지 않았어요. (관리자: Vercel 환경변수 GEMINI_API_KEY 설정 필요)',
+      answer: '⚙️ AI 도우미가 아직 설정되지 않았어요. (관리자: Vercel 환경변수 OPENAI_API_KEY 또는 GROQ_API_KEY 또는 GEMINI_API_KEY 중 하나 설정 필요)',
       configured: false,
     });
     return;
   }
 
+  let debug = false;
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const question = String(body.question || '').slice(0, 500).trim();
-    if (!question) {
-      res.status(400).json({ error: '질문이 비어 있습니다.' });
-      return;
-    }
-    const districtsText = districtsToText(body.districts);
-    const systemPrompt = buildSystemPrompt(districtsText, body.today);
-    const debug = String(body.debug || '') === '1';
+    if (!question) { res.status(400).json({ error: '질문이 비어 있습니다.' }); return; }
+    debug = String(body.debug || '') === '1';
+    const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today);
 
-    const payload = {
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: question }] }],
-      generationConfig: {
-        temperature: 0.2, maxOutputTokens: 800, topP: 0.9,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'object',
-          properties: {
-            answer: { type: 'string' },
-            followups: { type: 'array', items: { type: 'string' } },
-          },
-          required: ['answer', 'followups'],
-        },
-      },
-    };
+    let result;
+    let provider;
+    if (openaiKey) { provider = 'openai'; result = await callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question); }
+    else if (groqKey) { provider = 'groq'; result = await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question); }
+    else { provider = 'gemini'; result = await callGemini(geminiKey, systemPrompt, question); }
 
-    let lastErr = '';
-    for (const model of GEMINI_MODELS) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      let r;
-      try {
-        r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } catch (netErr) {
-        lastErr = `네트워크 오류: ${netErr.message}`;
-        continue;
-      }
-      if (!r.ok) {
-        const detail = await r.text();
-        let msg = detail;
-        try { msg = JSON.parse(detail)?.error?.message || detail; } catch (_) {}
-        lastErr = `[${model}] ${r.status}: ${msg}`.slice(0, 300);
-        console.error('Gemini 오류', lastErr);
-        // 400/404(형식·모델없음)·429(한도)·500/503(일시)면 다른 모델로 우회.
-        // 401/403(키·권한)은 모델을 바꿔도 같으므로 중단.
-        if ([400, 404, 429, 500, 503].includes(r.status)) continue;
-        break;
-      }
-      const data = await r.json();
-      const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('').trim() || '';
-      let answer = raw;
-      let followups = [];
-      try {
-        const parsed = JSON.parse(raw);
-        answer = (parsed.answer || '').trim() || raw;
-        followups = Array.isArray(parsed.followups) ? parsed.followups.slice(0, 3) : [];
-      } catch (_) { /* JSON 아니면 원문을 그대로 답으로 */ }
-      res.status(200).json({
-        answer: answer || '죄송해요, 답변을 만들지 못했어요. 다시 물어봐 주세요.',
-        followups, ok: true,
-      });
-      return;
-    }
-
-    // 모든 모델 실패
     res.status(200).json({
-      answer: debug
-        ? `⚠️ 답변 실패\n${lastErr}`
-        : '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
-      ok: false, error: lastErr,
+      answer: result.answer || '죄송해요, 답변을 만들지 못했어요. 다시 물어봐 주세요.',
+      followups: result.followups || [],
+      provider, ok: true,
     });
   } catch (e) {
-    console.error('ask 함수 예외', e);
-    res.status(200).json({ answer: '⚠️ 오류가 발생했어요. 잠시 후 다시 시도해 주세요.', ok: false, error: String(e && e.message) });
+    const msg = String(e && e.message || e);
+    console.error('ask 오류', msg);
+    res.status(200).json({
+      answer: debug ? `⚠️ 답변 실패\n${msg}` : '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
+      ok: false, error: msg,
+    });
   }
 };
