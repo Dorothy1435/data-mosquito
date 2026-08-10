@@ -193,16 +193,32 @@ module.exports = async function handler(req, res) {
     debug = String(body.debug || '') === '1';
     const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today);
 
-    let result;
-    let provider;
-    if (openaiKey) { provider = 'openai'; result = await callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question); }
-    else if (groqKey) { provider = 'groq'; result = await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question); }
-    else { provider = 'gemini'; result = await callGemini(geminiKey, systemPrompt, question); }
+    // 이중화 체인: 무료(Groq)를 먼저 쓰고, 한도 초과 등 실패 시 OpenAI→Gemini로 자동 폴백.
+    // → 평소엔 공짜, 폭주(429) 때만 유료 OpenAI가 받아준다. 설정된 키만 후보에 오른다.
+    const chain = [];
+    if (groqKey) chain.push({ name: 'groq', fn: () => callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question) });
+    if (openaiKey) chain.push({ name: 'openai', fn: () => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question) });
+    if (geminiKey) chain.push({ name: 'gemini', fn: () => callGemini(geminiKey, systemPrompt, question) });
 
+    let lastErr = '설정된 제공자가 없습니다.';
+    for (const p of chain) {
+      try {
+        const result = await p.fn();
+        res.status(200).json({
+          answer: result.answer || '죄송해요, 답변을 만들지 못했어요. 다시 물어봐 주세요.',
+          followups: result.followups || [],
+          provider: p.name, ok: true,
+        });
+        return;
+      } catch (err) {
+        lastErr = `[${p.name}] ${err && err.message ? err.message : err}`;
+        console.error('제공자 실패, 다음으로 폴백', lastErr);
+      }
+    }
+    // 모든 제공자 실패
     res.status(200).json({
-      answer: result.answer || '죄송해요, 답변을 만들지 못했어요. 다시 물어봐 주세요.',
-      followups: result.followups || [],
-      provider, ok: true,
+      answer: debug ? `⚠️ 답변 실패\n${lastErr}` : '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',
+      ok: false, error: lastErr,
     });
   } catch (e) {
     const msg = String(e && e.message || e);
