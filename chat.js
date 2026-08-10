@@ -106,6 +106,20 @@
       return el;
     }
 
+    // 추천 질문 칩을 다시 채운다(초기 기본값, 답변 후 후속질문 등).
+    const suggest = root.querySelector('.mz-chat-suggest');
+    function setSuggest(list) {
+      suggest.innerHTML = '';
+      (list || []).forEach((q) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'mz-sug';
+        b.textContent = q;
+        b.addEventListener('click', () => ask(b.textContent));
+        suggest.appendChild(b);
+      });
+    }
+
     async function ask(question) {
       addMsg('user', question);
       const loading = addMsg('bot', '…');
@@ -118,11 +132,16 @@
             question,
             districts: buildDistrictSnapshot(),
             today: todayStr(),
+            debug: '1',
           }),
         });
         const data = await res.json();
         loading.classList.remove('mz-loading');
         loading.textContent = data.answer || '죄송해요, 답을 가져오지 못했어요.';
+        // 답변마다 후속 질문 추천을 갱신
+        if (Array.isArray(data.followups) && data.followups.length) {
+          setSuggest(data.followups);
+        }
       } catch (e) {
         loading.classList.remove('mz-loading');
         loading.textContent = '⚠️ 연결에 실패했어요. 잠시 후 다시 시도해 주세요.';
@@ -137,6 +156,7 @@
       input.value = '';
       ask(q);
     });
+    // 초기 추천 질문 버튼에 동작 연결
     root.querySelectorAll('.mz-sug').forEach((b) => {
       b.addEventListener('click', () => ask(b.textContent));
     });
