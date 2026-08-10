@@ -39,7 +39,7 @@
         <div class="hero-copy">
           <p class="section-label">김해시 모기 발생 위험도 모델</p>
           <h2 id="gimhaeTitle">행정 데이터 + 실시간 날씨로 보는 구역별 모기 위험</h2>
-          <p class="hero-description">발생원 시설(16종)·인구를 <strong>단위면적당 밀도</strong>로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. <strong>예측한 밀도위험은 실제 2025년 방역민원 밀도와 +0.951로 일치해 검증했습니다.</strong></p>
+          <p class="hero-description">발생원 시설(16종)·인구를 <strong>단위면적당 밀도</strong>로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. <strong>예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</strong></p>
           <div class="data-pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="data-pill">실시간 날씨</span>
             <span id="districtBadge" class="data-pill">구역 선택</span>
@@ -89,6 +89,7 @@
         <p id="sourceTotals" class="source-totals">-</p>
         <div class="map-toolbar">
           <button id="parksToggle" type="button" class="chip-toggle" aria-pressed="false">🏞️ 도시공원 245곳 표시</button>
+          <button id="larvaToggle" type="button" class="chip-toggle" aria-pressed="false">🔬 유충 실측 지점 표시</button>
         </div>
         <div id="gimhaeMap" class="map-area" aria-label="김해 구역별 발생원 위험 지도"></div>
         <div class="legend heatmap-legend" aria-label="발생원 위험 범례">
@@ -214,12 +215,26 @@
         </div>
         <div class="detail-stack">
           <article class="detail-card verify-card">
-            <h3>모델 검증 — 실제 민원과 얼마나 맞나</h3>
-            <p>면적을 확보해 ‘개수’를 ‘밀도’로 바꾼 뒤, 예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교했더니 순위 상관계수 <strong>+0.951</strong>로 강하게 일치했습니다. 이전 버전(개수 기반)은 오히려 <strong>−0.258</strong>로 방향이 반대였는데, 밀도로 바로잡은 것입니다. 민원 데이터는 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환이 없습니다.</p>
+            <h3>모델 검증 — 두 방향에서 실제와 대조</h3>
+            <p>예측을 서로 다른 <strong>독립된 실측</strong> 두 가지와 비교했고, 둘 다 강하게 일치했습니다. 두 실측 모두 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않습니다.</p>
+            <div class="verify-badges">
+              <span class="verify-badge"><b>공간</b> 밀도위험 ↔ 실제 방역민원 <strong>+0.951</strong></span>
+              <span class="verify-badge"><b>시간</b> 예측 활동 ↔ 실측 유충 <strong>+0.996</strong></span>
+            </div>
+
+            <p class="verify-sub"><b>① 공간 검증</b> — 어느 구역이 위험한가</p>
+            <p class="helper-text">예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교하니 순위 상관 <strong>+0.951</strong>. 개수 기반 이전 버전은 <strong>−0.258</strong>로 방향이 반대였는데 밀도로 바로잡았습니다.</p>
             <div class="chart-area verify-chart-area">
               <canvas id="verifyChart" role="img" aria-label="밀도위험과 실제 방역민원 밀도 비교 산점도"></canvas>
             </div>
-            <p class="helper-text">각 점은 구역 하나, <strong style="color:#c0392f">빨간 점은 회현동</strong>(밀도위험·실제 민원밀도 모두 최상위). 점선은 추세선으로, <strong>오른쪽 위로 갈수록</strong> ‘밀도위험이 높고 실제 민원밀도도 높음’을 뜻합니다. 점들이 추세선을 따라 우상향할수록 예측과 실제가 일치합니다. (민원 보유 13개 구역, 순위 상관 +0.951)</p>
+            <p class="helper-text">각 점은 구역 하나, <strong style="color:#c0392f">빨간 점은 회현동</strong>(모두 최상위). 우상향할수록 예측과 실제가 일치합니다. (민원 보유 13개 구역)</p>
+
+            <p class="verify-sub"><b>② 시간 검증</b> — 언제 위험한가</p>
+            <p class="helper-text">모델의 날씨 활동곡선(Brière)이 <strong>실제 유충 발생</strong>과 맞는지 봤습니다. 유충 실측 <strong>1,086개 지점·2년(2024–2026)·5.4만 건</strong>을 월별로 모아 예측과 겹쳐보니 상관 <strong>+0.996</strong>으로 거의 포개집니다.</p>
+            <div class="chart-area verify-chart-area">
+              <canvas id="larvaChart" role="img" aria-label="모델 예측 활동과 월별 실측 유충 발생 비교 선그래프"></canvas>
+            </div>
+            <p class="helper-text">두 선(모델 예측 · 실측 유충)을 0~1로 맞춰 겹쳤습니다. 7~8월 정점, 겨울 0 — 모델이 실제 계절 흐름을 그대로 재현합니다.</p>
           </article>
           <article class="detail-card">
             <h3>데이터</h3>

@@ -204,6 +204,9 @@ let gimhaeMap = null;
 let gimhaeMarkers = {};
 let gimhaeParks = [];          // data/gimhae-parks.json (도시공원 245곳)
 let parksLayer = null;         // 공원 마커 레이어(토글)
+let larvaPoints = [];          // data/gimhae-larva-points.json (유충 실측 지점)
+let larvaMonthly = [];         // data/gimhae-larva-monthly.json (월별 예측 vs 실측)
+let larvaLayer = null;         // 유충 실측 지점 레이어(토글)
 
 // 공원 유형별 서식 보정(곤충학적 근거): 물가·규모가 클수록 모기 서식 여지가 크다.
 // 실측이 아니라 유형 기반 보정임을 명확히 한다.
@@ -356,6 +359,89 @@ function setupParksToggle() {
       btn.setAttribute('aria-pressed', 'true');
       btn.textContent = '🏞️ 도시공원 숨기기';
     }
+  });
+}
+
+// 유충 실측 지점(2년 채집)을 지도에 작은 점으로. 유충이 많이 나온 곳일수록 붉게.
+function buildLarvaLayer() {
+  if (!window.L || !gimhaeMap || larvaLayer || !larvaPoints.length) return;
+  larvaLayer = L.layerGroup();
+  larvaPoints.forEach((p) => {
+    const perTry = p.tries ? p.larva / p.tries : 0;      // 채집당 유충 수
+    // 색: 유충이 많이/자주 나온 지점일수록 붉게(실측 강도)
+    const c = perTry >= 20 ? '#b91c1c' : perTry >= 8 ? '#ef4444' : perTry >= 2 ? '#f59e0b' : '#86efac';
+    L.circleMarker([p.lat, p.lon], {
+      radius: 3.5, color: '#ffffff', weight: 0.6, fillColor: c, fillOpacity: 0.85,
+    }).bindPopup(
+      `<strong>유충 실측 지점</strong> · ${p.district}`
+      + `<br>채집당 평균 ${perTry.toFixed(1)}마리 · 채집 ${p.tries}회 중 ${p.pos}회 검출`,
+    ).addTo(larvaLayer);
+  });
+}
+
+// 공통 토글 헬퍼(공원/유충 레이어에 재사용).
+function bindLayerToggle(btnId, getLayer, build, onText, offText) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    build();
+    const layer = getLayer();
+    if (!layer) return;
+    if (gimhaeMap.hasLayer(layer)) {
+      gimhaeMap.removeLayer(layer);
+      btn.setAttribute('aria-pressed', 'false');
+      btn.textContent = offText;
+    } else {
+      layer.addTo(gimhaeMap);
+      btn.setAttribute('aria-pressed', 'true');
+      btn.textContent = onText;
+    }
+  });
+}
+
+function setupLarvaToggle() {
+  bindLayerToggle('larvaToggle', () => larvaLayer, buildLarvaLayer,
+    '🔬 유충 실측 지점 숨기기', '🔬 유충 실측 지점 표시');
+}
+
+// === 시간 검증: 모델 예측 활동 ↔ 월별 실측 유충 (한 번만 그림) ===
+let larvaChart = null;
+function renderLarvaChart() {
+  const canvas = document.getElementById('larvaChart');
+  if (!canvas || !window.Chart || !larvaMonthly.length) return;
+  const labels = larvaMonthly.map((m) => `${m.month}월`);
+  const pred = larvaMonthly.map((m) => m.pred);                 // 0~1
+  const maxL = Math.max(...larvaMonthly.map((m) => m.larva_per)) || 1;
+  const actual = larvaMonthly.map((m) => Math.round((m.larva_per / maxL) * 1000) / 1000);
+  if (larvaChart) larvaChart.destroy();
+  larvaChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '모델 예측(활동곡선)', data: pred, borderColor: '#0f6b57',
+          backgroundColor: 'rgba(15,107,87,0.08)', borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 2 },
+        { label: '실측 유충(정규화)', data: actual, borderColor: '#d9822d',
+          borderWidth: 2.5, borderDash: [5, 4], tension: 0.35, fill: false, pointRadius: 2 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#56706b' }, grid: { color: 'rgba(22,48,45,0.06)' } },
+        y: { min: 0, max: 1, title: { display: true, text: '상대 강도 (0~1)', color: '#56706b' },
+          ticks: { color: '#56706b' }, grid: { color: 'rgba(22,48,45,0.08)' } },
+      },
+      plugins: {
+        legend: { labels: { color: '#28413c', usePointStyle: true, boxWidth: 8 } },
+        tooltip: { callbacks: { label: (ctx) => {
+          const m = larvaMonthly[ctx.dataIndex];
+          return ctx.datasetIndex === 0
+            ? `모델 예측 ${m.pred} (평균 ${m.temp}℃)`
+            : `실측 유충 ${m.larva_per}마리/채집`;
+        } } },
+      },
+    },
   });
 }
 
@@ -1058,14 +1144,15 @@ async function init() {
   renderVerifyChart();    // 검증 산점도(정적)
   initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)
   setupParksToggle();     // 도시공원 표시 토글
+  setupLarvaToggle();     // 유충 실측 지점 표시 토글
 
-  // 도시공원 245곳 데이터 로드(실패해도 나머지는 정상 동작)
-  try {
-    const res = await fetch('data/gimhae-parks.json');
-    if (res.ok) gimhaeParks = await res.json();
-  } catch (e) {
-    console.warn('공원 데이터 로드 실패', e);
-  }
+  // 부가 데이터 로드(실패해도 나머지는 정상 동작)
+  await Promise.all([
+    fetch('data/gimhae-parks.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeParks = d; }).catch(() => {}),
+    fetch('data/gimhae-larva-points.json').then((r) => (r.ok ? r.json() : [])).then((d) => { larvaPoints = d; }).catch(() => {}),
+    fetch('data/gimhae-larva-monthly.json').then((r) => (r.ok ? r.json() : [])).then((d) => { larvaMonthly = d; }).catch(() => {}),
+  ]);
+  renderLarvaChart();     // 시간 검증 곡선(정적)
 
   districtSelect.addEventListener('change', () => {
     renderDistrict(districtSelect.value);
