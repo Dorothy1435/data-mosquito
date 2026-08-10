@@ -1803,6 +1803,31 @@ select {
 }
 
 .safe-areas strong { color: #237a4b; }
+.safe-line { margin: 4px 0; }
+.safe-line + .safe-line { margin-top: 8px; }
+.safe-sub { font-size: 0.85rem; color: var(--muted); }
+.safe-sub b { color: #237a4b; }
+.pk-type, .pk-dist { color: var(--muted); font-size: 0.85em; font-weight: 500; }
+.pk-arrow {
+  color: #fff; background: var(--good); border-radius: 999px;
+  padding: 1px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 2px;
+}
+.pk-warn {
+  color: #fff; background: #ef4444; border-radius: 999px;
+  padding: 1px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 2px;
+}
+
+/* 지도 위 도구모음(공원 표시 토글) */
+.map-toolbar { display: flex; gap: 8px; margin: 10px 0 6px; flex-wrap: wrap; }
+.chip-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--good); background: #fff; color: #237a4b;
+  font-size: 0.9rem; font-weight: 600; transition: background 0.15s, color 0.15s;
+}
+.chip-toggle:hover { background: rgba(47, 158, 100, 0.08); }
+.chip-toggle[aria-pressed="true"] { background: var(--good); color: #fff; }
+.chip-toggle:focus-visible { outline: 3px solid rgba(47, 158, 100, 0.4); outline-offset: 2px; }
 
 .place-chip {
   display: inline-flex;

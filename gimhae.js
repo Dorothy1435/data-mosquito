@@ -202,6 +202,35 @@ function buildModelOptions(district) {
 // === 발생원 지도 (김해 17개 구역) ===
 let gimhaeMap = null;
 let gimhaeMarkers = {};
+let gimhaeParks = [];          // data/gimhae-parks.json (도시공원 245곳)
+let parksLayer = null;         // 공원 마커 레이어(토글)
+
+// 공원 유형별 서식 보정(곤충학적 근거): 물가·규모가 클수록 모기 서식 여지가 크다.
+// 실측이 아니라 유형 기반 보정임을 명확히 한다.
+const PARK_TYPE_ADJ = {
+  '수변공원': 0.14,   // 물가 — 정체수·습지
+  '근린공원': 0.05,   // 넓고 식생 많음
+  '체육공원': 0.03,
+  '역사공원': 0.02,
+  '소공원': -0.02,     // 작고 관리됨
+  '어린이공원': -0.03, // 작고 포장·관리됨
+};
+
+// 공원 1곳의 모기 위험(0~1) = 구역 밀도위험 + 공원 유형 보정. 실측값 아님(추정).
+function parkRisk(park) {
+  const d = GimhaeMosquitoModel.DISTRICTS[park.district];
+  const base = d ? d.density_risk : 0.4;
+  const adj = PARK_TYPE_ADJ[park.type] || 0;
+  return Math.max(0, Math.min(1, base + adj));
+}
+
+// 0~1 위험을 한 단어 단계로. (모델 grade는 미노출이라 여기서 자체 라벨을 쓴다)
+function parkGradeLabel(risk) {
+  if (risk < 0.3) return '낮음';
+  if (risk < 0.5) return '보통';
+  if (risk < 0.7) return '다소 높음';
+  return '높음';
+}
 
 // 발생원 위험(0~100)에 따른 원 색상. 높을수록 진한 빨강.
 function sourceRiskColor(score) {
@@ -286,6 +315,48 @@ function renderGimhaeMap(activeDistrict) {
     gimhaeMarkers[district] = marker;
   });
   gimhaeMap.invalidateSize();
+}
+
+// 도시공원 245곳을 지도에 작은 마커로 그린다(토글). 기본은 숨김 — 난잡함 방지.
+function buildParksLayer() {
+  if (!window.L || !gimhaeMap || parksLayer) return;
+  parksLayer = L.layerGroup();
+  gimhaeParks.forEach((p) => {
+    const risk = parkRisk(p);
+    const areaText = p.area_m2 ? ` · ${Math.round(p.area_m2).toLocaleString('ko-KR')}㎡` : '';
+    L.circleMarker([p.lat, p.lon], {
+      radius: 4,
+      color: '#ffffff',
+      weight: 1,
+      fillColor: sourceRiskColor(Math.round(risk * 100)),
+      fillOpacity: 0.85,
+    }).bindPopup(
+      `<strong>${p.name}</strong> <span style="color:#64748b">${p.type}</span>`
+      + `<br>${p.district} · 추정 위험 ${parkGradeLabel(risk)}`
+      + `${areaText}`,
+    ).bindTooltip(p.name, { direction: 'top', offset: [0, -4] })
+      .addTo(parksLayer);
+  });
+}
+
+// 공원 표시 토글 버튼 동작.
+function setupParksToggle() {
+  const btn = document.getElementById('parksToggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (!parksLayer) buildParksLayer();
+    if (!parksLayer) return;
+    const shown = gimhaeMap.hasLayer(parksLayer);
+    if (shown) {
+      gimhaeMap.removeLayer(parksLayer);
+      btn.setAttribute('aria-pressed', 'false');
+      btn.textContent = '🏞️ 도시공원 245곳 표시';
+    } else {
+      parksLayer.addTo(gimhaeMap);
+      btn.setAttribute('aria-pressed', 'true');
+      btn.textContent = '🏞️ 도시공원 숨기기';
+    }
+  });
 }
 
 // === 검증 산점도: 예측 지역위험 ↔ 실제 방역민원 (한 번만 그림) ===
@@ -703,21 +774,76 @@ const SOURCE_PLACE = {
   bee_farm: '',
 };
 
-// 모기박사 피드백: 위험 낮은 구역 추천(개별 공원 데이터 오면 공원 단위로 확장).
+// 물가·수풀이 많아 모기가 붙기 쉬운 유형 / 작고 관리돼 상대적으로 적은 유형
+const PARK_RISKY_TYPES = ['수변공원', '근린공원', '체육공원', '역사공원'];
+const PARK_MANAGED_TYPES = ['어린이공원', '소공원'];
+
+// 지번주소에서 동/리 이름을 뽑아 '소공원' 같은 흔한 이름을 구분해 준다.
+function parkLocHint(addr) {
+  if (!addr) return '';
+  const tokens = String(addr).split(/\s+/);
+  let hint = '';
+  tokens.forEach((t) => { if (/(동|리)$/.test(t) && t !== '김해시') hint = t; });
+  return hint;
+}
+// 이름이 흔하면(소공원, 공원3-2 등) 동/리를 붙여 구분한다.
+function parkLabel(p) {
+  const generic = /^(소공원|어린이공원|근린공원|공원)$/.test(p.name) || /^공원[\d\s-]/.test(p.name);
+  const hint = parkLocHint(p.addr);
+  return generic && hint ? `${p.name}<span class="pk-dist">(${hint})</span>` : p.name;
+}
+// 공원명 + 유형 태그. 단, 이름이 곧 유형이면(예: '소공원') 중복 태그는 생략.
+function parkPill(p) {
+  const typeTag = p.name === p.type ? '' : ` <span class="pk-type">${p.type}</span>`;
+  return `<strong>${parkLabel(p)}</strong>${typeTag}`;
+}
+
+// 모기박사 피드백: "A 공원은 위험하니 B 공원으로" — 실제 공원 이름으로 추천한다.
 function renderSafeAreas(district) {
   const el = document.getElementById('safeAreas');
   if (!el) return;
-  const ranked = GimhaeMosquitoModel.listDistricts().map((d) => {
-    const r = GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 });
-    return { d, risk: r.source_risk.density_risk, park: r.area.park_m2_per_km2 };
-  }).sort((a, b) => a.risk - b.risk);          // 위험 낮은 순
-  const safe = ranked.slice(0, 3).map((x) => x.d);
-  const curRank = ranked.findIndex((x) => x.d === district) + 1;
-  const parkPick = ranked.slice(0, 8).slice().sort((a, b) => b.park - a.park)[0];
-  el.innerHTML = `🏞️ 산책·야외활동은 <strong>모기 위험이 낮은 구역</strong>이 유리합니다. `
-    + `오늘 김해에서 위험 낮은 구역: <strong>${safe.join(' · ')}</strong>`
-    + (parkPick ? ` (특히 <strong>${parkPick.d}</strong>은 공원 면적이 넓어 산책에 좋습니다)` : '')
-    + `. 현재 구역(${district})은 안전한 순 <strong>${curRank}/17위</strong>입니다.`;
+  // 데이터 로딩 전이면 구역 단위 안내로 대체(깨지지 않게)
+  if (!gimhaeParks.length) {
+    const ranked0 = GimhaeMosquitoModel.listDistricts().map((d) => ({
+      d, risk: GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 }).source_risk.density_risk,
+    })).sort((a, b) => a.risk - b.risk);
+    el.innerHTML = `🏞️ 산책·야외활동은 위험 낮은 구역이 유리합니다: <strong>${ranked0.slice(0, 3).map((x) => x.d).join(' · ')}</strong>`;
+    return;
+  }
+
+  const parks = gimhaeParks.filter((p) => p.district === district && p.name);
+  const risky = parks.filter((p) => PARK_RISKY_TYPES.includes(p.type))
+    .sort((a, b) => (b.area_m2 || 0) - (a.area_m2 || 0));   // 큰 물가·근린 먼저
+  const managed = parks.filter((p) => PARK_MANAGED_TYPES.includes(p.type))
+    .sort((a, b) => (a.area_m2 || 0) - (b.area_m2 || 0));   // 작은 관리형 먼저
+
+  let html = '';
+  // (1) 구역 안에서 유형으로 A→B 추천 (물가·수풀 vs 관리형)
+  if (risky.length && managed.length) {
+    html += `<div class="safe-line">🏞️ <b>${district}</b>에서 산책이라면 물가·수풀이 많은 `
+      + `${parkPill(risky[0])} <span class="pk-warn">주의</span>보다, `
+      + `관리형 ${parkPill(managed[0])} <span class="pk-arrow">추천</span></div>`;
+  } else if (parks.length) {
+    html += `<div class="safe-line">🏞️ <b>${district}</b>의 공원 ${parks.length}곳 — 해질녘엔 물가·수풀에 가까운 곳을 피하세요.</div>`;
+  }
+
+  // (2) 현재 구역이 위험 상위면, 가까운 '더 안전한 구역'의 공원을 제안
+  const curRisk = (GimhaeMosquitoModel.DISTRICTS[district] || {}).density_risk || 0;
+  const saferDistrict = GimhaeMosquitoModel.listDistricts()
+    .map((d) => ({ d, risk: (GimhaeMosquitoModel.DISTRICTS[d] || {}).density_risk || 0 }))
+    .filter((x) => x.risk < curRisk - 0.1 && gimhaeParks.some((p) => p.district === x.d && p.name))
+    .sort((a, b) => a.risk - b.risk)[0];
+  if (saferDistrict) {
+    const pick = gimhaeParks
+      .filter((p) => p.district === saferDistrict.d && p.name && !/^공원[\d\s-]/.test(p.name))
+      .sort((a, b) => (b.area_m2 || 0) - (a.area_m2 || 0))[0];
+    if (pick) {
+      html += `<div class="safe-line">🟢 더 안전하게는 위험이 낮은 <b>${saferDistrict.d}</b>의 <strong>${parkLabel(pick)}</strong> 같은 공원을 권합니다.</div>`;
+    }
+  }
+
+  html += `<div class="safe-line safe-sub">※ 물가의 <b>수변공원</b>·넓은 <b>근린공원</b>은 해질녘 모기가 많고, 작은 <b>어린이·소공원</b>은 상대적으로 적습니다.</div>`;
+  el.innerHTML = html;
 }
 
 // 이 구역의 주요 발생원(개수 상위)에 맞춰 '조심할 장소' 칩을 구역별로 다르게 만든다.
@@ -931,6 +1057,15 @@ async function init() {
   renderSourceTotals();   // 김해시 전체 발생원 총량(정적)
   renderVerifyChart();    // 검증 산점도(정적)
   initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)
+  setupParksToggle();     // 도시공원 표시 토글
+
+  // 도시공원 245곳 데이터 로드(실패해도 나머지는 정상 동작)
+  try {
+    const res = await fetch('data/gimhae-parks.json');
+    if (res.ok) gimhaeParks = await res.json();
+  } catch (e) {
+    console.warn('공원 데이터 로드 실패', e);
+  }
 
   districtSelect.addEventListener('change', () => {
     renderDistrict(districtSelect.value);

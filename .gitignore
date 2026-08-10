@@ -9,3 +9,10 @@ __pycache__/
 
 # 논문/문서 PDF는 저장소에 올리지 않음
 *.pdf
+
+# sodamap 원본 시설물 데이터(사업장명·연락처 등 포함) — 저장소에 올리지 않음
+시설물 데이터/
+
+# 작업용 임시 폴더
+scratchpad/
+scratchpad_inspect.txt
