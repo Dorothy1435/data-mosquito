@@ -1829,6 +1829,28 @@ select {
 .chip-toggle[aria-pressed="true"] { background: var(--good); color: #fff; }
 .chip-toggle:focus-visible { outline: 3px solid rgba(47, 158, 100, 0.4); outline-offset: 2px; }
 
+/* 지도 도형 마커: 공원=네모, 유충=세모 (색은 위험/강도, 모양으로 종류 구분) */
+.shape-marker { background: none; border: none; }
+.pk-square {
+  display: block; width: 9px; height: 9px; border-radius: 1px;
+  border: 1px solid #fff; box-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.lv-tri {
+  display: block; width: 0; height: 0;
+  border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-bottom: 10px solid; /* 색은 인라인 border-bottom-color */
+  filter: drop-shadow(0 0.5px 0.5px rgba(0, 0, 0, 0.55));
+}
+/* 지도 아래 모양 범례 */
+.shape-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  margin: 8px 0 0; font-size: 0.85rem; color: var(--muted);
+}
+.shape-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lg-circle { width: 11px; height: 11px; border-radius: 50%; background: #f59e0b; border: 1px solid #fff; box-shadow: 0 0 1px rgba(0,0,0,.4); }
+.lg-square { width: 9px; height: 9px; border-radius: 1px; background: #56706b; border: 1px solid #fff; }
+.lg-tri { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #56706b; }
+
 .place-chip {
   display: inline-flex;
   align-items: center;

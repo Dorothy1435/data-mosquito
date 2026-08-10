@@ -320,24 +320,23 @@ function renderGimhaeMap(activeDistrict) {
   gimhaeMap.invalidateSize();
 }
 
-// 도시공원 245곳을 지도에 작은 마커로 그린다(토글). 기본은 숨김 — 난잡함 방지.
+// 도시공원 245곳을 지도에 '네모' 마커로 그린다(토글). 기본은 숨김 — 난잡함 방지.
 function buildParksLayer() {
   if (!window.L || !gimhaeMap || parksLayer) return;
   parksLayer = L.layerGroup();
   gimhaeParks.forEach((p) => {
     const risk = parkRisk(p);
     const areaText = p.area_m2 ? ` · ${Math.round(p.area_m2).toLocaleString('ko-KR')}㎡` : '';
-    L.circleMarker([p.lat, p.lon], {
-      radius: 4,
-      color: '#ffffff',
-      weight: 1,
-      fillColor: sourceRiskColor(Math.round(risk * 100)),
-      fillOpacity: 0.85,
-    }).bindPopup(
+    const icon = L.divIcon({
+      className: 'shape-marker',
+      html: `<span class="pk-square" style="background:${sourceRiskColor(Math.round(risk * 100))}"></span>`,
+      iconSize: [10, 10], iconAnchor: [5, 5],
+    });
+    L.marker([p.lat, p.lon], { icon }).bindPopup(
       `<strong>${p.name}</strong> <span style="color:#64748b">${p.type}</span>`
       + `<br>${p.district} · 추정 위험 ${parkGradeLabel(risk)}`
       + `${areaText}`,
-    ).bindTooltip(p.name, { direction: 'top', offset: [0, -4] })
+    ).bindTooltip(p.name, { direction: 'top', offset: [0, -6] })
       .addTo(parksLayer);
   });
 }
@@ -362,7 +361,7 @@ function setupParksToggle() {
   });
 }
 
-// 유충 실측 지점(2년 채집)을 지도에 작은 점으로. 유충이 많이 나온 곳일수록 붉게.
+// 유충 실측 지점(2년 채집)을 지도에 '세모' 마커로. 유충이 많이 나온 곳일수록 붉게.
 function buildLarvaLayer() {
   if (!window.L || !gimhaeMap || larvaLayer || !larvaPoints.length) return;
   larvaLayer = L.layerGroup();
@@ -370,9 +369,12 @@ function buildLarvaLayer() {
     const perTry = p.tries ? p.larva / p.tries : 0;      // 채집당 유충 수
     // 색: 유충이 많이/자주 나온 지점일수록 붉게(실측 강도)
     const c = perTry >= 20 ? '#b91c1c' : perTry >= 8 ? '#ef4444' : perTry >= 2 ? '#f59e0b' : '#86efac';
-    L.circleMarker([p.lat, p.lon], {
-      radius: 3.5, color: '#ffffff', weight: 0.6, fillColor: c, fillOpacity: 0.85,
-    }).bindPopup(
+    const icon = L.divIcon({
+      className: 'shape-marker',
+      html: `<span class="lv-tri" style="border-bottom-color:${c}"></span>`,
+      iconSize: [12, 10], iconAnchor: [6, 8],
+    });
+    L.marker([p.lat, p.lon], { icon }).bindPopup(
       `<strong>유충 실측 지점</strong> · ${p.district}`
       + `<br>채집당 평균 ${perTry.toFixed(1)}마리 · 채집 ${p.tries}회 중 ${p.pos}회 검출`,
     ).addTo(larvaLayer);
