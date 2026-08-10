@@ -1766,6 +1766,44 @@ select {
   gap: 8px;
 }
 
+/* 구역 환경(면적·하천 수면비율·공원 면적) */
+.district-env {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+}
+
+.district-env .env-item {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.district-env .env-item b {
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* 안전 구역(야외활동) 추천 */
+.safe-areas {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(47, 158, 100, 0.08);
+  border-left: 4px solid var(--good);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.safe-areas strong { color: #237a4b; }
+
 .place-chip {
   display: inline-flex;
   align-items: center;

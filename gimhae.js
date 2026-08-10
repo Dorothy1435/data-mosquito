@@ -627,29 +627,37 @@ function renderSources(result) {
     `).join('');
   }
 
-  // (A) 유충 실태조사 결과: 조사 건수와 양성률을 막대로 보여준다.
-  const larva = result.source_risk.larva;
-  if (larva.surveyed > 0) {
+  // (v4) 유충 검출률 = 위험 계산에 미포함. '시설 관리상태' 지표로만 표시.
+  const larva = result.larva_survey || {};
+  if (larva.surveyed >= 10 && larva.detection_rate != null) {
     const ratePct = Math.round(larva.detection_rate * 100);
     larvaText.textContent =
-      `${larva.surveyed}건 조사 중 ${larva.positive}건 양성 (검출률 ${ratePct}%) · 위험도 반영 ${Math.round(larva.weight_in_geo * 100)}%`;
+      `${larva.surveyed}건 조사 중 ${larva.positive}건 양성 (검출률 ${ratePct}%) · 시설 관리상태 지표(위험 계산 미포함)`;
     larvaFill.style.width = `${ratePct}%`;
     larvaFill.parentElement.style.visibility = 'visible';
   } else {
-    larvaText.textContent = '유충 조사 미실시 — 발생원 시설 기반으로 추정한 값입니다.';
+    larvaText.textContent = '유충 조사 미실시.';
     larvaFill.style.width = '0%';
     larvaFill.parentElement.style.visibility = 'hidden';
   }
 
-  // 코멘트도 개수 기준으로 통일(막대·진단과 어긋나지 않게).
+  // 코멘트(밀도 기준).
+  const area = result.area;
   if (topCountName) {
-    const larvaNote = larva.surveyed > 0
-      ? ` 유충 검출률 ${Math.round(larva.detection_rate * 100)}%로 실측 반영됨.`
-      : ' (유충 조사 미실시 — 발생원 시설 기반 추정.)';
-    sourceComment.textContent = `시설 수가 가장 많은 발생원은 ${topCountName}이며, `
-      + `이 구역은 ${result.source_risk.area_type}입니다.${larvaNote}`;
+    sourceComment.textContent = `시설 수가 가장 많은 발생원은 ${topCountName}이며, 이 구역은 `
+      + `${result.source_risk.area_type}입니다. 면적 ${area.area_km2}㎢에 발생원 `
+      + `${result.source_risk.total_facilities.toLocaleString('ko-KR')}개소(밀도 ${Math.round(result.source_risk.breed_density_per_km2)}개/㎢).`;
   } else {
     sourceComment.textContent = result.source_risk.comment;
+  }
+
+  // (item 2) 구역 환경 — 면적·하천 수면비율·공원 면적(하천·공원 데이터 일부 반영)
+  const envEl = document.getElementById('districtEnv');
+  if (envEl && area) {
+    envEl.innerHTML = `<span class="env-item"><b>면적</b> ${area.area_km2}㎢</span>`
+      + `<span class="env-item"><b>인구밀도</b> ${Math.round(area.pop_density).toLocaleString('ko-KR')}명/㎢</span>`
+      + `<span class="env-item"><b>하천 수면비율</b> ${(area.water_pct * 100).toFixed(1)}%</span>`
+      + `<span class="env-item"><b>공원 면적</b> ${Math.round(area.park_m2_per_km2).toLocaleString('ko-KR')}㎡/㎢</span>`;
   }
 }
 
@@ -658,11 +666,12 @@ function renderRankSummary(result) {
   const ranking = result.ranking;
   const vs = ranking.vs_city_avg;
   const vsText = `${vs >= 0 ? '+' : ''}${vs}점`;
+  const sr = result.source_risk;
   const cards = [
-    { name: '시내 순위', value: `${ranking.rank} / ${ranking.total_districts}위`, note: `가장 높은 구역: ${ranking.highest_district.name}` },
-    { name: '상위 백분위', value: `${ranking.percentile}%`, note: '값이 클수록 위험 상위 구역입니다.' },
+    { name: '모기지수 순위', value: `${ranking.rank} / ${ranking.total_districts}위`, note: `시민용 · 밀도위험 기준 (1위 ${ranking.highest_district.name})` },
+    { name: '방제 우선순위', value: `${sr.control_priority_rank} / ${ranking.total_districts}위`, note: `당국용 · 총부담(밀도위험×인구) 기준` },
     { name: '시평균 대비', value: vsText, note: `김해시 평균 ${ranking.city_avg_index}점` },
-    { name: '2025년 방역민원', value: `${result.complaints_2025}건`, note: '실제 접수된 모기 민원 건수입니다.' },
+    { name: '2025년 방역민원', value: `${result.complaints_2025}건`, note: '실제 접수(검증 전용, 계산 미포함)' },
   ];
 
   rankSummary.innerHTML = cards.map((card) => `
@@ -693,6 +702,23 @@ const SOURCE_PLACE = {
   waterpump: '배수펌프장·유수지',
   bee_farm: '',
 };
+
+// 모기박사 피드백: 위험 낮은 구역 추천(개별 공원 데이터 오면 공원 단위로 확장).
+function renderSafeAreas(district) {
+  const el = document.getElementById('safeAreas');
+  if (!el) return;
+  const ranked = GimhaeMosquitoModel.listDistricts().map((d) => {
+    const r = GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 });
+    return { d, risk: r.source_risk.density_risk, park: r.area.park_m2_per_km2 };
+  }).sort((a, b) => a.risk - b.risk);          // 위험 낮은 순
+  const safe = ranked.slice(0, 3).map((x) => x.d);
+  const curRank = ranked.findIndex((x) => x.d === district) + 1;
+  const parkPick = ranked.slice(0, 8).slice().sort((a, b) => b.park - a.park)[0];
+  el.innerHTML = `🏞️ 산책·야외활동은 <strong>모기 위험이 낮은 구역</strong>이 유리합니다. `
+    + `오늘 김해에서 위험 낮은 구역: <strong>${safe.join(' · ')}</strong>`
+    + (parkPick ? ` (특히 <strong>${parkPick.d}</strong>은 공원 면적이 넓어 산책에 좋습니다)` : '')
+    + `. 현재 구역(${district})은 안전한 순 <strong>${curRank}/17위</strong>입니다.`;
+}
 
 // 이 구역의 주요 발생원(개수 상위)에 맞춰 '조심할 장소' 칩을 구역별로 다르게 만든다.
 function renderPlaceChips(district) {
@@ -883,6 +909,7 @@ function renderDistrict(district) {
   renderRankSummary(result);
   renderAdvice(result);
   renderPlaceChips(district);
+  renderSafeAreas(district);
   renderDistrictRanking(district);
   renderGimhaeForecast(district).catch((error) => console.warn('예보 차트 실패', error));
 }
