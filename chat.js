@@ -132,7 +132,6 @@
             question,
             districts: buildDistrictSnapshot(),
             today: todayStr(),
-            debug: '1',
           }),
         });
         const data = await res.json();
