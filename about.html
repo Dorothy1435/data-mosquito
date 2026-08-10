@@ -34,12 +34,12 @@
       <section class="page-hero panel-card">
         <p class="section-label">사이트 소개</p>
         <h2>모기제로는 김해시 발생원 데이터로 <strong>방역 우선순위</strong>를 계산하는 모기 위험 예보 서비스입니다.</h2>
-        <p class="page-lead">발생원 시설·유충 실태조사·인구를 읍·면·동 단위로 결합한 모델에 실시간 날씨를 더해, 구역별 모기 위험과 방제 우선순위를 예보합니다. 단순 날씨 기반 지수가 아니라 <strong>실제 발생원 데이터</strong>에서 출발합니다.</p>
+        <p class="page-lead">발생원 시설·인구를 <strong>단위면적당 밀도</strong>로 환산한 모델에 실시간 날씨를 더해, 구역별 모기 위험과 방제 우선순위를 예보합니다. 단순 날씨 기반 지수가 아니라 <strong>실제 발생원 데이터</strong>에서 출발합니다.</p>
         <div class="metric-grid metric-grid-4 stat-hero">
-          <article class="stat-tile"><p class="stat-name">발생원 시설</p><p class="stat-value">11,914곳</p><p class="stat-note">7개 유형 합계</p></article>
-          <article class="stat-tile"><p class="stat-name">유충 실태조사</p><p class="stat-value">1,000+건</p><p class="stat-note">구역별 검출률</p></article>
-          <article class="stat-tile"><p class="stat-name">민원 검증</p><p class="stat-value">+0.81</p><p class="stat-note">실제 방역민원 상관</p></article>
-          <article class="stat-tile"><p class="stat-name">대상 구역</p><p class="stat-value">17개</p><p class="stat-note">김해시 읍·면·동</p></article>
+          <article class="stat-tile"><p class="stat-name">발생원 시설</p><p class="stat-value">17,081곳</p><p class="stat-note">16개 유형 · 좌표 배정</p></article>
+          <article class="stat-tile"><p class="stat-name">대상 구역</p><p class="stat-value">17개</p><p class="stat-note">면적·인구 확보(밀도)</p></article>
+          <article class="stat-tile"><p class="stat-name">민원 검증</p><p class="stat-value">+0.951</p><p class="stat-note">실제 방역민원 밀도 상관</p></article>
+          <article class="stat-tile"><p class="stat-name">기상 적합</p><p class="stat-value">731일</p><p class="stat-note">실측으로 활동곡선 적합</p></article>
         </div>
       </section>
 
@@ -51,31 +51,31 @@
           </article>
           <article class="detail-card">
             <h3><span class="card-icon" aria-hidden="true">📊</span> 어떤 데이터로 만드나요?</h3>
-            <p>김해시 보건소의 발생원 시설 현황과 유충 실태조사를 핵심 데이터로 사용합니다.</p>
+            <p>김해시 방역현황보고 시스템(sodamap)에서 발생원·면적·인구·민원을 확보했습니다.</p>
             <ul class="detail-list">
-              <li>개인하수처리시설(정화조·오수) 9,579곳 · 공중화장실 563곳</li>
-              <li>양돈·한우 농가 761곳 · 저수지 110곳 · 폐기물 재활용·처리 769곳</li>
-              <li>폐타이어 취급 99곳 · 수경시설 33곳</li>
-              <li>유충 실태조사 1,000여 건(구역별 검출률)</li>
-              <li>주민등록 인구(2026. 6.) · 방역소독 민원(2025, 검증용)</li>
+              <li>발생원 시설 16종 약 17,081개소(정화조·개인하수/오수처리 1.4만, 축산 763, 공중화장실 563, 도시공원 245 등)</li>
+              <li>행정동 경계 폴리곤으로 <strong>면적</strong> 확보 → '개수'를 '밀도'로 전환</li>
+              <li>주민등록·100m 인구격자로 <strong>인구밀도</strong> 산출</li>
+              <li>2025년 방역민원 383건(좌표 기반) — <strong>검증 전용</strong>, 점수 계산 미포함</li>
+              <li>실측 기상 731일(2024–2026)로 활동곡선 적합</li>
             </ul>
           </article>
           <article class="detail-card">
             <h3><span class="card-icon" aria-hidden="true">🧮</span> 어떻게 계산하나요?</h3>
             <div class="geo-breakdown about-flow">
-              <article class="geo-item"><p class="geo-label">발생 잠재력</p><p class="geo-value">발생원+유충</p><p class="geo-note">얼마나 생기나</p></article>
+              <article class="geo-item"><p class="geo-label">발생원 밀도</p><p class="geo-value">개/㎢</p><p class="geo-note">얼마나 생기나</p></article>
+              <span class="geo-op" aria-hidden="true">+</span>
+              <article class="geo-item"><p class="geo-label">인구 밀도</p><p class="geo-value">명/㎢</p><p class="geo-note">얼마나 물리나</p></article>
+              <span class="geo-op" aria-hidden="true">→</span>
+              <article class="geo-item"><p class="geo-label">밀도위험</p><p class="geo-value">0~1</p><p class="geo-note">지역 위험</p></article>
               <span class="geo-op" aria-hidden="true">×</span>
-              <article class="geo-item"><p class="geo-label">인구 노출</p><p class="geo-value">인구</p><p class="geo-note">얼마나 물리나</p></article>
-              <span class="geo-op" aria-hidden="true">×</span>
-              <article class="geo-item"><p class="geo-label">날씨</p><p class="geo-value">실시간</p><p class="geo-note">오늘 활동성</p></article>
-              <span class="geo-op" aria-hidden="true">=</span>
-              <article class="geo-item geo-result"><p class="geo-label">모기지수</p><p class="geo-value">0~100</p><p class="geo-note">오늘 위험</p></article>
+              <article class="geo-item geo-result"><p class="geo-label">모기지수</p><p class="geo-value">0~100</p><p class="geo-note">×실시간 날씨</p></article>
             </div>
-            <p>발생 잠재력(발생원 시설 + 유충 검출률)과 인구 노출을 결합해 구역별 지역위험을 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 오늘의 모기지수를 산출합니다. 날씨는 기온·습도·최근 강수에 시간대(일몰·새벽 피크)·풍속·현재 강수를 더해 보정합니다.</p>
+            <p>발생원 밀도와 인구 밀도를 로그 정규화·평균해 <strong>밀도위험(0~1)</strong>을 만들고, 여기에 실시간 날씨 활동지수를 곱해 모기지수를 냅니다. 활동지수는 <strong>유효기온(당일 29% + 최근 7일 71%)</strong>을 Brière 곡선(30℃ 정점)으로 평가하고 습도·최근 7일 강수·풍속으로 보정합니다.</p>
           </article>
           <article class="detail-card verify-card">
             <h3><span class="card-icon" aria-hidden="true">🔬</span> 믿을 수 있나요? — 검증</h3>
-            <p>모델이 예측한 구역별 위험을 <strong>실제 2025년 방역민원</strong>과 비교한 결과 순위 상관 <strong>+0.81</strong>로 강하게 일치했습니다(발생원만 볼 때는 +0.55 → 유충·인구 결합 후 +0.81). 민원은 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환 오류가 없습니다.</p>
+            <p>면적을 확보해 '개수'를 '밀도'로 바꾼 뒤, 예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교했더니 순위 상관 <strong>+0.951</strong>로 강하게 일치했습니다. 개수 기반 이전 버전은 오히려 <strong>−0.258</strong>로 방향이 반대였는데, 밀도로 바로잡은 것입니다. 민원은 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환이 없습니다.</p>
           </article>
           <article class="detail-card">
             <h3><span class="card-icon" aria-hidden="true">🏛️</span> 어떻게 활용하나요?</h3>

@@ -1968,6 +1968,11 @@ select {
   color: #237a4b;
 }
 
+.diag-tag-larva {
+  background: rgba(22, 48, 45, 0.08);
+  color: var(--muted);
+}
+
 .diag-value {
   margin: 0;
   font-size: 1.05rem;

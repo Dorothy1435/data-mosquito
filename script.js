@@ -1851,7 +1851,7 @@ function renderGimhaeTeaser() {
     const ranked = GimhaeMosquitoModel.allIndices({ month });
     const marks = ['①', '②', '③'];
     const top3 = ranked.slice(0, 3).map((r, i) => `${marks[i]} ${r.district}`).join('  ');
-    el.innerHTML = `오늘 위험 높은 구역 <strong>${top3}</strong> · 발생원·유충·인구 반영`;
+    el.innerHTML = `오늘 위험 높은 구역 <strong>${top3}</strong> · 발생원·인구 밀도 반영`;
   } catch (error) {
     console.warn('김해 TOP3 티저 계산 실패', error);
   }

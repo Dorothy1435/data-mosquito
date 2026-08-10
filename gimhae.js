@@ -250,19 +250,27 @@ function renderGimhaeMap(activeDistrict) {
   if (!gimhaeMap) return;
   Object.values(gimhaeMarkers).forEach((m) => m.remove());
   gimhaeMarkers = {};
+  // 밀도위험(발생원+인구, 날씨 무관) 기준 순위 — 지도 원 색·크기·순위에 사용
+  const densRanked = GimhaeMosquitoModel.listDistricts()
+    .map((d) => [d, GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 }).source_risk.density_risk])
+    .sort((a, b) => b[1] - a[1]);
+  const densRank = {};
+  densRanked.forEach(([d], i) => { densRank[d] = i + 1; });
+
   Object.entries(GimhaeMosquitoModel.COORDS).forEach(([district, point]) => {
     const r = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions(district));
-    const score = r.source_risk.score;
+    const risk = r.source_risk.density_risk;      // 0~1
+    const riskPct = Math.round(risk * 100);
     const today = Math.round(r.mosquito_index);
     const isActive = district === activeDistrict;
     const marker = L.circleMarker(point, {
-      radius: 9 + (score / 100) * 20,
+      radius: 9 + risk * 22,
       color: isActive ? '#0f6b57' : '#ffffff',
       weight: isActive ? 4 : 1.5,
-      fillColor: sourceRiskColor(score),
+      fillColor: sourceRiskColor(riskPct),
       fillOpacity: isActive ? 0.85 : 0.6,
     }).addTo(gimhaeMap).bindPopup(
-      `<strong>${district}</strong><br>발생원 위험 ${score}점 (시내 ${r.ranking.rank}/${r.ranking.total_districts}위)`
+      `<strong>${district}</strong><br>밀도위험 ${risk.toFixed(2)} (발생원·인구, 시내 ${densRank[district]}/17위)`
       + `<br>오늘 모기지수 ${today}점 · ${r.grade}`,
     ).bindTooltip(district, {
       permanent: true,
@@ -287,9 +295,11 @@ function renderVerifyChart() {
   if (!canvas || !window.Chart) return;
   const points = [];
   GimhaeMosquitoModel.listDistricts().forEach((d) => {
+    if (GimhaeMosquitoModel.DISTRICTS[d].data_gap) return;   // 민원 미제공 구역은 검증 제외
     const r = GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 });
-    if (r.confidence.reasons.data_gap) return;   // 서부 결측 구역은 검증에서 제외
-    points.push({ x: Math.round(r.source_risk.effective_geo * 100), y: r.complaints_2025, district: d });
+    const area = r.area.area_km2;
+    // v4 지표: 밀도위험(0~1) ↔ 실제 민원밀도(건/㎢), 스피어만 +0.951
+    points.push({ x: r.source_risk.density_risk, y: Math.round((r.complaints_2025 / area) * 10) / 10, district: d });
   });
 
   // 추세선(단순 선형회귀) — 상관이 한눈에 보이도록 점 위에 겹쳐 그린다.
@@ -317,8 +327,8 @@ function renderVerifyChart() {
         },
         {
           label: '구역', data: points,
-          backgroundColor: points.map((p) => (p.district === '활천동' ? '#ef4444' : 'rgba(15, 107, 87, 0.75)')),
-          pointRadius: points.map((p) => (p.district === '활천동' ? 8 : 6)),
+          backgroundColor: points.map((p) => (p.district === '회현동' ? '#ef4444' : 'rgba(15, 107, 87, 0.75)')),
+          pointRadius: points.map((p) => (p.district === '회현동' ? 8 : 6)),
           pointHoverRadius: 9, order: 1,
         },
       ],
@@ -326,15 +336,15 @@ function renderVerifyChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: '예측 지역위험 (발생원·인구, 0~100)', color: '#56706b' },
+        x: { title: { display: true, text: '밀도위험 (발생원밀도+인구밀도, 0~1)', color: '#56706b' },
           min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
-        y: { title: { display: true, text: '실제 방역민원 (2025, 건)', color: '#56706b' },
+        y: { title: { display: true, text: '실제 방역민원 밀도 (건/㎢, 2025)', color: '#56706b' },
           min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
       },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: (ctx) => (ctx.raw.district
-          ? `${ctx.raw.district} · 예측위험 ${ctx.raw.x} · 실제민원 ${ctx.raw.y}건`
+          ? `${ctx.raw.district} · 밀도위험 ${ctx.raw.x} · 민원밀도 ${ctx.raw.y}건/㎢`
           : `추세선`) } },
       },
     },
@@ -345,15 +355,15 @@ function renderVerifyChart() {
 const districtForecastCache = {};   // 구역별 시간별 날씨 응답 캐시
 let gimhaeForecastChart = null;
 
-// 선택한 구역의 시간별 예보 날씨를 받아온다(구역당 1회, 캐시). 실패 시 null.
+// 선택한 구역의 '일별' 예보 날씨를 받아온다(구역당 1회, 캐시). v4는 일 단위 모델이라 7일 예보.
 async function loadDistrictForecast(district) {
   if (district in districtForecastCache) return districtForecastCache[district];
   const coord = DISTRICT_COORDS[district];
   if (!coord) { districtForecastCache[district] = null; return null; }
   const params = new URLSearchParams({
-    latitude: coord[0], longitude: coord[1], current_weather: 'true',
-    hourly: 'temperature_2m,relative_humidity_2m,precipitation,windspeed_10m',
-    past_days: '3', forecast_days: '1', timezone: 'Asia/Seoul',
+    latitude: coord[0], longitude: coord[1],
+    daily: 'temperature_2m_mean,precipitation_sum,wind_speed_10m_mean',
+    past_days: '7', forecast_days: '7', timezone: 'Asia/Seoul',
     temperature_unit: 'celsius', wind_speed_unit: 'ms', precipitation_unit: 'mm',
   });
   try {
@@ -369,52 +379,43 @@ async function loadDistrictForecast(district) {
   }
 }
 
-// 실시간 시간별 날씨로 24시간 모기지수 시리즈를 만든다(게이지와 같은 정밀 모델 사용).
+// 일별 날씨로 향후 7일 모기지수 시리즈를 만든다(유효기온=최근 7일 평균, 7일 누적강수).
 function buildDistrictSeries(district, data) {
-  const hourly = (data && data.hourly) || {};
-  const times = hourly.time || [];
-  if (!times.length) return [];
-  const temps = hourly.temperature_2m || [];
-  const hums = hourly.relative_humidity_2m || [];
-  const precs = hourly.precipitation || [];
-  const winds = hourly.windspeed_10m || [];
-  const curTime = (data.current_weather && data.current_weather.time) || '';
-  let ci = times.findIndex((t) => t.slice(0, 13) === curTime.slice(0, 13));
-  if (ci === -1) {
-    for (let i = times.length - 1; i >= 0; i -= 1) { if (times[i] <= curTime) { ci = i; break; } }
-    if (ci === -1) ci = Math.max(0, times.length - 25);
-  }
-  const gdd = (districtWeather[district] || {}).gdd_14d;
+  const daily = (data && data.daily) || {};
+  const dates = daily.time || [];
+  if (!dates.length) return [];
+  const temps = daily.temperature_2m_mean || [];
+  const precs = daily.precipitation_sum || [];
+  const winds = daily.wind_speed_10m_mean || [];
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  let ti = dates.indexOf(todayKey);
+  if (ti === -1) ti = Math.min(7, Math.max(0, dates.length - 7));
   const series = [];
-  const end = Math.min(ci + 24, times.length);
-  for (let i = ci; i < end; i += 1) {
-    const d = new Date(times[i]);
-    const rain3d = precs.slice(Math.max(0, i - 71), i + 1).reduce((s, v) => s + (Number(v) || 0), 0);
-    const opts = {
-      month: d.getMonth() + 1, hour: d.getHours(), weather_observed: true,
-      temp_c: Number(temps[i]), humidity: Number(hums[i]),
-      rain_3d_mm: Math.round(rain3d * 10) / 10, wind_ms: Number(winds[i]),
-      precip_now: Number(precs[i] || 0),
-    };
-    if (gdd != null) opts.gdd_14d = gdd;
+  const end = Math.min(ti + 7, dates.length);
+  for (let i = ti; i < end; i += 1) {
+    const d = new Date(dates[i]);
+    const ta7arr = temps.slice(Math.max(0, i - 6), i + 1).map(Number).filter((x) => !Number.isNaN(x));
+    const ta7 = ta7arr.length ? ta7arr.reduce((a, b) => a + b, 0) / ta7arr.length : Number(temps[i]);
+    const rain7 = precs.slice(Math.max(0, i - 6), i + 1).map(Number).filter((x) => !Number.isNaN(x)).reduce((a, b) => a + b, 0);
+    const opts = { month: d.getMonth() + 1, weather_observed: true,
+      temp_c: Number(temps[i]), ta_7d_avg: Math.round(ta7 * 10) / 10, rain_7d_mm: Math.round(rain7 * 10) / 10 };
+    const w = Number(winds[i]);
+    if (!Number.isNaN(w)) opts.wind_ms = w;
     const r = GimhaeMosquitoModel.mosquitoIndex(district, opts);
-    series.push({ label: `${d.getHours()}시`, index: Math.round(r.mosquito_index), color: r.color });
+    series.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, index: Math.round(r.mosquito_index), color: r.color });
   }
   return series;
 }
 
-// 실시간 실패 시: 이번 달 평년값 + 시간대 변화만 반영한 대체 시리즈.
+// 실시간 실패 시: 이번 달 평년값으로 7일(평탄) 대체 시리즈.
 function buildFallbackSeries(district) {
   const series = [];
   const now = new Date();
-  const month = now.getMonth() + 1;
-  const w = districtWeather[district] || {};
-  for (let h = 0; h < 24; h += 1) {
-    const hour = (now.getHours() + h) % 24;
-    const opts = { month, hour };
-    if (w.temp_c != null) { opts.temp_c = w.temp_c; opts.humidity = w.humidity; opts.rain_3d_mm = w.rain_3d_mm; }
-    const r = GimhaeMosquitoModel.mosquitoIndex(district, opts);
-    series.push({ label: `${hour}시`, index: Math.round(r.mosquito_index), color: r.color });
+  for (let k = 0; k < 7; k += 1) {
+    const d = new Date(now.getTime() + k * 86400000);
+    const r = GimhaeMosquitoModel.mosquitoIndex(district, { month: d.getMonth() + 1 });
+    series.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, index: Math.round(r.mosquito_index), color: r.color });
   }
   return series;
 }
@@ -441,8 +442,8 @@ async function renderGimhaeForecast(district) {
   }
   if (note) {
     note.textContent = live
-      ? `${district}의 실시간 날씨로 계산한 24시간 예보입니다. (게이지와 동일 모델)`
-      : `실시간 날씨를 불러오지 못해, ${district}의 이번 달 평년값에 시간대 변화만 반영한 예상값입니다.`;
+      ? `${district}의 일별 실시간 날씨(유효기온·7일 누적강수·풍속)로 계산한 향후 7일 예보입니다.`
+      : `실시간 날씨를 불러오지 못해, ${district}의 이번 달 평년값 기준 추정값입니다.`;
   }
 
   const labels = series.map((p) => p.label);
@@ -500,21 +501,19 @@ function renderGauge(result) {
   confidenceBadge.style.background = confColor;
   rangeText.textContent = `예상 범위 ${range.low}~${range.high}점`;
   confidenceReason.textContent =
-    `날씨 ${conf.reasons.weather} · 유충 표본 ${conf.reasons.larva_sample}건 (불확실성 ±${conf.uncertainty_pct}%)`;
+    `날씨 ${conf.reasons.weather} · 민원자료 ${conf.reasons.complaint_data} · 인구 ${conf.reasons.population} (불확실성 ±${conf.uncertainty_pct}%)`;
 }
 
-// 기상 분석 카드(기온·습도·강수 + 풍속·시간대)를 그린다.
+// 기상 분석 카드(유효기온·습도·강수·풍속)를 그린다. v4는 시간대 항이 없다(7일 유효기온 기반).
 function renderWeatherComponents(result) {
   const components = result.weather.components;
   const input = result.weather.input;
 
-  // 풍속·시간대는 실시간 모드에서만 값이 들어온다(없으면 '평년값'으로 표시).
   const cards = [
-    { name: '기온', data: components.temperature, input: `${input.temp_c}℃` },
+    { name: '유효기온', data: components.temperature, input: `${components.temperature.effective_temp_c}℃` },
     { name: '습도', data: components.humidity, input: `${input.humidity}%` },
-    { name: '최근 3일 강수', data: components.rainfall, input: `${input.rain_3d_mm}mm` },
+    { name: '최근 7일 강수', data: components.rainfall, input: `${input.rain_7d_mm}mm` },
     { name: '풍속', data: components.wind, input: input.wind_ms != null ? `${input.wind_ms}m/s` : '평년값' },
-    { name: '시간대', data: components.time_of_day, input: input.hour != null ? `${input.hour}시` : '평년값' },
   ];
 
   weatherComponents.innerHTML = cards.map((card) => {
@@ -539,7 +538,6 @@ function renderWeatherComponents(result) {
 function renderDiagnosis(result) {
   if (!diagnosisBody) return;
   const sr = result.source_risk;
-  const larva = sr.larva;
   const ranking = result.ranking;
 
   // 주원인: 실제 시설 '개수'가 많은 발생원 상위 3개 + 유충 검출률
@@ -552,10 +550,12 @@ function renderDiagnosis(result) {
     .slice(0, 3)
     .map(([key, count]) => `${SRC_KOR[key]} ${count.toLocaleString('ko-KR')}곳`)
     .join(' · ');
-  const larvaLine = larva.surveyed > 0
-    ? `유충 검출률 <strong>${Math.round(larva.detection_rate * 100)}%</strong>(${larva.surveyed}건 조사)`
-    : '유충 조사 미실시 — 발생원 시설 기반 추정';
-  const cause = topByCount ? `${topByCount} · ${larvaLine}` : '등록된 발생원이 없습니다.';
+  const cause = topByCount ? topByCount : '등록된 발생원이 없습니다.';
+  // 유충 검출률은 v4에서 위험지수와 별개(시설 관리상태 지표)로만 표기한다.
+  const larva = result.larva_survey || {};
+  const larvaLine = (larva.surveyed >= 10 && larva.detection_rate != null)
+    ? `유충 검출률 ${Math.round(larva.detection_rate * 100)}%(${larva.surveyed}건) — 시설 관리상태 지표(위험 계산 미포함)`
+    : '유충 조사 미실시';
 
   // 권장 방역 조치: 모델의 방제당국 행동요령 중 핵심 한 줄
   const action = (result.advice.authority && result.advice.authority[0])
@@ -570,38 +570,41 @@ function renderDiagnosis(result) {
       <span class="diag-tag diag-tag-action">권장 조치</span>
       <p class="diag-value">${action}</p>
     </div>
-    <p class="diag-foot">방제 우선순위 <strong>${ranking.rank}/${ranking.total_districts}위</strong>
-      · 발생원 위험 ${sr.score}점 · 지역위험(발생잠재력×인구) ${sr.effective_geo}</p>
+    <div class="diag-row">
+      <span class="diag-tag diag-tag-larva">유충</span>
+      <p class="diag-value">${larvaLine}</p>
+    </div>
+    <p class="diag-foot">밀도위험 순위 <strong>${ranking.rank}/${ranking.total_districts}위</strong>
+      · 발생원 밀도 ${Math.round(sr.breed_density_per_km2)}개/㎢ · 밀도위험 ${sr.density_risk}</p>
   `;
 }
 
 // 발생원 분석(시설 유형별 위험 기여율)을 그린다.
 function renderSources(result) {
   const sources = result.source_risk.top_sources;
-  areaTypeText.textContent = `${result.source_risk.area_type} · 발생원 위험 ${result.source_risk.score}점`;
+  areaTypeText.textContent = `${result.source_risk.area_type} · 발생원 밀도 ${Math.round(result.source_risk.breed_density_per_km2)}개/㎢`;
 
-  // (v3) 지역위험 = √(발생 잠재력 × 인구 노출). 새 모델의 핵심을 카드로 보여준다.
+  // (v4) 밀도위험 = 0.5×발생원밀도 + 0.5×인구밀도. 면적 확보로 '개수'→'밀도' 전환.
   if (geoBreakdown) {
-    const ex = result.exposure;
-    const breeding = result.source_risk.breeding_potential;
-    const geo = result.source_risk.effective_geo;
+    const sr = result.source_risk;
+    const area = result.area;
     geoBreakdown.innerHTML = `
       <article class="geo-item">
-        <p class="geo-label">발생 잠재력</p>
-        <p class="geo-value">${Math.round(breeding * 100)}점</p>
-        <p class="geo-note">발생원 시설 + 유충 검출률</p>
+        <p class="geo-label">발생원 밀도</p>
+        <p class="geo-value">${Math.round(sr.breed_density_per_km2)}<span class="geo-unit">개/㎢</span></p>
+        <p class="geo-note">정규화 ${sr.breed_density_norm.toFixed(2)}</p>
       </article>
-      <span class="geo-op" aria-hidden="true">×</span>
+      <span class="geo-op" aria-hidden="true">+</span>
       <article class="geo-item">
-        <p class="geo-label">인구 노출도</p>
-        <p class="geo-value">${ex.exposure_index.toFixed(2)}</p>
-        <p class="geo-note">${Number(ex.population).toLocaleString('ko-KR')}명${ex.estimated ? ' (추정)' : ''}</p>
+        <p class="geo-label">인구 밀도</p>
+        <p class="geo-value">${Math.round(area.pop_density).toLocaleString('ko-KR')}<span class="geo-unit">명/㎢</span></p>
+        <p class="geo-note">정규화 ${sr.pop_density_norm.toFixed(2)}${area.estimated ? ' (추정)' : ''}</p>
       </article>
       <span class="geo-op" aria-hidden="true">=</span>
       <article class="geo-item geo-result">
-        <p class="geo-label">지역위험</p>
-        <p class="geo-value">${geo.toFixed(2)}</p>
-        <p class="geo-note">√(잠재력 × 노출)</p>
+        <p class="geo-label">밀도위험</p>
+        <p class="geo-value">${sr.density_risk.toFixed(2)}</p>
+        <p class="geo-note">0.5×발생원 + 0.5×인구</p>
       </article>`;
   }
 
@@ -673,14 +676,22 @@ function renderRankSummary(result) {
 
 // 발생원 유형 → 시민이 조심할 '장소' 문구 매핑.
 const SOURCE_PLACE = {
-  septic_sewage: '정화조·하수구 주변',
-  public_toilet: '공중화장실 주변',
-  livestock_farm: '축사·가축 분뇨 주변',
+  septic_clean: '정화조·하수구 주변',
+  septic_private: '정화조·하수구 주변',
+  wwtp_private: '오수처리시설 주변',
+  wwtp_public: '하수처리 구간 주변',
+  livestock: '축사·가축 분뇨 주변',
   reservoir: '저수지·물웅덩이',
   tire_shop: '폐타이어 야적장',
-  waste_recycle: '폐기물 재활용장 주변',
-  waste_treat: '폐기물 처리장 주변',
+  waste_tire: '폐타이어 적치장',
+  waste_stk: '폐기물 처리장 주변',
+  junk_shop: '고물상 야적지',
   water_feature: '분수·바닥분수 등 수경시설',
+  toilet: '공중화장실 주변',
+  park: '공원 인공연못·배수로',
+  bathhouse: '목욕장 주변',
+  waterpump: '배수펌프장·유수지',
+  bee_farm: '',
 };
 
 // 이 구역의 주요 발생원(개수 상위)에 맞춰 '조심할 장소' 칩을 구역별로 다르게 만든다.
@@ -699,16 +710,24 @@ function renderPlaceChips(district) {
   el.innerHTML = chips.map((c) => `<span class="place-chip">${c}</span>`).join('');
 }
 
-// 발생원 유형 → (서식 매개모기·감염병) + 구체적 방제 지침. 논문(이동규, 2017) 기반.
+// 발생원 유형(v4 16종) → (서식 매개모기·감염병) + 구체적 방제 지침. 논문(이동규, 2017) 기반.
 const SOURCE_CONTROL = {
-  septic_sewage: { sp: '빨간집모기(웨스트나일 매개)', act: '정화조·오수받이 유충 서식면에 IGR(곤충성장조절제)·라바사이드 정기 투입, 환기구 방충망·봉인 상태 점검' },
-  public_toilet: { sp: '빨간집모기', act: '공중화장실 정화조 유충구제, 주변 집수정·배수구 정체수 제거' },
-  livestock_farm: { sp: '작은빨간집모기(일본뇌염)·얼룩날개모기(말라리아) 매개', act: '축사 주변 물웅덩이·분뇨처리조·수로 정비, 성충 대상 잔류분무·공간분무 병행' },
+  septic_clean: { sp: '빨간집모기(웨스트나일 매개)', act: '정화조·오수받이 유충 서식면에 IGR(곤충성장조절제)·라바사이드 정기 투입, 환기구 방충망·봉인 상태 점검' },
+  septic_private: { sp: '빨간집모기(웨스트나일 매개)', act: '개인하수처리시설 정체수에 라바사이드·IGR 투입, 배관·집수조 봉인 점검' },
+  wwtp_private: { sp: '빨간집모기', act: '개인오수처리시설 주변 정체수 제거·유충구제' },
+  wwtp_public: { sp: '빨간집모기', act: '공공하수처리 방류·집수 구간 정체수 관리' },
+  livestock: { sp: '작은빨간집모기(일본뇌염)·얼룩날개모기(말라리아) 매개', act: '축사 주변 물웅덩이·분뇨처리조·수로 정비, 성충 대상 잔류분무·공간분무 병행' },
   reservoir: { sp: '얼룩날개모기(말라리아 매개)', act: '저수지 가장자리 정체수·수초대에 라바사이드, 수위 관리로 산란처 축소' },
   tire_shop: { sp: '흰줄숲모기(뎅기·지카 매개)', act: '폐타이어 실내 보관·구멍 내기로 물 고임 차단, 소량 정체수 라바사이드 처리' },
-  waste_recycle: { sp: '흰줄숲모기 등', act: '야적 용기·폐기물의 고인물 제거(발생원 정비) 및 소량수 유충구제' },
-  waste_treat: { sp: '', act: '처리장 집수조·정체수 관리, 주변 발생원 정비' },
+  waste_tire: { sp: '흰줄숲모기(뎅기·지카 매개)', act: '적치 폐타이어 빗물 고임 차단(덮개·구멍내기), 정체수 유충구제' },
+  waste_stk: { sp: '흰줄숲모기 등', act: '폐기물 야적 용기·고인물 제거(발생원 정비) 및 소량수 유충구제' },
+  junk_shop: { sp: '흰줄숲모기 등', act: '고물상 야적 폐기물의 빗물 고임 제거, 정체수 유충구제' },
   water_feature: { sp: '빨간집모기·흰줄숲모기', act: '분수·바닥분수 순환 가동·주기적 배수, 정체수 발생 구간 제거' },
+  toilet: { sp: '빨간집모기', act: '공중화장실 정화조 유충구제, 주변 집수정·배수구 정체수 제거' },
+  park: { sp: '', act: '공원 인공연못·배수로·화장실 정체수 유충구제, 시민 노출 구간 우선 방제' },
+  bathhouse: { sp: '', act: '목욕장 배수·집수조 정체수 점검' },
+  waterpump: { sp: '', act: '배수펌프장 집수정·유수지 정체수 라바사이드' },
+  bee_farm: { sp: '', act: '(모기 발생원 관련성 낮음)' },
 };
 
 // 그 구역의 발생원·유충·순위를 바탕으로 '전문 방제 지침'을 생성한다(일반론 대신 구역 맞춤).
@@ -747,16 +766,24 @@ function buildAuthorityAdvice(result) {
   return out;
 }
 
-// 발생원 유형 → 시민이 알아둘 '조심 포인트'(매개종·감염병 포함).
+// 발생원 유형(v4) → 시민이 알아둘 '조심 포인트'(매개종·감염병 포함).
 const SOURCE_CITIZEN = {
-  septic_sewage: '이 구역은 정화조·하수구가 많습니다. 하수구·정화조 환기구 주변(빨간집모기 서식)을 특히 조심하세요.',
-  public_toilet: '공중화장실 정화조 주변에 모기가 모일 수 있으니 야간 이용 시 주의하세요.',
-  livestock_farm: '축산농가 주변은 일본뇌염을 옮기는 작은빨간집모기가 많을 수 있습니다. 축사 근처 저녁 활동을 피하고, 일본뇌염 예방접종 대상(어린이 등)은 접종하세요.',
+  septic_clean: '이 구역은 정화조·하수처리시설이 많습니다. 하수구·정화조 환기구 주변(빨간집모기 서식)을 특히 조심하세요.',
+  septic_private: '개인하수처리시설이 많은 구역입니다. 정체수·배관 주변(빨간집모기 서식)을 조심하세요.',
+  wwtp_private: '오수처리시설 주변 정체수(빨간집모기 서식)를 조심하세요.',
+  wwtp_public: '하수처리 구간 주변 정체수를 조심하세요.',
+  livestock: '축산농가 주변은 일본뇌염을 옮기는 작은빨간집모기가 많을 수 있습니다. 축사 근처 저녁 활동을 피하고, 일본뇌염 예방접종 대상(어린이 등)은 접종하세요.',
   reservoir: '저수지·물웅덩이 주변(말라리아 매개 얼룩날개모기 서식)에서는 해질녘 활동을 줄이세요.',
   tire_shop: '폐타이어·인공용기의 고인물(뎅기·지카 매개 흰줄숲모기 서식)을 조심하고, 집 주변 빈 용기는 뒤집어 두세요.',
-  waste_recycle: '폐기물 야적지의 고인물 주변을 조심하세요.',
-  waste_treat: '폐기물 처리장 주변 정체수 구역을 피하세요.',
+  waste_tire: '적치된 폐타이어의 고인물(뎅기·지카 매개 흰줄숲모기 서식)을 조심하세요.',
+  waste_stk: '폐기물 야적지의 고인물 주변을 조심하세요.',
+  junk_shop: '고물상 야적 폐기물의 고인 빗물 주변을 조심하세요.',
   water_feature: '분수·바닥분수 등 수경시설 정체수 주변을 조심하세요.',
+  toilet: '공중화장실 정화조 주변에 모기가 모일 수 있으니 야간 이용 시 주의하세요.',
+  park: '공원 내 인공연못·배수로 정체수 주변을 조심하고, 해질녘 산책 시 기피제를 사용하세요.',
+  bathhouse: '목욕장 주변 배수·정체수 구역을 조심하세요.',
+  waterpump: '배수펌프장·유수지 주변 정체수 구역을 조심하세요.',
+  bee_farm: '',
 };
 
 // 시민 행동요령을 구역 발생원·위험등급 기반으로 '항상 알차게' 생성한다.
@@ -843,7 +870,7 @@ function renderDistrict(district) {
 
   const input = result.weather.input;
   const windText = input.wind_ms != null ? ` · 풍속 ${input.wind_ms}m/s` : '';
-  weatherInputText.textContent = `기온 ${input.temp_c}℃ · 습도 ${input.humidity}% · 최근 3일 강수 ${input.rain_3d_mm}mm${windText}`;
+  weatherInputText.textContent = `유효기온 ${result.weather.effective_temp_c}℃ · 습도 ${input.humidity}% · 최근 7일 강수 ${input.rain_7d_mm}mm${windText}`;
   updatedText.textContent = weather.isLive && weather.observedAt
     ? `실시간 날씨 갱신: ${new Date(weather.observedAt).toLocaleString('ko-KR')}`
     : `기준: ${weather.month || currentMonth}월 평년값`;

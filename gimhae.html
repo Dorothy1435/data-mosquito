@@ -39,13 +39,13 @@
         <div class="hero-copy">
           <p class="section-label">김해시 모기 발생 위험도 모델</p>
           <h2 id="gimhaeTitle">행정 데이터 + 실시간 날씨로 보는 구역별 모기 위험</h2>
-          <p class="hero-description">발생원 시설(정화조·축산·저수지·타이어·폐기물·수경시설 등)과 유충 실태조사·인구를 읍·면·동 단위로 통합한 모델에, 김해시 실시간 날씨를 입력해 모기지수를 계산합니다. <strong>예측값은 실제 2025년 방역민원과 +0.81로 일치해 검증했습니다.</strong></p>
+          <p class="hero-description">발생원 시설(16종)·인구를 <strong>단위면적당 밀도</strong>로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. <strong>예측한 밀도위험은 실제 2025년 방역민원 밀도와 +0.951로 일치해 검증했습니다.</strong></p>
           <div class="data-pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="data-pill">실시간 날씨</span>
             <span id="districtBadge" class="data-pill">구역 선택</span>
           </div>
           <p id="weatherStatus" class="status-text">김해시 실시간 날씨를 불러오는 중입니다.</p>
-          <p id="weatherInputText" class="location-text">기온 · 습도 · 최근 3일 강수량 기준</p>
+          <p id="weatherInputText" class="location-text">유효기온 · 습도 · 최근 7일 강수량 기준</p>
           <p id="updatedText" class="updated-text">최종 갱신: -</p>
         </div>
         <div class="gauge-wrap">
@@ -115,16 +115,16 @@
       <section class="panel-card" aria-labelledby="forecastTitle">
         <div class="panel-heading">
           <div>
-            <p class="section-label">시간대별 예보</p>
-            <h3 id="forecastTitle">이 구역 앞으로 24시간 모기지수</h3>
+            <p class="section-label">주간 예보</p>
+            <h3 id="forecastTitle">이 구역 향후 7일 모기지수</h3>
           </div>
           <p class="helper-text" id="gimhaeForecastPeak">-</p>
         </div>
         <div class="chart-area">
-          <canvas id="gimhaeForecastChart" role="img" aria-label="선택한 구역의 24시간 모기지수 예보"></canvas>
+          <canvas id="gimhaeForecastChart" role="img" aria-label="선택한 구역의 향후 7일 모기지수 예보"></canvas>
         </div>
-        <p id="gimhaeForecastNote" class="helper-text forecast-source">시간대별 예보를 불러오는 중입니다.</p>
-        <p class="diurnal-note">💡 모기는 <strong>해질녘(19~22시)과 새벽(4~6시)</strong>에 활동이 급증하고 한낮·심야엔 크게 줄어듭니다. 하루 안에서도 지수가 크게 오르내립니다.</p>
+        <p id="gimhaeForecastNote" class="helper-text forecast-source">주간 예보를 불러오는 중입니다.</p>
+        <p class="diurnal-note">💡 이 모델은 <strong>유효기온(최근 7일 평균)·7일 누적강수</strong>로 하루 단위 위험을 계산합니다. 하루 중에서는 해질녘·새벽에 실제 활동이 더 많으니 그 시간대를 특히 조심하세요.</p>
       </section>
 
       <!-- 발생원 분석: 시설 유형별 위험 기여율 -->
@@ -208,19 +208,19 @@
         <div class="detail-stack">
           <article class="detail-card verify-card">
             <h3>모델 검증 — 실제 민원과 얼마나 맞나</h3>
-            <p>모델이 예측한 구역별 위험을 <strong>실제 2025년 방역민원</strong>과 비교한 결과, 순위 상관계수 <strong>+0.81</strong>로 강하게 일치했습니다. 발생원 시설만 볼 때는 +0.55였지만, <strong>유충 실측과 인구까지 결합하자 +0.81</strong>로 올라갔습니다(다중회귀 설명력 R²도 0.45 → 0.66). 민원 데이터는 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아, ‘민원 많은 곳을 위험하다고 하는’ 순환 오류가 없습니다.</p>
+            <p>면적을 확보해 ‘개수’를 ‘밀도’로 바꾼 뒤, 예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교했더니 순위 상관계수 <strong>+0.951</strong>로 강하게 일치했습니다. 이전 버전(개수 기반)은 오히려 <strong>−0.258</strong>로 방향이 반대였는데, 밀도로 바로잡은 것입니다. 민원 데이터는 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환이 없습니다.</p>
             <div class="chart-area verify-chart-area">
-              <canvas id="verifyChart" role="img" aria-label="예측 위험과 실제 방역민원 비교 산점도"></canvas>
+              <canvas id="verifyChart" role="img" aria-label="밀도위험과 실제 방역민원 밀도 비교 산점도"></canvas>
             </div>
-            <p class="helper-text">각 점은 구역 하나, <strong style="color:#c0392f">빨간 점은 활천동</strong>(예측·실제 민원 모두 최상위). 점선은 추세선으로, <strong>오른쪽 위로 갈수록</strong> ‘예측 위험이 높고 실제 민원도 많음’을 뜻합니다. 점들이 추세선을 따라 우상향할수록 예측과 실제가 일치합니다. (현장조사 완료 13개 구역, 순위 상관 +0.81)</p>
+            <p class="helper-text">각 점은 구역 하나, <strong style="color:#c0392f">빨간 점은 회현동</strong>(밀도위험·실제 민원밀도 모두 최상위). 점선은 추세선으로, <strong>오른쪽 위로 갈수록</strong> ‘밀도위험이 높고 실제 민원밀도도 높음’을 뜻합니다. 점들이 추세선을 따라 우상향할수록 예측과 실제가 일치합니다. (민원 보유 13개 구역, 순위 상관 +0.951)</p>
           </article>
           <article class="detail-card">
             <h3>데이터</h3>
-            <p>김해시 개인하수처리시설(정화조·오수), 양돈·한우 농가, 저수지, 타이어가게, 폐기물 재활용·처리업체, 수경시설, 공중화장실 현황을 발생원으로 집계하고, 2025년 방역소독 민원대장을 실제 모기 민원 지표로 결합했습니다.</p>
+            <p>김해시 방역현황보고 시스템(sodamap)에서 발생원 시설 16종(정화조·개인하수/오수처리·축산·저수지·타이어·폐기물·고물상·수경시설·공중화장실·공원 등) 약 1.8만 개소를 좌표로 읍·면·동에 배정하고, 행정동 경계 폴리곤으로 <strong>면적</strong>을, 주민등록·100m 격자로 <strong>인구</strong>를 확보했습니다. 2025년 방역민원 383건은 <strong>검증 전용</strong>으로만 썼습니다(점수 계산에 미포함).</p>
           </article>
           <article class="detail-card">
             <h3>계산 방식</h3>
-            <p>발생원 시설을 곤충학적 가중치(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)로 합산한 위험지수와 실제 민원을 결합해 구역별 방제 우선순위를 만들고, 여기에 실시간 날씨로 계산한 활동지수를 곱해 최종 모기지수를 산출합니다. 활동지수는 기온·습도·최근 3일 강수로 번식 환경을 평가한 뒤, 시간대(일몰·새벽 피크)·풍속(강풍 시 비행 억제)·현재 강수 여부로 '지금 이 시각'의 활동 가능성을 추가 보정합니다.</p>
+            <p>발생원 시설(16종)을 곤충학적 가중치로 합산해 <strong>면적으로 나눈 '발생원 밀도'</strong>와 <strong>'인구 밀도'</strong>를 로그 정규화·평균해 밀도위험(0~1)을 만들고, 여기에 실시간 날씨 활동지수를 곱해 모기지수를 냅니다. 활동지수는 <strong>유효기온(당일 29% + 최근 7일 71%)</strong>을 Brière 곡선(30℃ 정점)으로 평가하고, 습도·최근 7일 강수·풍속으로 보정합니다. 유충 검출률은 민원과 음의 상관이라 위험 계산에서 빼고 '시설 관리상태' 참고지표로만 씁니다.</p>
           </article>
           <article class="detail-card warning-card">
             <h3>주의할 점</h3>
