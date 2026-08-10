@@ -4,8 +4,16 @@
 // - 사이트로 답할 수 없는 질문(치즈케이크 레시피 등)은 정중히 거절한다.
 // - 숫자(구역 점수 등)는 LLM이 만들지 않고, 브라우저가 '모델로 계산해 보낸 값'만 쓴다.
 
-// 무료 티어 모델 후보. 앞에서부터 시도하고, 없으면(404 등) 다음 것으로 자동 대체.
-const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+// 무료 티어 모델 후보. 앞에서부터 시도하고, 실패(404/429 등)하면 다음 것으로 자동 대체.
+// 모델마다 무료 한도(quota)가 따로라, 한 모델이 429여도 다른 모델은 될 수 있다.
+// 경량(-lite) 모델을 앞에 둬서 무료 한도를 아낀다.
+const GEMINI_MODELS = [
+  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+];
 
 // === 사이트가 답할 수 있는 '고정 지식' (사람이 검수한 사실만) ===
 const KNOWLEDGE = `
@@ -149,8 +157,9 @@ module.exports = async function handler(req, res) {
         try { msg = JSON.parse(detail)?.error?.message || detail; } catch (_) {}
         lastErr = `[${model}] ${r.status}: ${msg}`.slice(0, 300);
         console.error('Gemini 오류', lastErr);
-        // 404/400(모델 없음·형식)면 다음 모델로, 그 외(키·할당량)는 중단
-        if (r.status === 404 || r.status === 400) continue;
+        // 400/404(형식·모델없음)·429(한도)·500/503(일시)면 다른 모델로 우회.
+        // 401/403(키·권한)은 모델을 바꿔도 같으므로 중단.
+        if ([400, 404, 429, 500, 503].includes(r.status)) continue;
         break;
       }
       const data = await r.json();
