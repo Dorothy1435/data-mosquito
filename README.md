@@ -53,3 +53,16 @@ vercel
 날씨 API를 붙일 때는 `config.example.js`를 복사해 `config.js`를 만들고 키를 넣으세요.
 
 `config.js`에는 실제 키가 들어가므로 Git 저장소에 포함하지 않아야 합니다.
+
+## AI 도우미(선택) 설정 — `api/ask.js`
+
+화면 우측 아래 "🦟 모기 도우미"는 사이트 정보로만 답하는 AI 챗봇입니다. 무료로 동작하며, 설정하지 않으면 안내 메시지만 표시됩니다(사이트는 정상 작동).
+
+1. [Google AI Studio](https://aistudio.google.com/apikey)에서 무료 Gemini API 키를 발급받습니다(카드 등록 불필요).
+2. Vercel 프로젝트 → **Settings → Environment Variables**에 다음을 추가합니다.
+   - Name: `GEMINI_API_KEY`, Value: 발급받은 키
+3. 다시 배포(Redeploy)하면 도우미가 켜집니다.
+
+- 키는 서버리스 함수(`api/ask.js`)에서만 읽혀 **브라우저에 노출되지 않습니다.**
+- 구역 점수 등 숫자는 브라우저가 모델로 계산해 함께 보내므로 **AI가 수치를 지어내지 않습니다(환각 방지)**. 사이트 범위를 벗어난 질문은 정중히 거절합니다.
+- 무료 티어에는 하루 요청 한도가 있습니다. 한도를 넘으면 잠시 후 다시 안내 메시지가 나올 수 있습니다.
