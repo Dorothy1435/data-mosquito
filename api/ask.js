@@ -63,13 +63,15 @@ function buildSystemPrompt(districtsText, today) {
   return `당신은 '모기제로' 웹사이트의 안내 도우미입니다. 김해시 모기 위험 정보만 안내합니다.
 
 [반드시 지킬 규칙]
-1) 아래 <사이트 지식>과 <오늘 데이터>에 있는 내용으로만 답하세요.
-2) 거기에 없는 통계·수치·사실을 절대 지어내지 마세요(환각 금지). 특히 감염자 수·구역 점수 같은 숫자는 <오늘 데이터>에 있는 값만 쓰고, 없으면 "화면에서 확인해 주세요"라고 하세요.
-3) 모기·모기지수·발생원·김해 구역·예방/방제·매개모기 감염병과 무관한 질문(예: 요리 레시피, 주식, 일반 잡담)에는 답하지 말고 answer에 정확히 이렇게만 쓰세요:
+1) 아래 <사이트 지식>과 <오늘 데이터>, 그리고 이전 대화에 있는 내용으로만 답하세요. 이전 대화 맥락(사용자가 앞서 물어본 것)을 기억해서 자연스럽게 이어 답하세요.
+2) 거기에 없는 통계·수치·사실을 절대 지어내지 마세요(환각 금지). 특히 감염자 수·구역 점수 같은 숫자는 <오늘 데이터>에 있는 값만 쓰세요.
+3) 모기·모기지수·발생원·김해 구역·예방/방제·매개모기와 관련은 있지만 제공된 정보로 확인할 수 없는 질문이면, 지어내지 말고 answer에 이렇게 답하세요:
+   "그 부분은 이 사이트 정보로는 답해 드릴 수 없어요. 대신 모기지수·발생원·예방법 같은 건 도와드릴 수 있어요 🦟"
+4) 모기·김해 모기 위험과 완전히 무관한 질문(예: 요리 레시피, 주식, 일반 잡담)에는 답하지 말고 answer에 정확히 이렇게만 쓰세요:
    "죄송해요, 저는 김해 모기 위험 정보만 안내할 수 있어요 🦟 모기지수·발생원·예방법 같은 걸 물어봐 주세요."
-4) 짧고 쉽게(2~4문장), 한국어로, 초보자도 이해되게 답하세요.
-5) 답이 참고용임을 필요할 때 덧붙이세요. 의학적 진단은 하지 마세요.
-6) followups: 사용자가 이어서 궁금해할 후속 질문 3개(각 20자 이내, 반드시 이 사이트가 답할 수 있는 주제). 거절하는 경우에도 답할 수 있는 예시 질문 3개를 넣으세요.
+5) 짧고 쉽게(2~4문장), 한국어로, 초보자도 이해되게 답하세요.
+6) 답이 참고용임을 필요할 때 덧붙이세요. 의학적 진단은 하지 마세요.
+7) followups: 사용자가 이어서 궁금해할 후속 질문 3개(각 20자 이내, 반드시 이 사이트가 답할 수 있는 주제). 거절하는 경우에도 답할 수 있는 예시 질문 3개를 넣으세요.
 
 [출력 형식] 반드시 아래 JSON 하나만 출력하세요. 다른 텍스트 금지.
 {"answer": "여기에 답변", "followups": ["질문1", "질문2", "질문3"]}
@@ -110,7 +112,8 @@ function parseAnswer(raw) {
 }
 
 // OpenAI 호환 API(OpenAI, Groq 공통). 실패 시 Error를 던진다.
-async function callOpenAICompatible(baseUrl, key, model, systemPrompt, question) {
+async function callOpenAICompatible(baseUrl, key, model, systemPrompt, question, history) {
+  const past = (history || []).map((h) => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content }));
   const r = await fetch(baseUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
@@ -121,6 +124,7 @@ async function callOpenAICompatible(baseUrl, key, model, systemPrompt, question)
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: systemPrompt },
+        ...past,
         { role: 'user', content: question },
       ],
     }),
@@ -136,10 +140,11 @@ async function callOpenAICompatible(baseUrl, key, model, systemPrompt, question)
 }
 
 // Gemini API. 여러 모델을 순차 시도하고 모두 실패하면 마지막 오류를 던진다.
-async function callGemini(key, systemPrompt, question) {
+async function callGemini(key, systemPrompt, question, history) {
+  const past = (history || []).map((h) => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] }));
   const payload = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: question }] }],
+    contents: [...past, { role: 'user', parts: [{ text: question }] }],
     generationConfig: {
       temperature: 0.2, maxOutputTokens: 800, topP: 0.9,
       responseMimeType: 'application/json',
@@ -193,12 +198,18 @@ module.exports = async function handler(req, res) {
     debug = String(body.debug || '') === '1';
     const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today);
 
+    // 이전 대화(멀티턴 기억) — 최근 8개만, 형식/길이 정리
+    const history = Array.isArray(body.history) ? body.history
+      .filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string')
+      .slice(-8)
+      .map((h) => ({ role: h.role, content: String(h.content).slice(0, 700) })) : [];
+
     // 이중화 체인: 무료(Groq)를 먼저 쓰고, 한도 초과 등 실패 시 OpenAI→Gemini로 자동 폴백.
     // → 평소엔 공짜, 폭주(429) 때만 유료 OpenAI가 받아준다. 설정된 키만 후보에 오른다.
     const chain = [];
-    if (groqKey) chain.push({ name: 'groq', fn: () => callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question) });
-    if (openaiKey) chain.push({ name: 'openai', fn: () => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question) });
-    if (geminiKey) chain.push({ name: 'gemini', fn: () => callGemini(geminiKey, systemPrompt, question) });
+    if (groqKey) chain.push({ name: 'groq', fn: () => callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question, history) });
+    if (openaiKey) chain.push({ name: 'openai', fn: () => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question, history) });
+    if (geminiKey) chain.push({ name: 'gemini', fn: () => callGemini(geminiKey, systemPrompt, question, history) });
 
     let lastErr = '설정된 제공자가 없습니다.';
     for (const p of chain) {

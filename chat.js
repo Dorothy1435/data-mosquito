@@ -413,8 +413,15 @@
     }
 
     const apiCache = {}; // 같은 질문 반복 시 API 재호출 방지(세션 캐시)
+    const history = [];  // 멀티턴 대화 기억(사용자↔도우미 주고받은 내용)
+    // 대화 기록에 한 턴을 남긴다(칩·API·폴백 모두 기록해 문맥이 이어지게).
+    function remember(userQ, botA) {
+      history.push({ role: 'user', content: userQ });
+      history.push({ role: 'assistant', content: botA });
+      if (history.length > 20) history.splice(0, history.length - 20); // 과도한 누적 방지
+    }
 
-    // fromChip=true(추천/후속질문 클릭) → 로컬 FAQ 즉답. false(직접 입력) → API 사용.
+    // fromChip=true(추천/후속질문 클릭) → 로컬 FAQ 즉답. false(직접 입력) → API 사용(대화 기억).
     async function ask(question, fromChip) {
       addMsg('user', question);
 
@@ -423,6 +430,7 @@
         const faq = faqAnswer(question);
         if (faq) {
           addMsg('bot', faq.a);
+          remember(question, faq.a);
           setSuggest(diversify(faq.f, question));
           log.scrollTop = log.scrollHeight;
           return;
@@ -431,12 +439,14 @@
       // 반복 질문: 세션 캐시
       if (apiCache[question]) {
         addMsg('bot', apiCache[question].answer);
+        remember(question, apiCache[question].answer);
         setSuggest(diversify(apiCache[question].seed, question));
         log.scrollTop = log.scrollHeight;
         return;
       }
 
-      // 직접 입력: API 호출
+      // 직접 입력: API 호출 (이전 대화 함께 전송 → 기억)
+      const priorHistory = history.slice(-8);
       const loading = addMsg('bot', '');
       loading.classList.add('mz-typing');
       loading.innerHTML = '<span></span><span></span><span></span>';
@@ -447,6 +457,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             question,
+            history: priorHistory,
             districts: buildDistrictSnapshot(),
             today: todayStr(),
           }),
@@ -454,19 +465,23 @@
         const data = await res.json();
         loading.classList.remove('mz-typing'); loading.innerHTML = '';
         if (data.ok) {
-          loading.textContent = data.answer || '죄송해요, 답을 가져오지 못했어요.';
-          apiCache[question] = { answer: data.answer, seed: data.followups };
+          const ans = data.answer || '죄송해요, 답을 가져오지 못했어요.';
+          loading.textContent = ans;
+          remember(question, ans);
+          apiCache[question] = { answer: ans, seed: data.followups };
           setSuggest(diversify(data.followups, question));
         } else {
           // API 실패 → 로컬 FAQ로 폴백(있으면)
           const faq = faqAnswer(question);
-          loading.textContent = faq ? faq.a : (data.answer || '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.');
+          const ans = faq ? faq.a : (data.answer || '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.');
+          loading.textContent = ans;
+          if (faq) remember(question, faq.a);
           setSuggest(diversify(faq && faq.f, question));
         }
       } catch (e) {
         loading.classList.remove('mz-typing'); loading.innerHTML = '';
         const faq = faqAnswer(question);
-        if (faq) { loading.textContent = faq.a; setSuggest(diversify(faq.f, question)); }
+        if (faq) { loading.textContent = faq.a; remember(question, faq.a); setSuggest(diversify(faq.f, question)); }
         else { loading.textContent = '⚠️ 연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; }
       }
       log.scrollTop = log.scrollHeight;
