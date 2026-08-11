@@ -59,7 +59,19 @@ const KNOWLEDGE = `
 - 구역 단위가 17개로 작아, 정밀 예측보다 위험 스크리닝·방제 우선순위용으로 적합하다.
 `;
 
-function buildSystemPrompt(districtsText, today) {
+// 브라우저가 보낸 공원 추천 힌트를 프롬프트용 텍스트로.
+function parksToText(parks) {
+  if (!parks || typeof parks !== 'object') return '';
+  const lines = [];
+  if (Array.isArray(parks.safe) && parks.safe.length) lines.push(`- 산책하기 상대적으로 안전한 공원(관리형): ${parks.safe.join(', ')}`);
+  if (parks.risky) lines.push(`- 물가·수풀이 많아 주의할 공원: ${parks.risky}`);
+  if (parks.current_district && Array.isArray(parks.current_safe) && parks.current_safe.length) {
+    lines.push(`- ${parks.current_district}에서 추천하는 공원: ${parks.current_safe.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+function buildSystemPrompt(districtsText, today, parksText) {
   return `당신은 '모기제로' 웹사이트의 안내 도우미입니다. 김해시 모기 위험 정보만 안내합니다.
 
 [반드시 지킬 규칙]
@@ -83,6 +95,9 @@ ${KNOWLEDGE}
 
 <오늘 데이터(구역별, 모델이 계산한 실제 값)>
 ${districtsText || '(구역 데이터 없음)'}
+
+<추천 공원(실제 데이터, 이름 그대로 안내 가능)>
+${parksText || '(공원 데이터 없음)'}
 `;
 }
 
@@ -196,7 +211,7 @@ module.exports = async function handler(req, res) {
     const question = String(body.question || '').slice(0, 500).trim();
     if (!question) { res.status(400).json({ error: '질문이 비어 있습니다.' }); return; }
     debug = String(body.debug || '') === '1';
-    const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today);
+    const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today, parksToText(body.parks));
 
     // 이전 대화(멀티턴 기억) — 최근 8개만, 형식/길이 정리
     const history = Array.isArray(body.history) ? body.history

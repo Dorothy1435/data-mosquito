@@ -41,6 +41,65 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  // ==== 도시공원 데이터 (실제 공원 이름 추천용) ====
+  let gimhaeParks = []; // data/gimhae-parks.json — {name,type,addr,district,area_m2}
+  const PARK_TYPE_ADJ = { 수변공원: 0.14, 근린공원: 0.05, 체육공원: 0.03, 역사공원: 0.02, 소공원: -0.02, 어린이공원: -0.03 };
+  const PARK_MANAGED = ['어린이공원', '소공원'];
+  const PARK_RISKY = ['수변공원', '근린공원', '체육공원'];
+
+  // 공원 1곳의 추정 위험(구역 밀도위험 + 공원 유형 보정). 김해 페이지와 동일 로직.
+  function parkRisk(p) {
+    const M = window.GimhaeMosquitoModel;
+    const d = M && M.DISTRICTS[p.district];
+    const base = d ? d.density_risk : 0.4;
+    return Math.max(0, Math.min(1, base + (PARK_TYPE_ADJ[p.type] || 0)));
+  }
+  // 지번주소에서 동/리를 뽑아 흔한 공원명을 구분한다.
+  function parkLoc(addr) {
+    if (!addr) return '';
+    let h = '';
+    String(addr).split(/\s+/).forEach((t) => { if (/(동|리)$/.test(t) && t !== '김해시') h = t; });
+    return h;
+  }
+  function parkName(p) {
+    const generic = /^(소공원|어린이공원|근린공원|공원)$/.test(p.name) || /^공원[\d\s-]/.test(p.name);
+    const h = parkLoc(p.addr);
+    return generic && h ? `${p.name}(${h})` : p.name;
+  }
+  // 흔한 이름 중복을 피해 최대 n개의 공원명을 고른다.
+  function pickParkNames(list, n) {
+    const seen = new Set();
+    const out = [];
+    for (const p of list) {
+      const nm = parkName(p);
+      if (!seen.has(nm)) { seen.add(nm); out.push(nm); }
+      if (out.length >= n) break;
+    }
+    return out;
+  }
+  // 안전한 공원 추천(구역 지정 시 그 안에서). 데이터 없으면 null.
+  function recommendParks(district) {
+    if (!window.GimhaeMosquitoModel || !gimhaeParks.length) return null;
+    let pool = gimhaeParks.filter((p) => p.name);
+    if (district) pool = pool.filter((p) => p.district === district);
+    if (!pool.length) return null;
+    const scored = pool.map((p) => ({ p, risk: parkRisk(p) })).sort((a, b) => a.risk - b.risk);
+    const managed = scored.filter((x) => PARK_MANAGED.includes(x.p.type));
+    const safe = pickParkNames((managed.length >= 2 ? managed : scored).map((x) => x.p), 3);
+    // 주의 대상(물가·큰 공원 중 위험 높은 것)
+    const riskyList = scored.filter((x) => PARK_RISKY.includes(x.p.type)).sort((a, b) => b.risk - a.risk);
+    const risky = riskyList.length ? parkName(riskyList[0].p) : null;
+    return { safe, risky };
+  }
+  // API로 보낼 공원 힌트(자유 질문에서도 이름을 답할 수 있게).
+  function parkHints() {
+    const r = recommendParks(null);
+    if (!r) return null;
+    const sel = document.getElementById('districtSelect');
+    const cur = sel && sel.value ? recommendParks(sel.value) : null;
+    return { safe: r.safe, risky: r.risky, current_district: sel && sel.value || null, current_safe: cur && cur.safe || null };
+  }
+
   // ==== 로컬 FAQ 즉답 (API 없이 처리 — 한도 절약·즉시 응답) ====
   // 자주 묻는 질문과 구역 점수 질문은 여기서 바로 답한다. 매칭 실패 시 null → API로 넘어감.
   // 후속질문(f)도 전부 FAQ가 답할 수 있는 것으로만 구성해, 클릭해도 API를 안 쓴다.
@@ -114,8 +173,21 @@
     if (has('여름', '겨울', '계절', '몇월', '월별', '언제많', '왜많', '성수기')) {
       return R('모기는 기온이 오르는 7~8월에 가장 많아요. 실측 유충도 7~8월 정점, 겨울엔 거의 0으로, 모델의 온도 곡선과 그대로 일치합니다(상관 +0.996).', ['모기 활동 시간은?', '검증은 어떻게 했어?', '가장 위험한 동네는?']);
     }
-    if (has('산책', '공원어디', '어느공원', '공원추천', '나가도', '야외', '운동')) {
-      return R('산책은 물가의 수변공원·넓은 근린공원보다, 작고 관리되는 어린이·소공원이 상대적으로 안전해요. 위험이 낮은 동네의 공원을 고르면 더 좋아요. 김해 모델 페이지 지도에서 공원 위치도 볼 수 있어요.', ['가장 안전한 동네는?', '모기 활동 시간은?', '모기 예방법 알려줘']);
+    if (has('산책', '공원어디', '어느공원', '공원추천', '나가도', '야외', '운동', '어디로가')
+        || (q.includes('공원') && !has('발생원', '번식', '왜위험', '몇개', '몇곳'))) {
+      // 질문에 동네 이름이 있으면 그 구역 안에서 추천
+      const inText = M && snap.length ? snap.find((d) => q.includes(d.name) || q.includes(d.name.replace(/(동|면|읍)$/, ''))) : null;
+      const sel = document.getElementById('districtSelect');
+      const dist = inText ? inText.name : (sel && sel.value ? sel.value : null);
+      const rec = recommendParks(dist);
+      if (rec && rec.safe.length) {
+        let a = dist ? `${dist}에서는 관리형 공원인 ` : '산책하기 좋은 관리형 공원은 ';
+        a += `${rec.safe.join(', ')}이(가) 상대적으로 안전해요.`;
+        if (rec.risky) a += ` 반대로 물가·수풀이 많은 ${rec.risky}은(는) 해질녘 모기가 많으니 그 시간대는 피하세요.`;
+        return R(a, ['가장 안전한 동네는?', '모기 활동 시간은?', '모기 예방법 알려줘']);
+      }
+      // 데이터 로딩 전 등: 일반 안내
+      return R('산책은 물가의 수변공원·넓은 근린공원보다, 작고 관리되는 어린이·소공원이 상대적으로 안전해요. 위험이 낮은 동네의 공원을 고르면 더 좋아요.', ['가장 안전한 동네는?', '모기 활동 시간은?', '모기 예방법 알려줘']);
     }
 
     // (D) 매개모기·감염병
@@ -363,6 +435,9 @@
       </section>`;
     document.body.appendChild(root);
 
+    // 도시공원 데이터 로드(실패해도 일반 안내로 동작). 실제 공원 이름 추천에 사용.
+    fetch('data/gimhae-parks.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeParks = d || []; }).catch(() => {});
+
     const fab = root.querySelector('.mz-chat-fab');
     const panel = root.querySelector('.mz-chat-panel');
     const closeBtn = root.querySelector('.mz-chat-close');
@@ -459,6 +534,7 @@
             question,
             history: priorHistory,
             districts: buildDistrictSnapshot(),
+            parks: parkHints(),
             today: todayStr(),
           }),
         });
