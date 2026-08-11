@@ -213,6 +213,41 @@
       return R('날씨는 실시간(Open-Meteo)으로 갱신되어 점수가 매일 바뀌고, 발생원 데이터는 김해시 방역 시스템 기준으로 반영돼요.', ['어떻게 계산해?', '데이터는 어디서 구했어?', '가장 위험한 동네는?']);
     }
 
+    // (E9) 생활 속 추가 질문
+    if (has('어두운', '검은옷', '밝은옷', '무슨색', '옷색', '색깔', '어떤옷')) {
+      return R('모기는 어두운 색과 이산화탄소·체온에 잘 끌려요. 밝은 색의 긴 옷을 입으면 물림을 줄일 수 있어요.', ['모기 예방법 알려줘', '왜 나만 물려?', '모기 활동 시간은?']);
+    }
+    if (has('술마시', '술먹', '음주', '향수', '화장품', '술마신')) {
+      return R('술을 마시면 체온·이산화탄소·젖산이 늘어 모기에 더 잘 물릴 수 있어요. 향이 강한 화장품·향수도 유인할 수 있습니다.', ['왜 나만 물려?', '모기 예방법 알려줘', '어떤 기피제를 써?']);
+    }
+    if (has('연막', '연무', '방역차', '소독차', '분무소독')) {
+      return R('연막·연무 소독은 성충을 일시적으로 줄여줘요. 다만 근본적으로는 발생원(고인 물)을 없애고 유충을 구제하는 게 더 효과적입니다.', ['방제는 어떻게 해?', '발생원이 뭐야?', '가장 위험한 동네는?']);
+    }
+    if (has('장구벌레', '유충이뭐', '애벌레', '유충뭐')) {
+      return R('물속에서 꿈틀대는 장구벌레가 바로 모기 유충이에요. 고인 물을 없애면 유충 단계에서 번식을 차단할 수 있어요.', ['모기는 어디서 번식해?', '발생원이 뭐야?', '모기 예방법 알려줘']);
+    }
+    if (has('겨울', '월동', '겨울에도', '추우면', '봄에')) {
+      return R('일부 모기는 성충이나 알 상태로 겨울을 나요(월동). 그래서 봄이 되면 다시 나타납니다. 실측 유충도 겨울엔 거의 0이에요.', ['왜 여름에 모기가 많아?', '모기 수명이 어떻게 돼?', '더우면 모기 많아?']);
+    }
+    if (has('온난화', '기후변화', '지구가더워', '기후')) {
+      return R('기온이 오르면 모기 활동 기간이 길어지고 분포가 넓어질 수 있어요. 그래서 발생원 관리와 모니터링이 점점 더 중요해집니다.', ['왜 여름에 모기가 많아?', '더우면 모기 많아?', '방제는 어떻게 해?']);
+    }
+    if (has('실내', '집에', '집안', '방에', '배수구', '하수구', '에어컨', '화분')) {
+      return R('집 안에서는 화분받침·배수구·에어컨 배수 등 고인 물을 없애고, 방충망 파손을 점검하세요. 작은 물웅덩이도 모기 산란지가 됩니다.', ['모기 예방법 알려줘', '모기는 어디서 번식해?', '모기장 효과 있어?']);
+    }
+    if (has('캠핑', '등산', '야외활동', '나들이', '소풍', '피크닉')) {
+      return R('야외에서는 물가·수풀을 피하고 밝은 긴 옷·기피제·모기장을 준비하세요. 해질녘과 새벽이 특히 위험해요.', ['모기 활동 시간은?', '어떤 기피제를 써?', '산책은 어디가 좋아?']);
+    }
+    if (has('앵앵', '소리', '윙윙', '귀에서', '날갯짓')) {
+      return R('앵앵 소리는 모기의 날갯짓 소리예요. 주로 암컷이 흡혈하러 다가올 때 들립니다.', ['암컷만 물어?', '모기 예방법 알려줘', '왜 나만 물려?']);
+    }
+    if (has('살충제', '에프킬라', '뿌리는', '스프레이', '에어로졸')) {
+      return R('분사형 살충제는 성충 제거에 즉효가 있어요. 다만 발생원(고인 물) 관리와 유충 구제가 근본 대책입니다.', ['방제는 어떻게 해?', '발생원이 뭐야?', '모기장 효과 있어?']);
+    }
+    if (has('구문초', '퇴치식물', '시트로넬라', '식물', '허브')) {
+      return R('구문초·시트로넬라 같은 식물은 향으로 어느 정도 기피 효과가 있다고 알려져 있어요. 다만 보조 수단이고, 고인 물 제거와 기피제가 더 확실합니다.', ['어떤 기피제를 써?', '모기 예방법 알려줘', '모기향 효과 있어?']);
+    }
+
     // (E8) 발생원 종류별 설명
     const SRCINFO = {
       정화조: '정화조는 유기물이 많은 정체수라 빨간집모기류가 잘 번식해요. 오수받이·환기구 봉인과 유충 구제가 중요합니다.',
@@ -259,6 +294,29 @@
     }
 
     return null;
+  }
+
+  // ==== 후속질문 다양화 (전부 FAQ가 즉답 가능한 것만) ====
+  const FAQ_POOL = [
+    '가장 위험한 동네는?', '가장 안전한 동네는?', '오늘 우리 동네 위험해?', '동네 목록 보여줘',
+    '모기지수가 뭐야?', '등급 기준이 어떻게 돼?', '어떻게 계산해?', '왜 김해만 정밀 모델이야?', '검증은 어떻게 했어?', '정확도는 얼마야?',
+    '발생원이 뭐야?', '발생원이 몇 개야?', '정화조가 왜 위험해?', '폐타이어는 왜?', '저수지는 왜?', '데이터는 어디서 구했어?',
+    '모기 예방법 알려줘', '어떤 기피제를 써?', '물렸을 때는?', '모기 활동 시간은?', '산책은 어디가 좋아?', '모기장 효과 있어?', '모기향 효과 있어?',
+    '모기 수명이 어떻게 돼?', '암컷만 물어?', '왜 나만 물려?', '왜 가려운 거야?', '모기 박멸 가능해?', '왜 여름에 모기가 많아?', '겨울에도 모기 있어?',
+    '매개모기 종류는?', '일본뇌염이 위험해?', '뎅기열이 뭐야?',
+    '비 오면 모기 많아?', '더우면 모기 많아?', '왜 어제보다 점수가 달라?',
+    '지도 어떻게 봐?', '이 사이트 뭐야?', '방제는 어떻게 해?', '유문등이 뭐야?', '모기 많으면 어디 신고해?', '너 AI야?', '캠핑 갈 때 조심할 점?',
+  ];
+  // seed(관련 질문) 1개 + POOL에서 무작위로 채워, 매번 다른 3개를 만든다.
+  function diversify(seed, currentQ) {
+    const norm = (s) => String(s).replace(/[\s?!.,~]/g, '');
+    const used = new Set([norm(currentQ || '')]);
+    const out = [];
+    const add = (q) => { const n = norm(q); if (n && !used.has(n)) { used.add(n); out.push(q); } };
+    const shuffle = (a) => a.slice().sort(() => Math.random() - 0.5);
+    shuffle(seed || []).forEach((q) => { if (out.length < 1) add(q); });   // 관련 1개
+    shuffle(FAQ_POOL).forEach((q) => { if (out.length < 3) add(q); });     // 나머지 랜덤
+    return shuffle(out);
   }
 
   // ==== 위젯 DOM 만들기 ====
@@ -309,6 +367,7 @@
       input.focus();
       if (!greeted) {
         addMsg('bot', '안녕하세요! 김해 모기 위험을 안내하는 도우미예요 🦟 궁금한 걸 물어보세요.');
+        setSuggest(diversify(['오늘 우리 동네 위험해?', '가장 위험한 동네는?', '모기 예방법 알려줘'], ''));
         greeted = true;
       }
     }
@@ -329,7 +388,7 @@
       return el;
     }
 
-    // 추천 질문 칩을 다시 채운다(초기 기본값, 답변 후 후속질문 등).
+    // 추천 질문 칩을 다시 채운다. 칩 클릭은 fromChip=true → 즉답 FAQ(API 미사용).
     const suggest = root.querySelector('.mz-chat-suggest');
     function setSuggest(list) {
       suggest.innerHTML = '';
@@ -338,32 +397,36 @@
         b.type = 'button';
         b.className = 'mz-sug';
         b.textContent = q;
-        b.addEventListener('click', () => ask(b.textContent));
+        b.addEventListener('click', () => ask(b.textContent, true));
         suggest.appendChild(b);
       });
     }
 
     const apiCache = {}; // 같은 질문 반복 시 API 재호출 방지(세션 캐시)
 
-    async function ask(question) {
+    // fromChip=true(추천/후속질문 클릭) → 로컬 FAQ 즉답. false(직접 입력) → API 사용.
+    async function ask(question, fromChip) {
       addMsg('user', question);
 
-      // 1) 로컬 FAQ 즉답 (API 없이) — 자주 묻는 것·구역 점수
-      const faq = faqAnswer(question);
-      if (faq) {
-        addMsg('bot', faq.a);
-        if (faq.f && faq.f.length) setSuggest(faq.f);
-        log.scrollTop = log.scrollHeight;
-        return;
+      // 칩 클릭: API 없이 즉답
+      if (fromChip) {
+        const faq = faqAnswer(question);
+        if (faq) {
+          addMsg('bot', faq.a);
+          setSuggest(diversify(faq.f, question));
+          log.scrollTop = log.scrollHeight;
+          return;
+        }
       }
-      // 2) 세션 캐시 (같은 질문 반복)
+      // 반복 질문: 세션 캐시
       if (apiCache[question]) {
         addMsg('bot', apiCache[question].answer);
-        if (apiCache[question].followups) setSuggest(apiCache[question].followups);
+        setSuggest(diversify(apiCache[question].seed, question));
         log.scrollTop = log.scrollHeight;
         return;
       }
 
+      // 직접 입력: API 호출
       const loading = addMsg('bot', '');
       loading.classList.add('mz-typing');
       loading.innerHTML = '<span></span><span></span><span></span>';
@@ -380,30 +443,36 @@
         });
         const data = await res.json();
         loading.classList.remove('mz-typing'); loading.innerHTML = '';
-        loading.textContent = data.answer || '죄송해요, 답을 가져오지 못했어요.';
-        // 답변마다 후속 질문 추천을 갱신
-        if (Array.isArray(data.followups) && data.followups.length) {
-          setSuggest(data.followups);
+        if (data.ok) {
+          loading.textContent = data.answer || '죄송해요, 답을 가져오지 못했어요.';
+          apiCache[question] = { answer: data.answer, seed: data.followups };
+          setSuggest(diversify(data.followups, question));
+        } else {
+          // API 실패 → 로컬 FAQ로 폴백(있으면)
+          const faq = faqAnswer(question);
+          loading.textContent = faq ? faq.a : (data.answer || '⚠️ 잠시 답변을 가져오지 못했어요. 잠시 후 다시 시도해 주세요.');
+          setSuggest(diversify(faq && faq.f, question));
         }
-        // 성공 답변만 세션 캐시에 저장(오류 메시지는 저장 안 함)
-        if (data.ok) apiCache[question] = { answer: data.answer, followups: data.followups };
       } catch (e) {
         loading.classList.remove('mz-typing'); loading.innerHTML = '';
-        loading.textContent = '⚠️ 연결에 실패했어요. 잠시 후 다시 시도해 주세요.';
+        const faq = faqAnswer(question);
+        if (faq) { loading.textContent = faq.a; setSuggest(diversify(faq.f, question)); }
+        else { loading.textContent = '⚠️ 연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; }
       }
       log.scrollTop = log.scrollHeight;
     }
 
+    // 직접 입력(엔터/전송) → fromChip=false → API 사용
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const q = input.value.trim();
       if (!q) return;
       input.value = '';
-      ask(q);
+      ask(q, false);
     });
-    // 초기 추천 질문 버튼에 동작 연결
+    // 초기 추천 질문 버튼도 칩이므로 fromChip=true(즉답)
     root.querySelectorAll('.mz-sug').forEach((b) => {
-      b.addEventListener('click', () => ask(b.textContent));
+      b.addEventListener('click', () => ask(b.textContent, true));
     });
   }
 
