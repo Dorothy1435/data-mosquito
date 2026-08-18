@@ -447,6 +447,41 @@ function renderLarvaChart() {
   });
 }
 
+// === 모니터링 커버리지(사각지대) — 실측 채집이 동네별로 촘촘한지 진단 ===
+function renderCoverage() {
+  const el = document.getElementById('coverage');
+  if (!el || !larvaPoints.length) return;
+  const M = GimhaeMosquitoModel;
+  const cnt = {};
+  larvaPoints.forEach((p) => { cnt[p.district] = (cnt[p.district] || 0) + 1; });
+  const rows = M.listDistricts().map((d) => {
+    const rec = M.DISTRICTS[d];
+    const n = cnt[d] || 0;
+    return { d, n, perKm2: n / rec.area_km2, rural: /[면읍]$/.test(d), pop: rec.population };
+  });
+  const rural = rows.filter((r) => r.rural);
+  const urban = rows.filter((r) => !r.rural);
+  const avg = (a) => (a.reduce((s, r) => s + r.perKm2, 0) / a.length);
+  const uAvg = avg(urban), rAvg = avg(rural);
+  const gap = rAvg > 0 ? Math.round(uAvg / rAvg) : '∞';
+  // 사각지대: 채집 밀도가 낮은 순 상위(0.5 지점/㎢ 미만)
+  const blind = rows.filter((r) => r.perKm2 < 0.5).sort((a, b) => a.perKm2 - b.perKm2);
+  const zero = rows.filter((r) => r.n === 0);
+
+  const chip = (r) => `<span class="cov-chip${r.n === 0 ? ' cov-zero' : ''}">${r.d} <b>${r.n === 0 ? '채집 0' : r.perKm2.toFixed(2) + '/㎢'}</b></span>`;
+
+  el.innerHTML = `
+    <div class="district-env cov-tiles">
+      <span class="env-item"><b>동 지역</b> ${uAvg.toFixed(1)} 지점/㎢</span>
+      <span class="env-item"><b>읍·면</b> ${rAvg.toFixed(1)} 지점/㎢</span>
+      <span class="env-item"><b>격차</b> 약 ${gap}배</span>
+      <span class="env-item"><b>채집 0 구역</b> ${zero.length}곳</span>
+    </div>
+    <p class="cov-blind-label">채집 사각지대(우선 확대 필요)</p>
+    <div class="cov-chips">${blind.map(chip).join('')}</div>
+    <p class="place-caution">※ 채집이 <strong>인구 많은 동 지역에 ${gap}배 몰려</strong> 있습니다. 실측을 지금 그대로 점수에 넣으면 채집이 없는 <strong>사각지대(장유·진영읍 등)가 '저위험'으로 오인</strong>될 수 있어, 현재는 실측을 <strong>검증 전용</strong>으로만 씁니다. 이 구역들에 채집이 촘촘해지면 성충·유충 가중치를 단계적으로 높일 수 있습니다.</p>`;
+}
+
 // === 검증 산점도: 예측 지역위험 ↔ 실제 방역민원 (한 번만 그림) ===
 let verifyChart = null;
 function renderVerifyChart() {
@@ -1155,6 +1190,7 @@ async function init() {
     fetch('data/gimhae-larva-monthly.json').then((r) => (r.ok ? r.json() : [])).then((d) => { larvaMonthly = d; }).catch(() => {}),
   ]);
   renderLarvaChart();     // 시간 검증 곡선(정적)
+  renderCoverage();       // 모니터링 커버리지(사각지대) 진단
 
   districtSelect.addEventListener('change', () => {
     renderDistrict(districtSelect.value);
