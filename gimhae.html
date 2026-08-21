@@ -87,18 +87,30 @@
           <p class="helper-text">원이 크고 진할수록 발생원 위험이 높습니다. 원을 누르면 해당 구역으로 이동합니다.</p>
         </div>
         <p id="sourceTotals" class="source-totals">-</p>
+        <div class="map-modes" role="group" aria-label="지도 표시 모드">
+          <button type="button" class="mode-btn is-active" data-mode="risk" aria-pressed="true">발생원 위험</button>
+          <button type="button" class="mode-btn" data-mode="coverage" aria-pressed="false">채집 커버리지</button>
+        </div>
         <div class="map-toolbar">
           <button id="parksToggle" type="button" class="chip-toggle" aria-pressed="false">🏞️ 도시공원 245곳 표시</button>
           <button id="larvaToggle" type="button" class="chip-toggle" aria-pressed="false">🔬 유충 실측 지점 표시</button>
         </div>
         <div id="gimhaeMap" class="map-area" aria-label="김해 구역별 발생원 위험 지도"></div>
-        <div class="legend heatmap-legend" aria-label="발생원 위험 범례">
+        <div id="riskLegend" class="legend heatmap-legend" aria-label="발생원 위험 범례">
           <span class="legend-title">발생원 위험</span>
           <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
           <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
           <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
           <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
           <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
+        </div>
+        <div id="coverageLegend" class="legend heatmap-legend" aria-label="채집 커버리지 범례" hidden>
+          <span class="legend-title">채집 커버리지</span>
+          <span><i class="legend-dot" style="background:#b91c1c"></i> 사각지대(0)</span>
+          <span><i class="legend-dot" style="background:#ef4444"></i> 매우 희소</span>
+          <span><i class="legend-dot" style="background:#f59e0b"></i> 희소</span>
+          <span><i class="legend-dot" style="background:#86efac"></i> 보통</span>
+          <span><i class="legend-dot" style="background:#2f9e64"></i> 촘촘</span>
         </div>
         <div class="shape-legend" aria-label="지도 기호 범례">
           <span class="legend-title">기호</span>

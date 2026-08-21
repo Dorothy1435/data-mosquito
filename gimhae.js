@@ -277,12 +277,38 @@ function initGimhaeMap() {
   gimhaeMap.fitBounds([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]], { padding: [28, 28] });
 }
 
-// 17개 구역의 발생원 위험을 원형 마커로 그린다. 선택 구역은 강조하고, 누르면 이동한다.
+// 지도 표시 모드: 'risk'(발생원 위험) | 'coverage'(채집 커버리지)
+let mapMode = 'risk';
+
+// 구역의 유충 채집 커버리지(지점 수·지점/㎢)
+function coverageOf(district) {
+  const rec = GimhaeMosquitoModel.DISTRICTS[district];
+  let n = 0;
+  larvaPoints.forEach((p) => { if (p.district === district) n += 1; });
+  return { n, perKm2: n / rec.area_km2 };
+}
+// 커버리지 색(낮을수록 붉게 = 사각지대)
+function coverageColor(perKm2) {
+  if (perKm2 <= 0) return '#b91c1c';
+  if (perKm2 < 0.5) return '#ef4444';
+  if (perKm2 < 3) return '#f59e0b';
+  if (perKm2 < 10) return '#86efac';
+  return '#2f9e64';
+}
+function coverageLabel(perKm2) {
+  if (perKm2 <= 0) return '사각지대(채집 0)';
+  if (perKm2 < 0.5) return '매우 희소';
+  if (perKm2 < 3) return '희소';
+  if (perKm2 < 10) return '보통';
+  return '촘촘';
+}
+
+// 17개 구역을 원형 마커로 그린다. mapMode에 따라 색·의미가 바뀐다. 누르면 이동한다.
 function renderGimhaeMap(activeDistrict) {
   if (!gimhaeMap) return;
   Object.values(gimhaeMarkers).forEach((m) => m.remove());
   gimhaeMarkers = {};
-  // 밀도위험(발생원+인구, 날씨 무관) 기준 순위 — 지도 원 색·크기·순위에 사용
+  // 밀도위험(발생원+인구, 날씨 무관) 기준 순위
   const densRanked = GimhaeMosquitoModel.listDistricts()
     .map((d) => [d, GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 }).source_risk.density_risk])
     .sort((a, b) => b[1] - a[1]);
@@ -292,19 +318,23 @@ function renderGimhaeMap(activeDistrict) {
   Object.entries(GimhaeMosquitoModel.COORDS).forEach(([district, point]) => {
     const r = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions(district));
     const risk = r.source_risk.density_risk;      // 0~1
-    const riskPct = Math.round(risk * 100);
     const today = Math.round(r.mosquito_index);
     const isActive = district === activeDistrict;
+    const cov = coverageOf(district);
+
+    const fill = mapMode === 'coverage' ? coverageColor(cov.perKm2) : sourceRiskColor(Math.round(risk * 100));
+    const radius = mapMode === 'coverage' ? 14 : (9 + risk * 22);
+    const popup = mapMode === 'coverage'
+      ? `<strong>${district}</strong><br>유충 채집 ${cov.n}지점 · ${cov.perKm2.toFixed(2)}/㎢<br>${coverageLabel(cov.perKm2)}`
+      : `<strong>${district}</strong><br>밀도위험 ${risk.toFixed(2)} (발생원·인구, 시내 ${densRank[district]}/17위)<br>오늘 모기지수 ${today}점 · ${r.grade}`;
+
     const marker = L.circleMarker(point, {
-      radius: 9 + risk * 22,
+      radius,
       color: isActive ? '#0f6b57' : '#ffffff',
       weight: isActive ? 4 : 1.5,
-      fillColor: sourceRiskColor(riskPct),
+      fillColor: fill,
       fillOpacity: isActive ? 0.85 : 0.6,
-    }).addTo(gimhaeMap).bindPopup(
-      `<strong>${district}</strong><br>밀도위험 ${risk.toFixed(2)} (발생원·인구, 시내 ${densRank[district]}/17위)`
-      + `<br>오늘 모기지수 ${today}점 · ${r.grade}`,
-    ).bindTooltip(district, {
+    }).addTo(gimhaeMap).bindPopup(popup).bindTooltip(district, {
       permanent: true,
       direction: 'top',
       offset: [0, -4],
@@ -318,6 +348,25 @@ function renderGimhaeMap(activeDistrict) {
     gimhaeMarkers[district] = marker;
   });
   gimhaeMap.invalidateSize();
+}
+
+// 지도 모드(위험/커버리지) 전환 버튼
+function setupMapModes() {
+  const btns = document.querySelectorAll('.mode-btn');
+  if (!btns.length) return;
+  btns.forEach((b) => b.addEventListener('click', () => {
+    mapMode = b.dataset.mode;
+    btns.forEach((x) => {
+      const on = x === b;
+      x.classList.toggle('is-active', on);
+      x.setAttribute('aria-pressed', String(on));
+    });
+    const rl = document.getElementById('riskLegend');
+    const cl = document.getElementById('coverageLegend');
+    if (rl) rl.hidden = mapMode !== 'risk';
+    if (cl) cl.hidden = mapMode !== 'coverage';
+    renderGimhaeMap(districtSelect.value);
+  }));
 }
 
 // 도시공원 245곳을 지도에 '네모' 마커로 그린다(토글). 기본은 숨김 — 난잡함 방지.
@@ -1182,6 +1231,7 @@ async function init() {
   initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)
   setupParksToggle();     // 도시공원 표시 토글
   setupLarvaToggle();     // 유충 실측 지점 표시 토글
+  setupMapModes();        // 지도 모드(위험/커버리지) 전환
 
   // 부가 데이터 로드(실패해도 나머지는 정상 동작)
   await Promise.all([
