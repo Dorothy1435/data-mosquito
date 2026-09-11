@@ -43,6 +43,7 @@
 
   // ==== 도시공원 데이터 (실제 공원 이름 추천용) ====
   let gimhaeParks = []; // data/gimhae-parks.json — {name,type,addr,district,area_m2}
+  let gimhaeAttractions = []; // data/gimhae-attractions.json — 관광지·박물관·도서관
   const PARK_TYPE_ADJ = { 수변공원: 0.14, 근린공원: 0.05, 체육공원: 0.03, 역사공원: 0.02, 소공원: -0.02, 어린이공원: -0.03 };
   const PARK_MANAGED = ['어린이공원', '소공원'];
   const PARK_RISKY = ['수변공원', '근린공원', '체육공원'];
@@ -77,6 +78,24 @@
     }
     return out;
   }
+  // 오늘 나들이 가기 좋은 장소 추천 — 실내/야외 각각 한 곳.
+  // gimhae.js의 쾌적 점수와 같은 방식(구역 모기지수 × 장소 특성)으로 계산한다.
+  function recommendTrip() {
+    const M = window.GimhaeMosquitoModel;
+    if (!M || !gimhaeAttractions.length) return null;
+    const month = new Date().getMonth() + 1;
+    const scored = gimhaeAttractions.map((a) => {
+      const district = M.nearestDistrict(a.lat, a.lon);
+      const idx = M.mosquitoIndex(district, { month }).mosquito_index;
+      const factor = a.indoor ? 0.3 : (1 + 0.22 * (a.water || 0) + 0.13 * (a.veg || 0));
+      return { a, comfort: Math.max(0, Math.round(100 - Math.min(100, idx * factor))) };
+    }).sort((x, y) => y.comfort - x.comfort);
+    const best = scored[0];
+    const outdoor = scored.find((x) => !x.a.indoor);
+    const indoor = scored.find((x) => x.a.indoor);
+    return { best, outdoor, indoor };
+  }
+
   // 안전한 공원 추천(구역 지정 시 그 안에서). 데이터 없으면 null.
   function recommendParks(district) {
     if (!window.GimhaeMosquitoModel || !gimhaeParks.length) return null;
@@ -173,6 +192,19 @@
     if (has('여름', '겨울', '계절', '몇월', '월별', '언제많', '왜많', '성수기')) {
       return R('모기는 기온이 오르는 7~8월에 가장 많아요. 실측 유충도 7~8월 정점, 겨울엔 거의 0으로, 모델의 온도 곡선과 그대로 일치합니다(상관 +0.996).', ['모기 활동 시간은?', '검증은 어떻게 했어?', '가장 위험한 동네는?']);
     }
+    if (has('나들이', '관광', '가볼만한', '놀러', '주말어디', '박물관', '미술관', '도서관', '데이트')) {
+      const t = recommendTrip();
+      if (t && t.best) {
+        let a = `오늘 김해에서 가장 쾌적한 곳은 ${t.best.a.name}이에요(쾌적 ${t.best.comfort}점).`;
+        if (t.best.a.note) a += ` ${t.best.a.note}.`;
+        const other = t.best.a.indoor ? t.outdoor : t.indoor;
+        if (other) {
+          a += ` ${t.best.a.indoor ? '야외' : '실내'}로 가고 싶다면 ${other.a.name}(쾌적 ${other.comfort}점)도 좋아요.`;
+        }
+        return R(a, ['산책은 어디가 좋아?', '모기 활동 시간은?', '오늘 우리 동네 위험해?']);
+      }
+      return R('김해에는 국립김해박물관·대성동고분박물관·클레이아크김해미술관 같은 실내 관람지와 가야테마파크·봉황대공원 같은 야외 나들이 장소가 있어요. 실내 관람지는 모기 걱정이 적어요.', ['산책은 어디가 좋아?', '모기 활동 시간은?', '모기 예방법 알려줘']);
+    }
     if (has('산책', '공원어디', '어느공원', '공원추천', '나가도', '야외', '운동', '어디로가')
         || (q.includes('공원') && !has('발생원', '번식', '왜위험', '몇개', '몇곳'))) {
       // 질문에 동네 이름이 있으면 그 구역 안에서 추천
@@ -181,13 +213,15 @@
       const dist = inText ? inText.name : (sel && sel.value ? sel.value : null);
       const rec = recommendParks(dist);
       if (rec && rec.safe.length) {
-        let a = dist ? `${dist}에서는 관리형 공원인 ` : '산책하기 좋은 관리형 공원은 ';
-        a += `${rec.safe.join(', ')}이(가) 상대적으로 안전해요.`;
-        if (rec.risky) a += ` 반대로 물가·수풀이 많은 ${rec.risky}은(는) 해질녘 모기가 많으니 그 시간대는 피하세요.`;
-        return R(a, ['가장 안전한 동네는?', '모기 활동 시간은?', '모기 예방법 알려줘']);
+        // 보건소 피드백(2026-09-10): 특정 공원을 '위험하다'고 지목하지 않고,
+        // 오늘 가기 좋은 곳 한 곳만 긍정적으로 알려준다.
+        const pick = rec.safe[0];
+        let a = dist ? `${dist}에서 오늘 산책하기 좋은 곳은 ${pick}이에요.` : `오늘 산책하기 좋은 곳은 ${pick}이에요.`;
+        a += ' 해질녘·새벽에는 어느 공원이든 긴 옷과 기피제를 함께 챙기면 더 편안해요.';
+        return R(a, ['오늘 나들이 어디가 좋아?', '모기 활동 시간은?', '모기 예방법 알려줘']);
       }
       // 데이터 로딩 전 등: 일반 안내
-      return R('산책은 물가의 수변공원·넓은 근린공원보다, 작고 관리되는 어린이·소공원이 상대적으로 안전해요. 위험이 낮은 동네의 공원을 고르면 더 좋아요.', ['가장 안전한 동네는?', '모기 활동 시간은?', '모기 예방법 알려줘']);
+      return R('작고 관리가 잘 되는 어린이·소공원이 산책하기 편안해요. 나무가 많은 곳은 그늘이 시원한 대신 해질녘에 모기가 늘 수 있으니 긴 옷과 기피제를 챙기면 좋아요.', ['오늘 나들이 어디가 좋아?', '모기 활동 시간은?', '모기 예방법 알려줘']);
     }
 
     // (D) 매개모기·감염병
@@ -437,6 +471,7 @@
 
     // 도시공원 데이터 로드(실패해도 일반 안내로 동작). 실제 공원 이름 추천에 사용.
     fetch('data/gimhae-parks.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeParks = d || []; }).catch(() => {});
+    fetch('data/gimhae-attractions.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeAttractions = d || []; }).catch(() => {});
 
     const fab = root.querySelector('.mz-chat-fab');
     const panel = root.querySelector('.mz-chat-panel');

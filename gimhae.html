@@ -19,6 +19,10 @@
         <div class="topbar-actions">
           <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
           <select id="districtSelect" class="region-select" aria-label="김해시 구역 선택"></select>
+          <div class="audience-switch" role="group" aria-label="보기 모드">
+            <button type="button" class="audience-btn is-active" data-audience-mode="citizen" aria-pressed="true">시민용</button>
+            <button type="button" class="audience-btn" data-audience-mode="expert" aria-pressed="false">전문가용</button>
+          </div>
           <a class="secondary-button button-link" href="index.html">메인으로</a>
           <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
         </div>
@@ -32,6 +36,8 @@
         <a href="index.html#map-section">지도</a>
       </nav>
     </header>
+
+    <p id="audienceNote" class="audience-note">지금은 <strong>시민용 보기</strong>입니다. 방제 약품·발생원 시설 통계 등 방역 담당자용 화면은 접혀 있습니다.</p>
 
     <main class="content-grid">
       <!-- 모델 소개 + 실시간 날씨 입력 상태 -->
@@ -66,7 +72,7 @@
       </section>
 
       <!-- 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (지자체용 핵심) -->
-      <section class="panel-card diagnosis-card span-2" aria-labelledby="diagnosisTitle">
+      <section class="panel-card diagnosis-card span-2" data-audience="expert" aria-labelledby="diagnosisTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">이 구역 핵심 진단</p>
@@ -150,7 +156,7 @@
       </section>
 
       <!-- 발생원 분석: 시설 유형별 위험 기여율 -->
-      <section class="panel-card" aria-labelledby="sourceTitle">
+      <section class="panel-card" data-audience="expert" aria-labelledby="sourceTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">발생원 분석</p>
@@ -197,7 +203,7 @@
             <h3>시민 행동요령</h3>
             <ul id="citizenAdvice" class="detail-list"></ul>
           </article>
-          <article class="detail-card warning-card">
+          <article class="detail-card warning-card" data-audience="expert">
             <h3>방제당국 행동요령</h3>
             <ul id="authorityAdvice" class="detail-list"></ul>
           </article>
@@ -208,7 +214,7 @@
         </div>
         <p class="place-caution">※ 이 구역의 <strong>주요 발생원</strong>을 반영한 장소입니다. 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요.</p>
         <div id="safeAreas" class="safe-areas">-</div>
-        <p class="place-caution">※ 공원 위험은 <strong>구역 밀도위험 + 공원 유형(물가·규모)</strong>으로 추정한 값입니다. 개별 공원의 실측 모기 관측값은 아닙니다.</p>
+        <p class="place-caution">※ <strong>쾌적 점수</strong>는 그 장소가 속한 구역의 오늘 모기지수에 <strong>장소 특성(실내 여부·물가·수풀)</strong>을 반영해 추정한 값입니다. 개별 장소의 실측 모기 관측값은 아닙니다. 장소 위치는 OpenStreetMap 공개 좌표를 사용했습니다.</p>
       </section>
 
       <!-- 김해시 17개 구역 오늘의 모기지수 순위 -->
@@ -224,7 +230,7 @@
       </section>
 
       <!-- 모델 설명 / 한계 -->
-      <section class="panel-card" aria-labelledby="modelNoteTitle">
+      <section class="panel-card" data-audience="expert" aria-labelledby="modelNoteTitle">
         <div class="panel-heading">
           <div>
             <p class="section-label">모델 안내</p>

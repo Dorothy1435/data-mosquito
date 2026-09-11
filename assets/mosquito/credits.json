@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "culex-tritaeniorhynchus",
+    "ko": "작은빨간집모기",
+    "disease": "일본뇌염",
+    "file": "assets/mosquito/culex-tritaeniorhynchus.jpg",
+    "license": "CC BY-SA 4.0",
+    "author": "Kyu3a",
+    "source": "https://commons.wikimedia.org/wiki/File:Reddish_Brown_mosquito_on_ground_glass.jpg"
+  },
+  {
+    "slug": "culex-pipiens",
+    "ko": "빨간집모기",
+    "disease": "웨스트나일열",
+    "file": "assets/mosquito/culex-pipiens.jpg",
+    "license": "CC BY-SA 4.0",
+    "author": "根川大橋",
+    "source": "https://commons.wikimedia.org/wiki/File:Culex_pipiens_pallens_(famale)_by_Japanese.jpg"
+  },
+  {
+    "slug": "aedes-albopictus",
+    "ko": "흰줄숲모기",
+    "disease": "뎅기열·지카",
+    "file": "assets/mosquito/aedes-albopictus.jpg",
+    "license": "Public domain",
+    "author": "James Gathany, CDC",
+    "source": "https://commons.wikimedia.org/wiki/File:CDC-Gathany-Aedes-albopictus-1.jpg"
+  },
+  {
+    "slug": "anopheles-sinensis",
+    "ko": "얼룩날개모기",
+    "disease": "말라리아",
+    "file": "assets/mosquito/anopheles-sinensis.jpg",
+    "license": "Public domain",
+    "author": "CDC/ James Gathany",
+    "source": "https://commons.wikimedia.org/wiki/File:Anopheles-sinensis.png"
+  },
+  {
+    "slug": "culex-larvae",
+    "ko": "모기 유충",
+    "disease": "번식 단계",
+    "file": "assets/mosquito/culex-larvae.jpg",
+    "license": "Public domain",
+    "author": "CDC / James Gathany",
+    "source": "https://commons.wikimedia.org/wiki/File:Close-up_of_Culex_mosquito_larvae_in_water.jpg"
+  }
+]

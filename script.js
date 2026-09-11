@@ -1432,6 +1432,183 @@ function renderPeakTimes(series) {
   peakSafeNote.textContent = `${safeStage.label} 단계로 가장 낮습니다. 야외활동을 한다면 이 시간대가 비교적 안전합니다.`;
 }
 
+/* =====================================================================
+ * 함께 보는 나들이 지수 — 식중독지수 · 미세먼지 (보건소 피드백 2026-09-10)
+ *
+ * 모기지수가 메인 지수이고, 시민이 나들이 갈 때 함께 보면 좋은 생활 지수를 곁들인다.
+ *   · 미세먼지(PM10)·초미세먼지(PM2.5): Open-Meteo 대기질 공개 API의 실측값을 그대로 쓴다.
+ *   · 식중독지수: 식약처 공공 API는 인증키가 필요해 연동하지 않았다. 대신 기온·습도로
+ *     이 사이트가 '자체 산출'한 값이며, 화면에도 그렇게 표시한다.
+ *     (식약처 값을 가져온 것처럼 보이게 하지 않는다 — 데이터 사용 규칙)
+ * ===================================================================== */
+
+const outingGrid = document.getElementById('outingGrid');
+const outingNote = document.getElementById('outingNote');
+
+// 같은 좌표의 대기질은 캐시해 중복 호출을 막는다.
+const airQualityCache = new Map();
+
+function getAirQualityUrl(lat, lng) {
+  const params = new URLSearchParams({
+    latitude: Number(lat).toFixed(4),
+    longitude: Number(lng).toFixed(4),
+    current: 'pm10,pm2_5',
+    timezone: 'Asia/Seoul',
+  });
+  return `https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`;
+}
+
+// 대기질 실측값을 불러온다. 실패해도 페이지가 멈추지 않도록 빈 값을 돌려준다.
+async function loadAirQuality(lat, lng) {
+  const cacheKey = `${Number(lat).toFixed(2)},${Number(lng).toFixed(2)}`;
+  if (airQualityCache.has(cacheKey)) return airQualityCache.get(cacheKey);
+
+  try {
+    const response = await fetch(getAirQualityUrl(lat, lng));
+    if (!response.ok) throw new Error(`대기질 응답 오류: ${response.status}`);
+    const data = await response.json();
+    const current = data.current || {};
+    const result = {
+      isLive: true,
+      pm10: typeof current.pm10 === 'number' ? Math.round(current.pm10) : null,
+      pm25: typeof current.pm2_5 === 'number' ? Math.round(current.pm2_5) : null,
+      observedAt: current.time || null,
+    };
+    airQualityCache.set(cacheKey, result);
+    return result;
+  } catch (error) {
+    console.warn('대기질 정보를 불러오지 못했습니다.', error);
+    return { isLive: false, pm10: null, pm25: null, observedAt: null };
+  }
+}
+
+// 환경부 대기환경기준 4단계 경계값(㎍/㎥) — [좋음 상한, 보통 상한, 나쁨 상한]
+const PM10_BREAKS = [30, 80, 150];
+const PM25_BREAKS = [15, 35, 75];
+const AIR_GRADES = [
+  { label: '좋음', tone: 'safe' },
+  { label: '보통', tone: 'good' },
+  { label: '나쁨', tone: 'risk' },
+  { label: '매우 나쁨', tone: 'danger' },
+];
+
+// 농도를 4단계 등급으로 바꾼다.
+function gradeAir(value, breaks) {
+  if (value == null) return null;
+  if (value <= breaks[0]) return AIR_GRADES[0];
+  if (value <= breaks[1]) return AIR_GRADES[1];
+  if (value <= breaks[2]) return AIR_GRADES[2];
+  return AIR_GRADES[3];
+}
+
+// 미세먼지 단계별 행동요령. 목(호흡기) 보호를 함께 안내한다.
+// 미세먼지와 초미세먼지는 몸에 미치는 영향이 달라 안내 문구를 따로 둔다.
+const AIR_ADVICE = {
+  pm10: {
+    '좋음': '창문을 열어 환기하기 좋은 날입니다. 야외활동을 즐기세요.',
+    '보통': '야외활동에 무리가 없습니다. 먼지가 눈에 띄면 잠깐 창을 닫으세요.',
+    '나쁨': '창문을 닫고, 오래 걷는 야외활동은 줄이세요. 외출 시 KF80 이상 마스크를 챙기세요.',
+    '매우 나쁨': '외출을 자제하세요. 나가야 한다면 KF94 마스크를 쓰고, 귀가 후 손과 얼굴을 씻으세요.',
+  },
+  pm25: {
+    '좋음': '숨쉬기 좋은 공기입니다. 창문을 열어 환기하세요.',
+    '보통': '목이 칼칼하면 물을 자주 마시고, 실내 환기를 짧게 자주 하세요.',
+    '나쁨': '입자가 작아 기관지 깊숙이 들어옵니다. KF80 이상 마스크를 쓰고 목·호흡기 상태를 살피세요.',
+    '매우 나쁨': '어린이·어르신·호흡기 질환자는 실내에 머무세요. 기침이나 숨참이 이어지면 진료를 받으세요.',
+  },
+};
+
+// 식약처 식중독지수의 공개된 4단계 구간 이름을 따른다.
+const FOOD_GRADES = [
+  { min: 86, label: '위험', tone: 'danger',
+    advice: '조리한 음식은 1시간 안에 드세요. 김밥·도시락을 상온에 두면 위험합니다.' },
+  { min: 71, label: '경고', tone: 'risk',
+    advice: '도시락은 아이스팩과 함께 보관하고, 실온에 2시간 이상 두지 마세요.' },
+  { min: 55, label: '주의', tone: 'good',
+    advice: '음식은 충분히 익혀 드시고, 조리 전후로 손을 꼭 씻으세요.' },
+  { min: 0, label: '관심', tone: 'safe',
+    advice: '기본 위생만 지키면 충분합니다. 남은 음식은 바로 냉장 보관하세요.' },
+];
+
+/**
+ * 식중독 위험을 0~100으로 자체 산출한다.
+ * 세균은 기온이 오를수록 급격히 증식하므로 일 최고기온을 S자 곡선에 넣고,
+ * 습도가 높으면 조금 더 올린다. (식약처 공식 산출식이 아니라 자체 추정식이다)
+ */
+function computeFoodPoisoningIndex(weatherData) {
+  const maxTemp = Number(weatherData.temperatureMax ?? weatherData.temperature ?? 20);
+  const humidity = Number(weatherData.humidity ?? 60);
+  const base = 100 / (1 + Math.exp(-(maxTemp - 24) / 3.4));
+  const humidityBonus = humidity >= 80 ? 6 : (humidity >= 70 ? 3 : 0);
+  return Math.max(0, Math.min(100, Math.round(base + humidityBonus)));
+}
+
+function getFoodGrade(score) {
+  return FOOD_GRADES.find((grade) => score >= grade.min) || FOOD_GRADES[FOOD_GRADES.length - 1];
+}
+
+// 지수 타일 하나를 HTML로 만든다.
+function buildOutingTile({ icon, name, value, unit, gradeLabel, tone, advice, badge }) {
+  return `
+    <article class="outing-item outing-${tone}">
+      <p class="outing-name"><span class="outing-icon" aria-hidden="true">${icon}</span> ${name}
+        <span class="outing-badge">${badge}</span></p>
+      <p class="outing-value">${value}<span class="outing-unit">${unit}</span></p>
+      <p class="outing-grade outing-grade-${tone}">${gradeLabel}</p>
+      <p class="outing-advice">${advice}</p>
+    </article>`;
+}
+
+// 나들이 지수 카드 3종(식중독 · 미세먼지 · 초미세먼지)을 그린다.
+async function renderOutingIndices(lat, lng, weatherData) {
+  if (!outingGrid) return;
+
+  // (1) 식중독지수 — 날씨로 자체 산출
+  const foodScore = computeFoodPoisoningIndex(weatherData);
+  const foodGrade = getFoodGrade(foodScore);
+  const tiles = [buildOutingTile({
+    icon: '🍱', name: '식중독지수', value: foodScore, unit: '점',
+    gradeLabel: foodGrade.label, tone: foodGrade.tone, advice: foodGrade.advice,
+    badge: '자체 산출',
+  })];
+
+  // (2)(3) 미세먼지·초미세먼지 — 공개 API 실측값
+  const air = await loadAirQuality(lat, lng);
+  const items = [
+    { icon: '🌫️', name: '미세먼지', key: 'pm10', breaks: PM10_BREAKS },
+    { icon: '😷', name: '초미세먼지', key: 'pm25', breaks: PM25_BREAKS },
+  ];   // key는 대기질 응답의 항목명이자 행동요령을 고르는 기준이다
+  items.forEach((item) => {
+    const value = air[item.key];
+    const grade = gradeAir(value, item.breaks);
+    if (value == null || !grade) {
+      tiles.push(buildOutingTile({
+        icon: item.icon, name: item.name, value: '-', unit: '',
+        gradeLabel: '정보 없음', tone: 'none',
+        advice: '대기질 정보를 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.',
+        badge: '연결 실패',
+      }));
+      return;
+    }
+    tiles.push(buildOutingTile({
+      icon: item.icon, name: item.name, value, unit: '㎍/㎥',
+      gradeLabel: grade.label, tone: grade.tone,
+      advice: AIR_ADVICE[item.key][grade.label], badge: '실측',
+    }));
+  });
+
+  outingGrid.innerHTML = tiles.join('');
+
+  if (outingNote) {
+    const airSource = air.isLive
+      ? '미세먼지·초미세먼지는 <strong>Open-Meteo 대기질 공개 API</strong>의 실측 농도이며 환경부 4단계 기준으로 표시했습니다.'
+      : '미세먼지 정보를 불러오지 못했습니다.';
+    outingNote.innerHTML = `※ ${airSource} `
+      + '식중독지수는 식약처 값이 아니라 <strong>오늘 기온·습도로 이 사이트가 자체 산출</strong>한 참고값이며, '
+      + '단계 이름(관심·주의·경고·위험)만 식약처 공개 기준을 따랐습니다.';
+  }
+}
+
 // 한 지역(또는 좌표)의 날씨를 불러와 게이지·카드·예보·분석·지도까지 한 번에 갱신하는 핵심 함수
 async function loadAndRenderRegion(region, options = {}) {
   currentRegion = region;
@@ -1522,6 +1699,7 @@ async function loadAndRenderRegion(region, options = {}) {
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index, precision);
   renderActionGuide(index, precision);
+  renderOutingIndices(lat, lng, weatherData).catch((error) => console.warn('나들이 지수 표시 실패', error));
   renderCalcDetail(region, weatherData, index, precision);
   renderGimhaeRanking(gimhaeDistrict, weatherData);
   renderForecast(series, weatherData, Boolean(gimhaeDistrict));

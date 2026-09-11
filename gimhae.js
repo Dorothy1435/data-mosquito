@@ -205,6 +205,7 @@ let gimhaeMarkers = {};
 let gimhaeParks = [];          // data/gimhae-parks.json (도시공원 245곳)
 let parksLayer = null;         // 공원 마커 레이어(토글)
 let larvaPoints = [];          // data/gimhae-larva-points.json (유충 실측 지점)
+let gimhaeAttractions = [];    // data/gimhae-attractions.json (김해 관광지·박물관·도서관)
 let larvaMonthly = [];         // data/gimhae-larva-monthly.json (월별 예측 vs 실측)
 let larvaLayer = null;         // 유충 실측 지점 레이어(토글)
 
@@ -947,8 +948,6 @@ const SOURCE_PLACE = {
 };
 
 // 물가·수풀이 많아 모기가 붙기 쉬운 유형 / 작고 관리돼 상대적으로 적은 유형
-const PARK_RISKY_TYPES = ['수변공원', '근린공원', '체육공원', '역사공원'];
-const PARK_MANAGED_TYPES = ['어린이공원', '소공원'];
 
 // 지번주소에서 동/리 이름을 뽑아 '소공원' 같은 흔한 이름을 구분해 준다.
 function parkLocHint(addr) {
@@ -970,52 +969,118 @@ function parkPill(p) {
   return `<strong>${parkLabel(p)}</strong>${typeTag}`;
 }
 
-// 모기박사 피드백: "A 공원은 위험하니 B 공원으로" — 실제 공원 이름으로 추천한다.
+// 오늘의 나들이 추천 — 보건소 피드백(2026-09-10) 반영.
+// 예전에는 "A 공원은 위험하니 B 공원으로"처럼 특정 장소를 부정적으로 지목했지만,
+// 시민이 보는 화면에서는 '가장 좋은 곳 한 곳'만 긍정적으로 안내하도록 바꿨다.
+
+// 공원 유형별 환경 특성(물가 정도 water, 수풀 정도 veg). 0~2 단계.
+const PARK_ENV = {
+  '수변공원':   { water: 2, veg: 2 },
+  '근린공원':   { water: 1, veg: 2 },
+  '체육공원':   { water: 1, veg: 1 },
+  '역사공원':   { water: 1, veg: 2 },
+  '문화공원':   { water: 0, veg: 1 },
+  '어린이공원': { water: 0, veg: 1 },
+  '소공원':     { water: 0, veg: 1 },
+};
+
+// 장소의 '모기 노출 배수'. 실내 관람은 크게 낮고, 물가·수풀은 높아진다.
+// (보건소 피드백) 수풀이 우거지면 그늘은 시원하지만 모기는 늘어난다 — 두 가지를 함께 안내한다.
+function placeExposureFactor(place) {
+  if (place.indoor) return 0.3;
+  return 1 + 0.22 * (place.water || 0) + 0.13 * (place.veg || 0);
+}
+
+// 오늘 이 장소의 쾌적 점수(100점 만점, 높을수록 쾌적).
+// 장소가 속한 구역의 오늘 모기지수에 장소 특성을 곱해 계산한다.
+function placeComfort(place) {
+  const district = GimhaeMosquitoModel.nearestDistrict(place.lat, place.lon);
+  const idx = GimhaeMosquitoModel.mosquitoIndex(district, buildModelOptions(district)).mosquito_index;
+  const exposure = Math.min(100, idx * placeExposureFactor(place));
+  return { district, comfort: Math.max(0, Math.round(100 - exposure)) };
+}
+
+// 공원 한 곳을 쾌적 점수가 매겨진 '장소' 형태로 바꾼다.
+function parkAsPlace(p) {
+  const env = PARK_ENV[p.type] || { water: 1, veg: 1 };
+  return Object.assign({}, p, { indoor: false, water: env.water, veg: env.veg });
+}
+
+// 장소 이름 뒤에 붙일 유형 태그. 이름이 이미 유형으로 끝나면 중복이라 생략한다.
+function tripTypeTag(place) {
+  if (!place.type || place.name.endsWith(place.type)) return '';
+  return `<span class="pk-type">${place.type}</span>`;
+}
+
+// 오늘 가장 쾌적한 곳 한 곳을 고른다. (동점이면 넓지 않은 곳 우선 = 관리가 쉬운 곳)
+function pickBestPlace(places) {
+  let best = null;
+  places.forEach((p) => {
+    const c = placeComfort(p);
+    const cand = Object.assign({}, p, c);
+    if (!best || cand.comfort > best.comfort
+      || (cand.comfort === best.comfort && (cand.area_m2 || 0) < (best.area_m2 || 0))) best = cand;
+  });
+  return best;
+}
+
 function renderSafeAreas(district) {
   const el = document.getElementById('safeAreas');
   if (!el) return;
-  // 데이터 로딩 전이면 구역 단위 안내로 대체(깨지지 않게)
-  if (!gimhaeParks.length) {
-    const ranked0 = GimhaeMosquitoModel.listDistricts().map((d) => ({
-      d, risk: GimhaeMosquitoModel.mosquitoIndex(d, { month: 7 }).source_risk.density_risk,
-    })).sort((a, b) => a.risk - b.risk);
-    el.innerHTML = `🏞️ 산책·야외활동은 위험 낮은 구역이 유리합니다: <strong>${ranked0.slice(0, 3).map((x) => x.d).join(' · ')}</strong>`;
-    return;
+  const lines = [];
+
+  // (1) 이 구역에서 오늘 산책하기 가장 좋은 공원 — 한 곳만, 긍정적으로 안내한다.
+  const parks = gimhaeParks.filter((p) => p.district === district && p.name).map(parkAsPlace);
+  const bestPark = parks.length ? pickBestPlace(parks) : null;
+  if (bestPark) {
+    lines.push(`<div class="safe-line"><span class="safe-ico">🏞️</span>`
+      + `<span>오늘 <b>${district}</b>에서 산책하기 가장 좋은 곳 — ${parkPill(bestPark)}`
+      + `<span class="comfort-badge">쾌적 ${bestPark.comfort}점</span></span></div>`);
   }
 
-  const parks = gimhaeParks.filter((p) => p.district === district && p.name);
-  const risky = parks.filter((p) => PARK_RISKY_TYPES.includes(p.type))
-    .sort((a, b) => (b.area_m2 || 0) - (a.area_m2 || 0));   // 큰 물가·근린 먼저
-  const managed = parks.filter((p) => PARK_MANAGED_TYPES.includes(p.type))
-    .sort((a, b) => (a.area_m2 || 0) - (b.area_m2 || 0));   // 작은 관리형 먼저
+  // (2) 오늘 김해 전체에서 가장 쾌적한 나들이 장소 — 공원만이 아니라 관광지·박물관·도서관까지.
+  //     (보건소 피드백) 주말 나들이는 공원 말고도 갈 곳을 알려줘야 정보가 쓸모 있다.
+  if (gimhaeAttractions.length) {
+    const scored = gimhaeAttractions.map((a) => Object.assign({}, a, placeComfort(a)))
+      .sort((x, y) => y.comfort - x.comfort);
+    const top = scored[0];
+    lines.push(`<div class="safe-line trip-line"><span class="safe-ico">🎡</span>`
+      + `<span>오늘 김해 나들이라면 — <b>${top.name}</b>`
+      + tripTypeTag(top)
+      + `<span class="comfort-badge">쾌적 ${top.comfort}점</span>`
+      + `<span class="trip-note">${top.note}</span></span></div>`);
+    // (3) 실내·야외는 성격이 다르므로, 메인 추천과 반대쪽 1곳도 함께 긍정적으로 알려준다.
+    //     (실내가 모기 노출은 늘 더 적지만, 야외 나들이를 원하는 시민에게도 갈 곳이 필요하다)
+    const other = scored.find((a) => Boolean(a.indoor) !== Boolean(top.indoor));
+    if (other) {
+      const ico = other.indoor ? '🏛️' : '🌤️';
+      const lead = other.indoor ? '실내로 간다면' : '야외로 간다면';
+      lines.push(`<div class="safe-line trip-line"><span class="safe-ico">${ico}</span>`
+        + `<span>오늘 ${lead} — <b>${other.name}</b>`
+        + tripTypeTag(other)
+        + `<span class="comfort-badge">쾌적 ${other.comfort}점</span>`
+        + `<span class="trip-note">${other.note}</span></span></div>`);
+    }
 
-  let html = '';
-  // (1) 구역 안에서 유형으로 A→B 추천 (물가·수풀 vs 관리형)
-  if (risky.length && managed.length) {
-    html += `<div class="safe-line">🏞️ <b>${district}</b>에서 산책이라면 물가·수풀이 많은 `
-      + `${parkPill(risky[0])} <span class="pk-warn">주의</span>보다, `
-      + `관리형 ${parkPill(managed[0])} <span class="pk-arrow">추천</span></div>`;
-  } else if (parks.length) {
-    html += `<div class="safe-line">🏞️ <b>${district}</b>의 공원 ${parks.length}곳 — 해질녘엔 물가·수풀에 가까운 곳을 피하세요.</div>`;
-  }
+    // 취향이 다를 수 있으니 다음 후보 3곳을 칩으로 함께 보여준다.
+    const alts = scored.filter((a) => a.name !== top.name && (!other || a.name !== other.name))
+      .slice(0, 3)
+      .map((a) => `<span class="trip-chip">${a.name} <b>${a.comfort}</b></span>`).join('');
+    if (alts) lines.push(`<div class="safe-line trip-alts">다음으로 쾌적한 곳 ${alts}</div>`);
 
-  // (2) 현재 구역이 위험 상위면, 가까운 '더 안전한 구역'의 공원을 제안
-  const curRisk = (GimhaeMosquitoModel.DISTRICTS[district] || {}).density_risk || 0;
-  const saferDistrict = GimhaeMosquitoModel.listDistricts()
-    .map((d) => ({ d, risk: (GimhaeMosquitoModel.DISTRICTS[d] || {}).density_risk || 0 }))
-    .filter((x) => x.risk < curRisk - 0.1 && gimhaeParks.some((p) => p.district === x.d && p.name))
-    .sort((a, b) => a.risk - b.risk)[0];
-  if (saferDistrict) {
-    const pick = gimhaeParks
-      .filter((p) => p.district === saferDistrict.d && p.name && !/^공원[\d\s-]/.test(p.name))
-      .sort((a, b) => (b.area_m2 || 0) - (a.area_m2 || 0))[0];
-    if (pick) {
-      html += `<div class="safe-line">🟢 더 안전하게는 위험이 낮은 <b>${saferDistrict.d}</b>의 <strong>${parkLabel(pick)}</strong> 같은 공원을 권합니다.</div>`;
+    // (4) 그늘 ↔ 수풀 트레이드오프 안내. (보건소 피드백)
+    //     수풀이 우거지면 그늘은 시원하지만 모기가 머문다 — 야외 추천지가 숲일 때 함께 알린다.
+    const outdoorPick = top.indoor ? other : top;
+    if (outdoorPick && (outdoorPick.veg || 0) >= 2) {
+      lines.push(`<div class="safe-line safe-sub">🌳 나무가 많은 곳은 그늘이 시원한 대신 수풀에 모기가 머뭅니다.`
+        + ` 한낮에는 그늘이 좋고, <b>해질녘·새벽</b>에는 긴옷과 기피제를 함께 챙기세요.</div>`);
     }
   }
 
-  html += `<div class="safe-line safe-sub">※ 물가의 <b>수변공원</b>·넓은 <b>근린공원</b>은 해질녘 모기가 많고, 작은 <b>어린이·소공원</b>은 상대적으로 적습니다.</div>`;
-  el.innerHTML = html;
+  if (!lines.length) {
+    lines.push('<div class="safe-line">🏞️ 장소 데이터를 불러오는 중입니다.</div>');
+  }
+  el.innerHTML = lines.join('');
 }
 
 // 이 구역의 주요 발생원(개수 상위)에 맞춰 '조심할 장소' 칩을 구역별로 다르게 만든다.
@@ -1218,6 +1283,35 @@ function populateDistricts() {
   districtSelect.innerHTML = districts.map((name) => `<option value="${name}">${name}</option>`).join('');
 }
 
+// === 시민용 / 전문가용 보기 전환 (보건소 피드백 2026-09-10) ===
+// 방제 약품·발생원 통계처럼 방역 담당자용 내용은 시민 화면에서 감춘다.
+// 삭제가 아니라 '접기'이므로 전문가용 버튼을 누르면 그대로 다시 보인다.
+const AUDIENCE_KEY = 'mosquito-zero-audience';
+
+function applyAudienceMode(mode) {
+  const isCitizen = mode !== 'expert';
+  document.body.classList.toggle('citizen-mode', isCitizen);
+  document.querySelectorAll('[data-audience-mode]').forEach((btn) => {
+    const active = btn.dataset.audienceMode === (isCitizen ? 'citizen' : 'expert');
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const note = document.getElementById('audienceNote');
+  if (note) {
+    note.hidden = !isCitizen;
+  }
+  try { localStorage.setItem(AUDIENCE_KEY, isCitizen ? 'citizen' : 'expert'); } catch (error) { /* 저장 불가여도 동작에는 지장 없음 */ }
+}
+
+function setupAudienceMode() {
+  let saved = 'citizen';   // 기본값은 시민용
+  try { saved = localStorage.getItem(AUDIENCE_KEY) || 'citizen'; } catch (error) { saved = 'citizen'; }
+  applyAudienceMode(saved);
+  document.querySelectorAll('[data-audience-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => applyAudienceMode(btn.dataset.audienceMode));
+  });
+}
+
 async function init() {
   // 모델 스크립트가 로드되지 않았으면 안내한다.
   if (!window.GimhaeMosquitoModel) {
@@ -1225,6 +1319,7 @@ async function init() {
     return;
   }
 
+  setupAudienceMode();    // 시민용/전문가용 보기 전환
   populateDistricts();
   renderSourceTotals();   // 김해시 전체 발생원 총량(정적)
   renderVerifyChart();    // 검증 산점도(정적)
@@ -1238,6 +1333,7 @@ async function init() {
     fetch('data/gimhae-parks.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeParks = d; }).catch(() => {}),
     fetch('data/gimhae-larva-points.json').then((r) => (r.ok ? r.json() : [])).then((d) => { larvaPoints = d; }).catch(() => {}),
     fetch('data/gimhae-larva-monthly.json').then((r) => (r.ok ? r.json() : [])).then((d) => { larvaMonthly = d; }).catch(() => {}),
+    fetch('data/gimhae-attractions.json').then((r) => (r.ok ? r.json() : [])).then((d) => { gimhaeAttractions = d; }).catch(() => {}),
   ]);
   renderLarvaChart();     // 시간 검증 곡선(정적)
   renderCoverage();       // 모니터링 커버리지(사각지대) 진단

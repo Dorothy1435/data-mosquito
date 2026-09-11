@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img"
+     aria-label="모기가 알을 낳는 고인 물 네 곳 — 화분 받침, 폐타이어, 하수구·빗물받이, 물통·양동이. 모두 물속에 모기 유충이 살고 있습니다.">
+  <title>모기가 좋아하는 환경 — 고인 물이 있는 곳</title>
+  <style>
+    .bg{fill:#ffffff}
+    .pn{fill:#f6faf9;stroke:#e2ebe8;stroke-width:1.5}
+    .t{font:700 14px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#1f3b36}
+    .s{font:600 11.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#7b8a86}
+    .water{fill:#7dd3fc;opacity:0.8}
+    .pot{fill:#d98b62}.pot2{fill:#c2764f}.dish{fill:#e5a982}
+    .leaf{fill:#5aa06f}
+    .tire{fill:#3f4a48}
+    .drain{fill:#9aa8a4}.slot{fill:#5c6b67}
+    .bucket{fill:#a8c3d6}.bucket2{fill:#c3d8e6}
+    .lv{fill:none;stroke:#4a3a1f;stroke-width:2.2;stroke-linecap:round}
+    .lvh{fill:#4a3a1f}
+    .cap{font:600 12.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#0f766e}
+  </style>
+  <rect class="bg" x="0" y="0" width="720" height="300" rx="14"/>
+  <text x="360" y="21" class="cap" text-anchor="middle">물이 고인 곳이면 어디든 — 종이컵 한 컵 분량에도 알을 낳습니다</text>
+  <rect x="14" y="34" width="162" height="196" rx="14" class="pn"/><text x="95" y="252" class="t" text-anchor="middle">화분 받침</text><text x="95" y="270" class="s" text-anchor="middle">베란다·마당 화분 아래</text><ellipse cx="95" cy="192" rx="60" ry="14" class="dish"/><ellipse cx="95" cy="190" rx="52" ry="10" class="water"/><path d="M 66 186 q 6 7 1 13 q -5 7 2 12" class="lv"/><circle cx="68" cy="213" r="2.6" class="lvh"/><line x1="66" y1="186" x2="64" y2="181" class="lv"/><path d="M 118 188 q -6 7 -1 13 q 5 7 -2 12" class="lv"/><circle cx="116" cy="215" r="2.6" class="lvh"/><line x1="118" y1="188" x2="120" y2="183" class="lv"/><path d="M 62 104 l 11 78 h 44 l 11 -78 z" class="pot"/><rect x="58" y="96" width="74" height="12" rx="3" class="pot2"/><path d="M 76 96 q 8 -22 20 -16 q -6 10 -4 16 z" class="leaf"/><path d="M 96 96 q 10 -18 22 -10 q -10 6 -12 10 z" class="leaf"/><rect x="190" y="34" width="162" height="196" rx="14" class="pn"/><text x="271" y="252" class="t" text-anchor="middle">폐타이어</text><text x="271" y="270" class="s" text-anchor="middle">야적장·가게 앞 빗물</text><circle cx="271" cy="140" r="58" class="tire"/><circle cx="271" cy="140" r="30" class="pn"/><path d="M 242 143 a 30 30 0 0 0 58 0 z" class="water"/><path d="M 258 148 q 6 7 1 13 q -5 7 2 12" class="lv"/><circle cx="260" cy="175" r="2.6" class="lvh"/><line x1="258" y1="148" x2="256" y2="143" class="lv"/><path d="M 282 146 q -6 7 -1 13 q 5 7 -2 12" class="lv"/><circle cx="280" cy="173" r="2.6" class="lvh"/><line x1="282" y1="146" x2="284" y2="141" class="lv"/><rect x="366" y="34" width="162" height="196" rx="14" class="pn"/><text x="447" y="252" class="t" text-anchor="middle">하수구·빗물받이</text><text x="447" y="270" class="s" text-anchor="middle">도로변 정체수</text><rect x="390" y="112" width="114" height="82" rx="8" class="drain"/><rect x="400" y="118" width="13" height="22" rx="3" class="slot"/><rect x="421" y="118" width="13" height="22" rx="3" class="slot"/><rect x="442" y="118" width="13" height="22" rx="3" class="slot"/><rect x="463" y="118" width="13" height="22" rx="3" class="slot"/><rect x="484" y="118" width="13" height="22" rx="3" class="slot"/><rect x="398" y="148" width="98" height="40" rx="5" class="water"/><path d="M 424 156 q 6 7 1 13 q -5 7 2 12" class="lv"/><circle cx="426" cy="183" r="2.6" class="lvh"/><line x1="424" y1="156" x2="422" y2="151" class="lv"/><path d="M 466 154 q -6 7 -1 13 q 5 7 -2 12" class="lv"/><circle cx="464" cy="181" r="2.6" class="lvh"/><line x1="466" y1="154" x2="468" y2="149" class="lv"/><rect x="542" y="34" width="162" height="196" rx="14" class="pn"/><text x="623" y="252" class="t" text-anchor="middle">물통·양동이</text><text x="623" y="270" class="s" text-anchor="middle">빗물 받이통·폐용기</text><path d="M 586 104 l 9 88 h 56 l 9 -88 z" class="bucket"/><path d="M 594 140 l 6 52 h 46 l 6 -52 z" class="water"/><ellipse cx="623" cy="104" rx="37" ry="9" class="bucket2"/><path d="M 606 148 q 6 7 1 13 q -5 7 2 12" class="lv"/><circle cx="608" cy="175" r="2.6" class="lvh"/><line x1="606" y1="148" x2="604" y2="143" class="lv"/><path d="M 638 146 q -6 7 -1 13 q 5 7 -2 12" class="lv"/><circle cx="636" cy="173" r="2.6" class="lvh"/><line x1="638" y1="146" x2="640" y2="141" class="lv"/>
+  <text x="360" y="292" class="s" text-anchor="middle">파란색은 고인 물, 물속의 갈색은 모기 유충(장구벌레)입니다 · 알에서 성충까지 약 7~10일</text>
+</svg>
