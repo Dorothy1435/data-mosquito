@@ -2428,3 +2428,89 @@ body.citizen-mode [data-audience="expert"] { display: none !important; }
 
 /* 흐름도 같은 넓은 다이어그램은 지나치게 커지지 않도록 폭을 제한한다 */
 .info-figure img { max-width: 820px; margin-inline: auto; }
+
+
+/* ===== 카드 색 악센트 — 소개·모기정보 페이지를 다채롭게 =====
+   카드 위쪽 얇은 컬러 바 + 아이콘의 파스텔 원형 배경.
+   색은 6가지로 제한해 페이지가 난잡해지지 않게 한다. */
+.detail-card[data-accent] {
+  position: relative;
+  padding-top: 22px;            /* 상단 컬러 바 자리 */
+  overflow: hidden;
+}
+.detail-card[data-accent]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--card-accent);
+}
+.detail-card[data-accent] h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.detail-card[data-accent] .card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  margin-right: 0;
+  border-radius: 50%;
+  background: var(--card-accent-soft);
+  font-size: 1.02rem;
+  line-height: 1;
+}
+.detail-card[data-accent="teal"]   { --card-accent: #0f766e; --card-accent-soft: #d6f0ec; }
+.detail-card[data-accent="blue"]   { --card-accent: #2d87d6; --card-accent-soft: #dbeafe; }
+.detail-card[data-accent="green"]  { --card-accent: #2f9e64; --card-accent-soft: #d9f2e3; }
+.detail-card[data-accent="amber"]  { --card-accent: #d7a21a; --card-accent-soft: #fdf0cf; }
+.detail-card[data-accent="orange"] { --card-accent: #e6822d; --card-accent-soft: #fde8d3; }
+.detail-card[data-accent="rose"]   { --card-accent: #d94c45; --card-accent-soft: #fbdedc; }
+.detail-card[data-accent="violet"] { --card-accent: #7c6ce0; --card-accent-soft: #e8e4fb; }
+
+@media (max-width: 480px) {
+  .detail-card[data-accent] .card-icon { width: 30px; height: 30px; font-size: 0.95rem; }
+}
+
+
+/* ===== 발생원 시설 16종 그리드 (사이트 소개) ===== */
+.source-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  margin: 14px 0 10px;
+}
+.source-tile {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  grid-template-areas: "icon name" "icon count" "risk risk";
+  align-items: center;
+  gap: 1px 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: #fff;
+}
+.source-icon { grid-area: icon; font-size: 1.25rem; line-height: 1; }
+.source-name { grid-area: name; font-size: 0.82rem; font-weight: 700; color: #1f3b36; }
+.source-count { grid-area: count; font-size: 1.05rem; font-weight: 800; color: #14312c; }
+.source-unit { margin-left: 2px; font-size: 0.72rem; font-weight: 600; color: #7b8a86; }
+.source-risk {
+  grid-area: risk; margin-top: 5px; font-size: 0.72rem; font-weight: 700;
+}
+.source-high { border-left-color: #d94c45; }
+.source-high .source-risk { color: #b23c36; }
+.source-mid  { border-left-color: #d7a21a; }
+.source-mid .source-risk { color: #96700f; }
+.source-low  { border-left-color: #2f9e64; }
+.source-low .source-risk { color: #237a4c; }
+.source-grid-note { margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.6; }
+
+@media (max-width: 480px) {
+  .source-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .source-tile { padding: 9px; }
+}

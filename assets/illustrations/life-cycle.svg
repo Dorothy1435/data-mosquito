@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 338" role="img"
+     aria-label="모기 한살이 그림. 알은 1에서 2일 동안 물 위에 뗏목처럼 떠 있고, 유충은 4에서 7일 동안 물속에서 수면에 매달려 지내며, 번데기는 2에서 3일 물속에 머문 뒤, 성충이 되어 물 밖으로 날아갑니다. 네 단계 중 셋이 물속에서 일어나므로 고인 물을 비우면 번식이 끊깁니다.">
+  <title>모기 한살이 — 네 단계 중 셋은 물속에서 일어납니다</title>
+  <style>
+    .bg{fill:#ffffff}
+    .wt{fill:#dff1fb} .wl{stroke:#7dc4e8;stroke-width:2.5}
+    .egg{fill:#a98457;stroke:#6b5233;stroke-width:1.2}
+    .siph{stroke:#6b5233;stroke-width:3;stroke-linecap:round}
+    .body{fill:none;stroke:#a98457;stroke-width:11;stroke-linecap:round}
+    .seg{stroke:#6b5233;stroke-width:1.6;opacity:0.75}
+    .brush{stroke:#6b5233;stroke-width:1.8;stroke-linecap:round}
+    .lvh{fill:#8a6a42} .eye{fill:#ffffff}
+    .pu{fill:#a98457;stroke:#6b5233;stroke-width:1.4} .pue{fill:#8a6a42}
+    .ab{fill:#5c4a33} .ah{fill:#4a3a26}
+    .ap{stroke:#4a3a26;stroke-width:2.6;stroke-linecap:round}
+    .aa{fill:none;stroke:#4a3a26;stroke-width:1.8}
+    .aw{fill:#cdd8dd;opacity:0.72}
+    .al{fill:none;stroke:#4a3a26;stroke-width:1.8;stroke-linecap:round}
+    .ar{stroke:#8fb0ad;stroke-width:2.4;fill:none}
+    .ar2{stroke:#8fb0ad;stroke-width:2.4;fill:none;stroke-dasharray:6 5}
+    .bn{font:800 12px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#ffffff}
+    .sn{font:700 13.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#1f3b36}
+    .sd{font:800 12.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif}
+    .sx{font:600 11.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#7b8a86}
+    .cap{font:700 13px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#0f766e}
+    .cap2{font:600 11.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#7b8a86}
+    .wmark{font:700 11.5px 'Malgun Gothic','Apple SD Gothic Neo',sans-serif;fill:#5b9cc4}
+  </style>
+  <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fb0ad"/></marker></defs>
+  <rect class="bg" x="0" y="0" width="760" height="338" rx="14"/>
+  <text x="380.0" y="28" class="cap" text-anchor="middle">네 단계 중 <tspan fill="#0f766e" font-weight="800">셋</tspan>이 물속에서 일어납니다 — 물을 비우면 여기서 끝납니다</text>
+  <text x="380.0" y="48" class="cap2" text-anchor="middle">여름 기준 알에서 성충까지 약 7~10일</text>
+  <rect x="16" y="136" width="728" height="110" rx="10" class="wt"/><line x1="16" y1="136" x2="744" y2="136" class="wl"/><ellipse cx="65" cy="132.5" rx="3.6" ry="10" class="egg"/><ellipse cx="73" cy="131.4" rx="3.6" ry="10" class="egg"/><ellipse cx="81" cy="130.3" rx="3.6" ry="10" class="egg"/><ellipse cx="89" cy="129.2" rx="3.6" ry="10" class="egg"/><ellipse cx="97" cy="128.1" rx="3.6" ry="10" class="egg"/><ellipse cx="105" cy="127.0" rx="3.6" ry="10" class="egg"/><ellipse cx="113" cy="128.1" rx="3.6" ry="10" class="egg"/><ellipse cx="121" cy="129.2" rx="3.6" ry="10" class="egg"/><ellipse cx="129" cy="130.3" rx="3.6" ry="10" class="egg"/><ellipse cx="137" cy="131.4" rx="3.6" ry="10" class="egg"/><ellipse cx="145" cy="132.5" rx="3.6" ry="10" class="egg"/><line x1="304" y1="136" x2="299" y2="150" class="siph"/><path d="M 299 150 C 284 162 296 176 286 190" class="body"/><line x1="289" y1="158" x2="301" y2="158" class="seg"/><line x1="284" y1="166" x2="296" y2="166" class="seg"/><line x1="285" y1="174" x2="297" y2="174" class="seg"/><line x1="282" y1="182" x2="294" y2="182" class="seg"/><circle cx="283" cy="198" r="8" class="lvh"/><circle cx="280" cy="196" r="1.8" class="eye"/><line x1="277" y1="202" x2="268" y2="200" class="brush"/><line x1="277" y1="202" x2="268" y2="204" class="brush"/><line x1="277" y1="202" x2="268" y2="207" class="brush"/><path d="M 462 146 a 22 22 0 1 0 22 15 q -7 17 -21 21 q 13 -15 6 -28 z" class="pu"/><circle cx="457" cy="159" r="4" class="pue"/><circle cx="456" cy="158" r="1.7" class="eye"/><line x1="456" y1="146" x2="454" y2="136" class="siph"/><line x1="468" y1="145" x2="472" y2="136" class="siph"/><g transform="translate(660,80) rotate(-18)"><ellipse cx="10" cy="0" rx="26" ry="7" class="ab"/><circle cx="-17" cy="-2" r="9" class="ab"/><circle cx="-30" cy="-4" r="6" class="ah"/><circle cx="-32" cy="-6" r="1.9" class="eye"/><line x1="-35" y1="-3" x2="-58" y2="2" class="ap"/><path d="M -36 -9 q -10 -9 -18 -8" class="aa"/><path d="M -36 -12 q -8 -11 -17 -13" class="aa"/><ellipse cx="2" cy="-15" rx="25" ry="8" transform="rotate(-16 2 -15)" class="aw"/><ellipse cx="6" cy="-9" rx="24" ry="7" transform="rotate(-4 6 -9)" class="aw"/><path d="M -14 4 Q -4 22 10 28" class="al"/><path d="M -14 4 Q -10 -4 6 -12" class="al"/><path d="M -8 5 Q 6 24 22 26" class="al"/><path d="M -8 5 Q 0 -2 18 -14" class="al"/><path d="M -2 5 Q 16 20 32 30" class="al"/><path d="M -2 5 Q 10 -6 28 -10" class="al"/></g><path d="M 512 168 q 62 -32 116 -70" class="ar2" marker-end="url(#ah2)"/><line x1="161" y1="190" x2="242" y2="190" class="ar" marker-end="url(#ah2)"/><line x1="330" y1="190" x2="428" y2="190" class="ar" marker-end="url(#ah2)"/><circle cx="53" cy="272" r="10" fill="#e8b04b"/><text x="53" y="276" class="bn" text-anchor="middle">1</text><text x="113" y="277" class="sn" text-anchor="middle">알</text><text x="105" y="297" class="sd" text-anchor="middle" fill="#e8b04b">1~2일</text><text x="105" y="316" class="sx" text-anchor="middle">물 위에 뗏목처럼</text><circle cx="236" cy="272" r="10" fill="#3f9d6d"/><text x="236" y="276" class="bn" text-anchor="middle">2</text><text x="296" y="277" class="sn" text-anchor="middle">유충(장구벌레)</text><text x="288" y="297" class="sd" text-anchor="middle" fill="#3f9d6d">4~7일</text><text x="288" y="316" class="sx" text-anchor="middle">물속 · 수면에 매달림</text><circle cx="418" cy="272" r="10" fill="#7c6ce0"/><text x="418" y="276" class="bn" text-anchor="middle">3</text><text x="478" y="277" class="sn" text-anchor="middle">번데기</text><text x="470" y="297" class="sd" text-anchor="middle" fill="#7c6ce0">2~3일</text><text x="470" y="316" class="sx" text-anchor="middle">물속 · 먹지 않음</text><circle cx="616" cy="272" r="10" fill="#e2725b"/><text x="616" y="276" class="bn" text-anchor="middle">4</text><text x="668" y="277" class="sn" text-anchor="middle">성충</text><text x="660" y="297" class="sx" text-anchor="middle">물 밖으로 날아감</text>
+  <text x="30" y="158" class="wmark">수면</text>
+</svg>

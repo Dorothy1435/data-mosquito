@@ -59,13 +59,15 @@
 
       <section class="panel-card">
         <div class="detail-stack">
-          <article class="detail-card">
+          <article class="detail-card" data-accent="teal">
             <h3><span class="card-icon" aria-hidden="true">🦟</span> 무엇을 하는 서비스인가요?</h3>
             <p>모기는 고인 물과 유기물이 있는 <strong>발생원</strong>에서 번식합니다. 모기제로는 김해시의 발생원 시설을 읍·면·동별로 집계하고 유충 실태조사·인구·날씨를 결합해, <strong>어느 구역이 위험하고 어디부터 방제해야 하는지</strong>를 점수로 보여줍니다. 지자체에는 방제 우선순위를, 시민에게는 오늘의 위험 예보를 제공합니다.</p>
           </article>
-          <article class="detail-card">
+          <article class="detail-card" data-accent="blue">
             <h3><span class="card-icon" aria-hidden="true">📊</span> 어떤 데이터로 만드나요?</h3>
             <p>김해시 방역현황보고 시스템(sodamap)에서 발생원·면적·인구·민원을 확보했습니다.</p>
+            <div id="sourceGrid" class="source-grid" aria-label="발생원 시설 16종"></div>
+            <p id="sourceGridNote" class="source-grid-note"></p>
             <ul class="detail-list">
               <li>발생원 시설 16종 약 15,204개소(정화조·개인하수/오수처리 1.25만, 축산 763, 공중화장실 563, 도시공원 245 등). 정화조(청소대상)은 청소 이력이라 <strong>고유 시설로 보정</strong></li>
               <li>행정동 경계 폴리곤으로 <strong>면적</strong> 확보 → '개수'를 '밀도'로 전환</li>
@@ -74,7 +76,7 @@
               <li>실측 기상 731일(2024–2026)로 활동곡선 적합</li>
             </ul>
           </article>
-          <article class="detail-card">
+          <article class="detail-card" data-accent="violet">
             <h3><span class="card-icon" aria-hidden="true">🧮</span> 어떻게 계산하나요?</h3>
             <div class="geo-breakdown about-flow">
               <article class="geo-item"><p class="geo-label">발생원 밀도</p><p class="geo-value">개/㎢</p><p class="geo-note">얼마나 생기나</p></article>
@@ -87,11 +89,11 @@
             </div>
             <p>발생원 밀도와 인구 밀도를 로그 정규화·평균해 <strong>밀도위험(0~1)</strong>을 만들고, 여기에 실시간 날씨 활동지수를 곱해 모기지수를 냅니다. 활동지수는 <strong>유효기온(당일 29% + 최근 7일 71%)</strong>을 Brière 곡선(30℃ 정점)으로 평가하고 습도·최근 7일 강수·풍속으로 보정합니다.</p>
           </article>
-          <article class="detail-card verify-card">
+          <article class="detail-card verify-card" data-accent="green">
             <h3><span class="card-icon" aria-hidden="true">🔬</span> 믿을 수 있나요? — 검증</h3>
             <p>면적을 확보해 '개수'를 '밀도'로 바꾼 뒤, 예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교했더니 순위 상관 <strong>+0.951</strong>로 강하게 일치했습니다. 개수 기반 이전 버전은 오히려 <strong>−0.258</strong>로 방향이 반대였는데, 밀도로 바로잡은 것입니다. 민원은 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않아 순환이 없습니다.</p>
           </article>
-          <article class="detail-card">
+          <article class="detail-card" data-accent="amber">
             <h3><span class="card-icon" aria-hidden="true">🏛️</span> 어떻게 활용하나요?</h3>
             <ul class="detail-list">
               <li><strong>지자체(방역)</strong> — 위험·발생원이 높은 구역부터 유충 구제(라바사이드) 선제 시행, 방제 인력·예산 배분</li>
@@ -99,15 +101,15 @@
               <li><strong>연구·행정</strong> — 발생원과 실제 민원의 관계 분석, 데이터 기반 정책 근거</li>
             </ul>
           </article>
-          <article class="detail-card">
+          <article class="detail-card" data-accent="blue">
             <h3><span class="card-icon" aria-hidden="true">📍</span> 김해 외 지역은 어떻게 되나요?</h3>
             <p>발생원·유충 데이터가 있는 <strong>김해시는 정밀 모델</strong>이 적용됩니다. 그 외 지역은 발생원 데이터가 없어 <strong>날씨 기반 추정값</strong>으로 표시되며, 화면에 '날씨 기반 추정'으로 구분해 안내합니다.</p>
           </article>
-          <article class="detail-card">
+          <article class="detail-card" data-accent="teal">
             <h3><span class="card-icon" aria-hidden="true">🖱️</span> 사용 방법</h3>
             <p>상단에서 지역을 선택하거나 '현재 위치'를 누르면 해당 지역의 날씨로 지수를 계산합니다. 지도를 클릭하면 그 지점 기준으로 갱신되고, '김해 모델' 메뉴에서는 17개 구역의 발생원·순위·방역 우선순위를 자세히 볼 수 있습니다.</p>
           </article>
-          <article class="detail-card warning-card">
+          <article class="detail-card warning-card" data-accent="rose">
             <h3><span class="card-icon" aria-hidden="true">⚠️</span> 주의할 점</h3>
             <p>이 값은 <strong>참고용 예상값</strong>입니다. 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요. 구역 단위가 17개로 작아 예측형보다 위험 스크리닝·방제 우선순위용으로 적합합니다.</p>
           </article>
@@ -117,6 +119,7 @@
   </div>
 
   <script src="mosquito-model.js"></script>
+  <script src="about.js"></script>
   <script src="nav.js"></script>
   <script src="chat.js"></script>
 </body>
