@@ -91,7 +91,7 @@ const stageInfo = [
     label: '매우 양호',
     className: 'stage-safe',
     advice: '모기 활동이 매우 낮아 일반적인 야외활동이 가능합니다.',
-    color: '#2d87d6',
+    color: '#5fd08a',
   },
   {
     min: 21,
@@ -99,7 +99,7 @@ const stageInfo = [
     label: '양호',
     className: 'stage-good',
     advice: '늦은 저녁에는 가벼운 주의가 필요합니다.',
-    color: '#2f9e64',
+    color: '#b5d65a',
   },
   {
     min: 41,
@@ -107,7 +107,7 @@ const stageInfo = [
     label: '보통',
     className: 'stage-normal',
     advice: '공원이나 물가 방문 시 모기 기피제를 준비하세요.',
-    color: '#d7a21a',
+    color: '#f2c94c',
   },
   {
     min: 61,
@@ -115,7 +115,7 @@ const stageInfo = [
     label: '위험',
     className: 'stage-risk',
     advice: '야외활동 시 긴소매와 모기 기피제를 권장합니다.',
-    color: '#e6822d',
+    color: '#f08a3e',
   },
   {
     min: 81,
@@ -123,7 +123,7 @@ const stageInfo = [
     label: '매우 위험',
     className: 'stage-danger',
     advice: '야간 야외활동을 최소화하고 방충망과 고인 물을 점검하세요.',
-    color: '#d94c45',
+    color: '#e5484d',
   },
 ];
 
@@ -203,9 +203,9 @@ function getWeatherUrl(lat, lng) {
     latitude: String(lat),
     longitude: String(lng),
     current_weather: 'true',
-    hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode',
+    hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode,uv_index',
     past_days: '14',
-    forecast_days: '2',
+    forecast_days: '5',
     timezone: 'Asia/Seoul',
     temperature_unit: 'celsius',
     wind_speed_unit: 'ms',
@@ -453,6 +453,64 @@ function createFallbackWeather(region) {
 }
 
 // 실제 날씨 API의 시간별 데이터로 앞으로 24시간 모기지수 예보를 만든다.
+// 앞으로 5일간의 '하루 대표 모기지수'를 만든다.
+// 하루 중 가장 높은 값(대개 해질녘)을 그 날의 대표값으로 쓴다.
+// 사람들이 '오늘 저녁 나가도 되나'를 궁금해하기 때문이다.
+function buildDailyOutlook(hourly, times, region, district, weatherData) {
+  const temps = hourly.temperature_2m || [];
+  const humidities = hourly.relative_humidity_2m || [];
+  const precipitations = hourly.precipitation || [];
+  const winds = hourly.windspeed_10m || [];
+  const codes = hourly.weathercode || [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const byDay = new Map();
+  for (let i = 0; i < times.length; i += 1) {
+    const date = new Date(times[i]);
+    if (Number.isNaN(date.getTime())) continue;
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    if (day < today) continue;               // 지난 날짜는 건너뛴다
+    const key = day.getTime();
+
+    const recentRain = precipitations.slice(Math.max(0, i - 71), i + 1);
+    const rainfall3d = recentRain.reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const precipNow = Number(precipitations[i] ?? 0);
+    const point = {
+      temperature: Number(temps[i] ?? region.temperature),
+      humidity: Number(humidities[i] ?? region.humidity),
+      rainfall3d,
+      currentRain: precipNow > 0.1 || isRainWeatherCode(codes[i]),
+      windSpeed: Number(winds[i] ?? region.windSpeed),
+      precipNow,
+      hourOfDay: date.getHours(),
+      month: date.getMonth() + 1,
+    };
+
+    let value;
+    if (district) {
+      try {
+        value = GimhaeMosquitoModel.mosquitoIndex(district, gimhaeForecastPointOptions(point, weatherData)).mosquito_index;
+      } catch (error) {
+        value = computeIndexFromFactors({ ...point, hour: point.hourOfDay, regionalDensity: region.mosquitoDensity });
+      }
+    } else {
+      value = computeIndexFromFactors({ ...point, hour: point.hourOfDay, regionalDensity: region.mosquitoDensity });
+    }
+
+    const prev = byDay.get(key);
+    if (!prev || value > prev.index) {
+      byDay.set(key, { date: day, index: Math.round(value) });
+    }
+  }
+
+  return Array.from(byDay.values())
+    .sort((a, b) => a.date - b.date)
+    .slice(0, 5);
+}
+
 function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
   const points = [];
   const temps = hourly.temperature_2m || [];
@@ -461,6 +519,7 @@ function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
   const probabilities = hourly.precipitation_probability || [];
   const winds = hourly.windspeed_10m || [];
   const codes = hourly.weathercode || [];
+  const uvs = hourly.uv_index || [];
   const end = Math.min(currentIndex + 24, times.length);
 
   for (let i = currentIndex; i < end; i += 1) {
@@ -501,6 +560,7 @@ function buildLiveHourlyForecast(hourly, times, currentIndex, region) {
       precipNow: precipitationNow,
       hourOfDay: date.getHours(),
       month: date.getMonth() + 1,
+      uvIndex: uvs[i] == null ? null : Number(uvs[i]),
     });
   }
 
@@ -663,6 +723,8 @@ function normalizeWeatherData(apiData, fallbackRegion) {
     currentRain: precipitationNow > 0.1 || isRainWeatherCode(current.weathercode),
     windSpeed: current.windspeed,
     weatherText: getWeatherText(current.weathercode),
+    weatherCode: current.weathercode ?? null,
+    isDay: current.is_day == null ? null : Boolean(current.is_day),
     precipitationProbability,
     observedAt: current.time,
     temperatureMax: daily.temperature_2m_max?.[dailyIndex] ?? current.temperature,
@@ -675,6 +737,10 @@ function normalizeWeatherData(apiData, fallbackRegion) {
     uvIndexMax: daily.uv_index_max?.[dailyIndex] ?? null,
     sunrise: daily.sunrise?.[dailyIndex] ?? null,
     sunset: daily.sunset?.[dailyIndex] ?? null,
+    daily,
+    dailyIndex,
+    rawHourly: hourly,
+    rawTimes: times,
   };
 }
 
@@ -803,6 +869,9 @@ function calculateMosquitoIndex(region, weatherData = null) {
 }
 
 function buildWeatherCards(region, index) {
+  // 홈처럼 날씨 카드가 없는 화면에서도 같은 script.js 를 쓰기 때문에,
+  // 그릴 자리가 없으면 조용히 넘어간다.
+  if (!weatherGrid && !gauge) return;
   const liveWeather = activeWeatherData || createFallbackWeather(region);
   // primary: true → 기본 노출(핵심 5개), false → '날씨 상세 더보기'로 접어 둠(난잡함 완화)
   const cards = [
@@ -884,12 +953,16 @@ function buildWeatherCards(region, index) {
     </article>
   `;
 
-  weatherGrid.innerHTML = cards.filter((card) => card.primary).map(cardHtml).join('');
+  if (weatherGrid) {
+    weatherGrid.innerHTML = cards.filter((card) => card.primary).map(cardHtml).join('');
+  }
   if (weatherGridMore) {
     weatherGridMore.innerHTML = cards.filter((card) => !card.primary).map(cardHtml).join('');
   }
 
-  gauge.style.background = `conic-gradient(${getGaugeGradient(index)})`;
+  if (gauge) {
+    gauge.style.background = `conic-gradient(${getGaugeGradient(index)})`;
+  }
 }
 
 function getGaugeGradient(value) {
@@ -919,6 +992,7 @@ function getGaugeGradient(value) {
 }
 
 function renderAnalysis(region, weatherData, index, precision) {
+  if (!analysisList) return;
   const liveWeather = weatherData || createFallbackWeather(region);
   const reasons = [];
 
@@ -1133,10 +1207,11 @@ function renderCalcDetail(region, weatherData, index, precision) {
 
 function updateStageStyles(index) {
   const stage = getCurrentStage(index);
+  if (!stageText) return;
   stageText.textContent = stage.label;
   stageText.className = `gauge-stage ${stage.className}`;
-  adviceText.textContent = stage.advice;
-  gauge.style.setProperty('--stage-color', stage.color);
+  if (adviceText) adviceText.textContent = stage.advice;
+  if (gauge) gauge.style.setProperty('--stage-color', stage.color);
 }
 
 // 정밀 모델의 신뢰도 등급(한글) → 메인 페이지 배지 색 클래스로 변환
@@ -1147,6 +1222,7 @@ function confidenceLevelClass(koreanLabel) {
 }
 
 function updateDataBadges(weatherData, isGps, precision) {
+  if (!weatherSourceBadge || !locationSourceBadge) return;
   weatherSourceBadge.textContent = weatherData.isLive ? '실제 날씨' : '샘플 날씨';
   locationSourceBadge.textContent = isGps ? 'GPS 위치' : '지역 선택';
 
@@ -1324,6 +1400,8 @@ function renderForecast(series, weatherData, isGimhae) {
     diurnalNote.hidden = !isGimhae;
   }
 
+  if (!forecastSourceText) return;
+
   if (isGimhae) {
     forecastSourceText.textContent = weatherData.isLive
       ? '김해 정밀 모델 + 실제 날씨의 시간별 예보입니다. (게이지 값과 동일 모델)'
@@ -1338,8 +1416,9 @@ function renderForecast(series, weatherData, isGimhae) {
 
 // Chart.js로 24시간 모기지수 변화를 선 그래프로 그린다.
 function renderForecastChart(series) {
-  if (!window.Chart || !forecastChartCanvas) {
-    forecastSourceText.textContent = '차트 라이브러리를 불러오지 못해 그래프를 표시할 수 없습니다.';
+  if (!forecastChartCanvas) return;
+  if (!window.Chart) {
+    if (forecastSourceText) forecastSourceText.textContent = '차트 라이브러리를 불러오지 못해 그래프를 표시할 수 없습니다.';
     return;
   }
 
@@ -1417,6 +1496,7 @@ function renderForecastChart(series) {
 
 // 24시간 예보 중 가장 위험한 시간대와 가장 안전한 시간대를 찾아 안내한다.
 function renderPeakTimes(series) {
+  if (!peakDangerTime || !peakSafeTime) return;
   if (!series.length) {
     return;
   }
@@ -1622,7 +1702,7 @@ async function loadAndRenderRegion(region, options = {}) {
   const locationTitle = options.locationTitle || region.name;
   const preserveZoom = options.preserveZoom !== false;
 
-  statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
+  if (statusText) statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
 
   const weatherData = await loadWeatherData(lat, lng, region);
   activeWeatherData = weatherData;
@@ -1654,16 +1734,18 @@ async function loadAndRenderRegion(region, options = {}) {
   }
   const stage = getCurrentStage(index);
 
-  locationText.textContent = isGps
+  if (locationText) locationText.textContent = isGps
     ? `현재 위치 · ${region.name} 인근 · ${formatCoordinateLabel(lat, lng, accuracy)}`
     : `${locationTitle} · ${formatCoordinateLabel(lat, lng)}`;
-  updatedText.textContent = weatherData.isLive
+  if (updatedText) updatedText.textContent = weatherData.isLive
     ? `실제 날씨 갱신: ${new Date(weatherData.observedAt).toLocaleString('ko-KR')}`
     : `샘플 기준: ${new Date(dataUpdatedAt).toLocaleString('ko-KR')}`;
-  indexValue.textContent = index;
-  stageText.textContent = stage.label;
-  stageText.className = `gauge-stage ${stage.className}`;
-  adviceText.textContent = stage.advice;
+  if (indexValue) indexValue.textContent = index;
+  if (stageText) {
+    stageText.textContent = stage.label;
+    stageText.className = `gauge-stage ${stage.className}`;
+  }
+  if (adviceText) adviceText.textContent = stage.advice;
 
   // (B1) 어제 같은 시각 대비 변화 — 오늘과 같은 모델(김해면 정밀, 아니면 일반)로 계산한다.
   let yesterdayIndex = null;
@@ -1717,6 +1799,21 @@ async function loadAndRenderRegion(region, options = {}) {
   }
 
   highlightActiveRegion(region.name);
+
+  // 앞으로 5일 전망 (실제 날씨가 있을 때만)
+  let dailyOutlook = [];
+  if (weatherData.rawHourly && weatherData.rawTimes) {
+    try {
+      dailyOutlook = buildDailyOutlook(weatherData.rawHourly, weatherData.rawTimes, region, gimhaeDistrict, weatherData);
+    } catch (error) {
+      console.warn('5일 전망 계산 실패', error);
+    }
+  }
+
+  // 계산이 끝났다고 알린다. 새 디자인의 나들이 지수·배경·눈금이 이 값을 받아 쓴다.
+  document.dispatchEvent(new CustomEvent('mosquito:updated', {
+    detail: { region, index, stage, series, weatherData, precision, lat, lng, isGps, district: gimhaeDistrict, dailyOutlook },
+  }));
 }
 
 function renderRegion(region) {
@@ -1773,8 +1870,9 @@ function createRegionMarker(region) {
 }
 
 function renderMap(regions) {
+  if (!document.getElementById('map')) return;
   if (!window.L) {
-    locationText.textContent = '지도 라이브러리를 불러오지 못했습니다.';
+    if (locationText) locationText.textContent = '지도 라이브러리를 불러오지 못했습니다.';
     return;
   }
 
@@ -1937,11 +2035,12 @@ async function toggleGimhaeHeatmap() {
 }
 
 function populateSelect(regions) {
+  if (!regionSelect) return;
   regionSelect.innerHTML = regions.map((region) => `<option value="${region.name}">${region.name}</option>`).join('');
 }
 
 function setupEvents() {
-  regionSelect.addEventListener('change', () => {
+  if (regionSelect) regionSelect.addEventListener('change', () => {
     const selectedRegion = regionData.find((region) => region.name === regionSelect.value);
     if (selectedRegion) {
       loadAndRenderRegion(selectedRegion, { isGps: false }).catch((error) => {
@@ -1979,7 +2078,7 @@ function setupEvents() {
     });
   }
 
-  myLocationButton.addEventListener('click', () => {
+  if (myLocationButton) myLocationButton.addEventListener('click', () => {
     if (!navigator.geolocation) {
       alert('이 브라우저는 위치정보 기능을 지원하지 않습니다.');
       return;
@@ -1998,7 +2097,7 @@ function setupEvents() {
           return;
         }
         const nearestRegion = findNearestRegion(latitude, longitude);
-        regionSelect.value = nearestRegion.name;
+        if (regionSelect) regionSelect.value = nearestRegion.name;
         await loadAndRenderRegion(nearestRegion, {
           lat: latitude,
           lng: longitude,

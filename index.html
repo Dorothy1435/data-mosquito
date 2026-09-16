@@ -4,255 +4,163 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>모기제로 | 오늘의 모기지수</title>
-  <meta name="description" content="날씨와 지역 데이터를 바탕으로 오늘의 모기지수를 확인하는 웹앱입니다.">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="날씨와 김해 발생원 데이터로 오늘의 모기지수와 나들이 지수를 알려드립니다.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="design.css">
 </head>
 <body>
-  <div class="page-shell" id="top">
-    <header class="topbar">
-      <div class="topbar-main">
-        <div class="brand-block">
-          <p class="brand-kicker">생활환경 정보</p>
-          <h1>모기제로</h1>
-        </div>
-        <div class="topbar-actions">
+  <a class="skip-link" href="#main">본문 바로가기</a>
+
+  <!-- 상단 메뉴 -->
+  <header class="topnav">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true">🦟</span>
+      <span>모기제로</span>
+    </a>
+
+    <nav class="navlinks" id="primaryNav" aria-label="주요 메뉴">
+      <a href="index.html">홈</a>
+      <a href="forecast.html">모기 예보</a>
+      <a href="guide.html">모기 도감</a>
+    </nav>
+
+    <div class="nav-right">
+      <span class="weather-chip" id="navWeather">날씨 확인 중…</span>
+      <a class="expert-link" href="gimhae.html">전문가용 화면</a>
+      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="shell">
+
+      <!-- 히어로: 오늘의 숫자 하나를 가장 크게 -->
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="pill hero-place">
+          <span aria-hidden="true">📍</span>
           <label class="sr-only" for="regionSelect">지역 선택</label>
-          <select id="regionSelect" class="region-select" aria-label="지역 선택"></select>
-          <button id="myLocationButton" class="secondary-button" type="button">현재 위치</button>
-          <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+          <select id="regionSelect" class="place-select"></select>
+          <button id="myLocationButton" class="link-soft" type="button">현재 위치로</button>
         </div>
+        <p class="hero-place-detail" id="locationText">위치를 확인하는 중…</p>
+
+        <p class="hero-kicker" id="heroTitle">오늘의 모기지수</p>
+        <p class="hero-number num" id="indexValue">--</p>
+        <p class="stage-badge lg" id="stageBadge">확인 중</p>
+        <p class="hero-advice" id="adviceText">데이터를 불러오는 중입니다.</p>
+
+        <!-- 5단계 눈금 -->
+        <div class="scale hero-scale">
+          <div class="scale-track">
+            <div class="scale-knob" id="indexScaleKnob" style="left:0%"></div>
+          </div>
+          <div class="scale-labels" id="indexScaleLabels">
+            <span>매우 양호</span><span>양호</span><span>보통</span><span>위험</span><span>매우 위험</span>
+          </div>
+        </div>
+
+        <!-- 나들이 지수 한 줄 요약 -->
+        <div class="glass outing-chip" id="outingChip">
+          <span class="outing-chip-icon" aria-hidden="true">🚶</span>
+          <span class="outing-chip-label">나들이 지수</span>
+          <span class="outing-chip-score num" id="outingChipScore">--</span>
+          <span class="outing-chip-grade" id="outingChipGrade">확인 중</span>
+          <span class="outing-chip-divider" aria-hidden="true"></span>
+          <span class="outing-chip-advice" id="outingChipAdvice">날씨를 불러오는 중입니다.</span>
+        </div>
+
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="forecast.html">자세한 예보 보기</a>
+          <a class="btn btn-ghost" href="guide.html">모기 사진으로 확인하기</a>
+        </div>
+
+        <!-- 데이터 상태 -->
+        <div class="hero-meta">
+          <span class="data-pill" id="weatherSourceBadge">실제 날씨</span>
+          <span class="data-pill" id="locationSourceBadge">지역 선택</span>
+          <span class="data-pill" id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
+          <span id="updatedText">최종 갱신: -</span>
+          <button id="retryButton" class="btn btn-ghost btn-sm" type="button" hidden>날씨 다시 불러오기</button>
+        </div>
+        <p class="sr-only" id="statusText">실제 날씨와 GPS를 연결할 준비를 하고 있습니다.</p>
+        <p class="sr-only" id="heroSummary"></p>
+      </section>
+
+      <div class="scroll-hint">
+        <span>모기지수는 어떻게 정해질까요?</span>
+        <svg width="20" height="26" viewBox="0 0 20 26" fill="none" aria-hidden="true">
+          <path d="M10 2v20M3 15l7 7 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
 
-      <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
-        <a href="about.html">사이트 소개</a>
-        <a href="mosquito-info.html">모기 정보</a>
-        <a href="gimhae.html">김해 모델</a>
-        <a href="#mosquito-section">오늘의 모기지수</a>
-        <a href="#map-section">지도</a>
-        <a href="#weather-section">날씨 정보</a>
-        <a href="#forecast-section">시간대별 예보</a>
-      </nav>
-    </header>
-
-    <main class="content-grid">
-      <section id="mosquito-section" class="hero-card" aria-labelledby="mosquitoTitle">
-        <div class="hero-copy">
-          <p class="section-label">오늘의 모기지수</p>
-          <h2 id="mosquitoTitle">오늘의 모기 위험도를 한눈에 확인하세요</h2>
-          <p id="heroSummary" class="hero-summary" hidden></p>
-          <p class="hero-description">날씨로 전국 어디나 모기지수를 계산하고, <strong>김해는 발생원 데이터로 정밀하게</strong> 예보합니다.</p>
-          <div class="data-pills" aria-label="데이터 상태">
-            <span id="weatherSourceBadge" class="data-pill">실제 날씨</span>
-            <span id="locationSourceBadge" class="data-pill">지역 선택</span>
-            <span id="confidenceBadge" class="data-pill confidence-pill" title="계산 신뢰도">신뢰도 -</span>
+      <!-- 스크롤 스토리 -->
+      <section class="story" aria-label="모기지수 설명">
+        <div class="story-row">
+          <div class="story-text">
+            <span class="story-step num">01</span>
+            <h2 class="story-title">모기는<br>고인 물에서<br>시작됩니다</h2>
+            <p class="story-body">김해 곳곳 <b>1만 5천여 곳</b>의 정화조·하수처리시설·저수지를 지도에 모두 표시했어요.</p>
           </div>
-          <p id="statusText" class="status-text">실제 날씨와 GPS를 연결할 준비를 하고 있습니다.</p>
-          <p id="locationText" class="location-text">서울 기준 샘플 데이터</p>
-          <p id="updatedText" class="updated-text">최종 갱신: -</p>
-          <button id="retryButton" class="secondary-button retry-button" type="button" hidden>날씨 다시 불러오기</button>
+          <div class="ph story-figure">이미지 · 고인 물 클로즈업</div>
         </div>
-        <div class="gauge-wrap">
-          <div id="gauge" class="gauge" role="img" aria-label="모기지수 원형 게이지">
-            <div class="gauge-inner">
-              <span class="gauge-value" id="indexValue">--</span>
-              <span class="gauge-unit">점</span>
-              <span id="stageText" class="gauge-stage">대기 중</span>
-            </div>
+
+        <div class="story-row">
+          <div class="ph story-figure">이미지 · 비 온 뒤 여름 저녁 거리</div>
+          <div class="story-text">
+            <span class="story-step num">02</span>
+            <h2 class="story-title">날씨가<br>모기를 깨웁니다</h2>
+            <p class="story-body">덥고 습할수록, 비가 온 뒤일수록 모기가 늘어나요. 매일 날씨를 확인해 반영합니다.</p>
           </div>
-          <p id="adviceText" class="advice-text">데이터를 불러오는 중입니다.</p>
-          <div id="rangeBox" class="range-box">
-            <span id="rangeText" class="range-value">예상 범위 -</span>
-            <span id="deltaBadge" class="delta-badge" hidden></span>
-            <span id="precisionBadge" class="precision-badge" hidden>김해 정밀 모델</span>
+        </div>
+
+        <div class="story-finale">
+          <span class="story-step num">03</span>
+          <h2 class="story-title">그래서, 오늘의 숫자 하나</h2>
+          <div class="formula">
+            <div class="glass formula-term">고인 물이 많은 곳</div>
+            <span class="formula-op num">×</span>
+            <div class="glass formula-term">모기가 좋아하는 날씨</div>
+            <span class="formula-op num">=</span>
+            <div class="glass formula-result num" id="formulaResult">--</div>
           </div>
+          <p class="story-body" style="max-width:560px;text-align:center">0부터 100까지, 높을수록 조심하세요.<br>실제 방역 민원 기록과 비교해 정확도를 확인했어요.</p>
         </div>
       </section>
 
-      <!-- 함께 보는 나들이 지수 (보건소 피드백 2026-09-10) -->
-      <section id="outing-section" class="panel-card outing-card" aria-labelledby="outingTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">함께 보는 나들이 지수</p>
-            <h3 id="outingTitle">오늘 나들이, 이것도 같이 확인하세요</h3>
-          </div>
-          <p class="helper-text">모기지수가 메인 지수이고, 아래는 함께 참고하는 생활 지수입니다.</p>
-        </div>
-        <div id="outingGrid" class="outing-grid" aria-live="polite">
-          <p class="outing-loading">생활 지수를 불러오는 중입니다…</p>
-        </div>
-        <p id="outingNote" class="outing-note"></p>
+      <!-- 안내 카드 -->
+      <section class="cta-grid" aria-label="바로가기">
+        <article class="glass cta-card">
+          <span class="cta-icon" aria-hidden="true">🔍</span>
+          <h3 class="cta-title">이 모기, 위험한가요?</h3>
+          <p class="cta-desc">우리 주변에 사는 모기 4종과 조심할 점을 정리했어요.</p>
+          <a class="btn btn-primary" href="guide.html">도감 보기</a>
+        </article>
+        <article class="glass cta-card">
+          <span class="cta-icon" aria-hidden="true">🗺️</span>
+          <h3 class="cta-title">우리 동네 모기 예보</h3>
+          <p class="cta-desc">시간대별 지수, 5일 예보, 동네별 지도를 한 곳에서.</p>
+          <a class="btn btn-ghost" href="forecast.html">예보 보기</a>
+        </article>
       </section>
+    </div>
+  </main>
 
-      <!-- 김해 발생원 정밀 모델로 유도하는 티저 -->
-      <section class="gimhae-teaser panel-card" aria-labelledby="teaserTitle">
-        <div class="teaser-main">
-          <p class="section-label" id="teaserTitle">🔬 김해 발생원 정밀 모델</p>
-          <p class="teaser-lead" id="gimhaeTop3">오늘 김해에서 모기 위험이 높은 구역을 불러오는 중…</p>
-        </div>
-        <a class="secondary-button teaser-link" href="gimhae.html">구역별 방역 리포트 →</a>
-      </section>
+  <footer class="site-footer">
+    <div class="footer-left">
+      모기지수와 나들이 지수는 <strong>참고용 예상값</strong>이며 의학적·방역적 판단을 대신하지 않습니다.<br>
+      날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터
+    </div>
+    <div class="footer-right">
+      <a href="gimhae.html">전문가용 화면 →</a>
+    </div>
+  </footer>
 
-      <section id="map-section" class="panel-card map-card" aria-labelledby="mapTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">지역별 지도</p>
-            <h3 id="mapTitle">지역별 모기 위험도</h3>
-          </div>
-          <div class="map-actions">
-            <p class="helper-text">마커를 누르면 해당 지역의 지수와 날씨 정보를 볼 수 있습니다.</p>
-            <button id="heatmapButton" class="secondary-button" type="button" aria-pressed="false">김해 발생원 히트맵 보기</button>
-          </div>
-        </div>
-        <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
-        <div class="legend" aria-label="지도 범례">
-          <span><i class="legend-dot stage-safe"></i> 매우 양호</span>
-          <span><i class="legend-dot stage-good"></i> 양호</span>
-          <span><i class="legend-dot stage-normal"></i> 보통</span>
-          <span><i class="legend-dot stage-risk"></i> 위험</span>
-          <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
-        </div>
-        <div id="heatmapLegend" class="legend heatmap-legend" aria-label="김해 발생원 히트맵 범례" hidden>
-          <span class="legend-title">김해 발생원 위험</span>
-          <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
-          <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
-          <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
-          <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
-          <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
-        </div>
-
-        <!-- 히트맵을 켜면 함께 보이는 설명 패널: 이게 무엇이고 왜 위험도가 높은지 -->
-        <div id="heatmapInfo" class="heatmap-info" hidden>
-          <h4 class="heatmap-info-title">김해 발생원 히트맵이란?</h4>
-          <p class="heatmap-info-lead">모기는 <strong>고인 물 + 유기물</strong>이 있는 곳에서 번식합니다. 그런 <strong>발생원 시설</strong>(정화조·축산농가·저수지·폐타이어·폐기물시설·수경시설 등)이 몰려 있을수록 모기가 많이 생깁니다. 이 지도는 김해 17개 읍·면·동의 <strong>발생원 위험</strong>을 색과 크기로 보여줍니다. <strong>색이 진하고 원이 클수록 위험이 높습니다.</strong></p>
-          <ul class="heatmap-info-list">
-            <li><strong>왜 위험도가 높을까?</strong> 발생원 시설이 많고, 곤충학적으로 위험이 큰 시설(정화조 3.0·저수지 2.5·축산/타이어 2.0 등)이 모여 있으며, 실제 <strong>유충 검출률</strong>과 <strong>방역 민원</strong>이 높은 구역일수록 점수가 올라갑니다.</li>
-            <li><strong>색의 의미:</strong> 위 범례처럼 초록(낮음) → 노랑 → 주황 → 빨강(매우 높음) 순으로 발생원 위험이 커집니다.</li>
-            <li><strong>사용법:</strong> 원을 누르면 그 구역의 발생원 위험·순위·유충 검출률·오늘 모기지수가 나오고, 상단 게이지도 그 구역 정밀값으로 바뀝니다.</li>
-          </ul>
-          <p class="heatmap-info-note">※ 발생원 위험은 매일 변하는 날씨와 별개인 <strong>구역 고유의 정적 위험</strong>입니다. 여기에 날씨를 곱한 값이 '오늘 모기지수'입니다.</p>
-        </div>
-      </section>
-
-      <section id="weather-section" class="panel-card" aria-labelledby="weatherTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">날씨 요약</p>
-            <h3 id="weatherTitle">모기 활동에 영향을 주는 요소</h3>
-          </div>
-          <p class="helper-text">실제 날씨가 불러와지지 않으면 샘플 데이터로 자동 전환됩니다.</p>
-        </div>
-        <div id="weatherGrid" class="metric-grid"></div>
-        <!-- 핵심 5개만 위에 보이고, 나머지 상세 날씨는 접어 둔다(난잡함 완화) -->
-        <details class="more-details weather-more">
-          <summary>날씨 상세 더보기</summary>
-          <div id="weatherGridMore" class="metric-grid"></div>
-        </details>
-      </section>
-
-      <section id="forecast-section" class="panel-card" aria-labelledby="forecastTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">시간대별 예보</p>
-            <h3 id="forecastTitle">앞으로 24시간 모기지수 변화</h3>
-          </div>
-          <p class="helper-text">실제 날씨가 연결되면 시간별 예보로, 아닐 때는 샘플 기반 예상값으로 표시됩니다.</p>
-        </div>
-
-        <!-- 오늘 하루 중 가장 위험한 시간대와 안전한 시간대를 요약해서 보여주는 영역 -->
-        <div id="peakTimeBox" class="peak-time-box" aria-live="polite">
-          <article class="peak-card peak-danger">
-            <p class="peak-label">가장 주의할 시간대</p>
-            <p class="peak-time" id="peakDangerTime">-</p>
-            <p class="peak-note" id="peakDangerNote">시간대별 데이터를 준비하고 있습니다.</p>
-          </article>
-          <article class="peak-card peak-safe">
-            <p class="peak-label">가장 안전한 시간대</p>
-            <p class="peak-time" id="peakSafeTime">-</p>
-            <p class="peak-note" id="peakSafeNote">시간대별 데이터를 준비하고 있습니다.</p>
-          </article>
-        </div>
-
-        <div class="chart-area">
-          <canvas id="forecastChart" role="img" aria-label="시간대별 모기지수 예보 그래프"></canvas>
-        </div>
-        <p id="forecastSourceText" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
-        <p id="diurnalNote" class="diurnal-note" hidden>💡 모기는 <strong>해질녘(19~22시)과 새벽(4~6시)</strong>에 활동이 급증하고 한낮·심야엔 크게 줄어듭니다. 그래서 하루 안에서도 지수가 오르내리며, <strong>발생원까지 반영하는 김해 지역은 이 변화가 더 뚜렷하게 나타납니다.</strong></p>
-      </section>
-
-      <section id="ranking-section" class="panel-card" aria-labelledby="rankingTitle" hidden>
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">김해 구역 순위</p>
-            <h3 id="rankingTitle">오늘 김해에서 모기 위험이 높은 구역</h3>
-          </div>
-          <p class="helper-text">발생원·유충·인구를 반영한 김해 정밀 모델 순위입니다.</p>
-        </div>
-        <ol id="rankingList" class="ranking-list"></ol>
-      </section>
-
-      <section id="action-section" class="panel-card action-card" aria-labelledby="actionTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">오늘의 행동요령</p>
-            <h3 id="actionTitle">지금 무엇을 하면 좋을까요</h3>
-          </div>
-          <p class="helper-text">선택한 지역의 모기지수에 맞춰 추천 대응을 안내합니다.</p>
-        </div>
-        <div class="action-top">
-          <article class="action-item">
-            <p class="action-item-label">추천 기피제</p>
-            <p id="repellentText" class="action-item-value">-</p>
-          </article>
-          <article class="action-item">
-            <p class="action-item-label">모기 활동 시간대</p>
-            <p id="activeHoursText" class="action-item-value">-</p>
-          </article>
-        </div>
-        <ul id="actionTips" class="action-tips" aria-label="시민 행동요령"></ul>
-      </section>
-
-      <section class="panel-card" aria-labelledby="analysisTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">분석 근거</p>
-            <h3 id="analysisTitle">왜 이런 지수가 나왔는지</h3>
-          </div>
-        </div>
-        <!-- 핵심 근거 3줄만 보이고, 나머지는 접어 둔다 -->
-        <ul id="analysisList" class="analysis-list"></ul>
-        <details class="more-details analysis-more">
-          <summary>분석 근거 자세히 보기</summary>
-          <ul id="analysisMore" class="analysis-list"></ul>
-        </details>
-
-        <!-- 지수가 어떤 요소를 곱해서 나왔는지 펼쳐 볼 수 있는 상세 영역 -->
-        <details class="calc-detail">
-          <summary>지수 계산 상세 보기 (날씨 · 발생원 · 인구)</summary>
-          <div id="calcDetailBody" class="calc-detail-body"></div>
-        </details>
-      </section>
-    </main>
-
-    <footer class="footer-note">
-      <div class="disclaimer-card">
-        <p class="disclaimer-title">ℹ️ 이용 안내 · 데이터 출처</p>
-        <ul class="disclaimer-list">
-          <li><strong>참고용 예상값입니다.</strong> 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요.</li>
-          <li><strong>데이터 구분</strong> — <span class="tag tag-live">실측</span> 실제 날씨 API 값 · <span class="tag tag-est">예상</span> 모델이 계산한 지수 · <span class="tag tag-sample">샘플</span> 날씨 미연결 시 대체값. 화면의 신뢰도 배지에서 확인할 수 있습니다.</li>
-          <li><strong>김해 정밀 모델 데이터 기준</strong> — 발생원 시설·유충 실태조사(김해시 보건소), 방역민원(2025년), 주민등록 인구(2026. 6. 기준, 외국인 제외).</li>
-          <li><strong>김해 외 지역</strong>은 발생원·유충 데이터 없이 <strong>날씨만으로 추정</strong>한 값이라 정밀도가 낮습니다.</li>
-          <li>날씨 <strong>Open-Meteo</strong>(무료 공개 API) · 지도 <strong>OpenStreetMap</strong>.</li>
-        </ul>
-      </div>
-    </footer>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="mosquito-model.js"></script>
-  <script src="nav.js"></script>
+  <script src="outing-index.js"></script>
+  <script src="weather-bg.js"></script>
+  <script src="app-ui.js"></script>
   <script src="script.js"></script>
-  <script src="chat.js"></script>
 </body>
 </html>

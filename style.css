@@ -2522,3 +2522,14 @@ body.citizen-mode [data-audience="expert"] { display: none !important; }
   .source-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
   .source-tile { padding: 9px; }
 }
+
+/* AI 도우미 위젯 글자 크기 — 버튼은 브라우저 기본값(13.33px)을 쓰기 때문에
+   그냥 두면 프로젝트 규칙인 '최소 14px'을 어긴다. 위젯 요소만 콕 집어 맞춘다. */
+.mz-sug,
+.mz-chat-send,
+.mz-chat-close,
+.mz-fab-text,
+.mz-chat-input {
+  font-family: inherit;
+  font-size: 14px;
+}

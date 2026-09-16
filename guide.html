@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기 도감 | 모기제로</title>
+  <meta name="description" content="우리 주변에 사는 모기 4종과 옮길 수 있는 병, 대처법을 확인하세요.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="design.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">본문 바로가기</a>
+
+  <header class="topnav">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true">🦟</span>
+      <span>모기제로</span>
+    </a>
+
+    <nav class="navlinks" id="primaryNav" aria-label="주요 메뉴">
+      <a href="index.html">홈</a>
+      <a href="forecast.html">모기 예보</a>
+      <a href="guide.html">모기 도감</a>
+    </nav>
+
+    <div class="nav-right">
+      <a class="expert-link" href="gimhae.html">전문가용 화면</a>
+      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <div class="shell">
+
+      <div class="page-head">
+        <h1>모기 도감</h1>
+        <p>이 모기, 뭐지? 우리 주변에 사는 모기와 조심할 점을 정리했어요.</p>
+      </div>
+
+      <!-- 사진 판별 (준비 중) -->
+      <section class="id-row" aria-labelledby="idTitle">
+        <article class="glass upload">
+          <p class="label" id="idTitle">📷 사진으로 찾아보기</p>
+
+          <div class="dropzone">
+            <span class="dropzone-icon" aria-hidden="true">🖼️</span>
+            <p class="dropzone-title">사진을 여기에 끌어다 놓으세요</p>
+            <p class="dropzone-hint">JPG · PNG · 최대 10MB</p>
+          </div>
+
+          <div class="upload-buttons">
+            <button class="btn btn-ghost" type="button" data-soon>📸 카메라로 찍기</button>
+            <button class="btn btn-ghost" type="button" data-soon>🗂️ 앨범에서 고르기</button>
+          </div>
+
+          <p class="dropzone-hint" id="soonNotice" role="status" aria-live="polite"></p>
+
+          <div class="tips">
+            <p class="tips-title">잘 찍는 요령</p>
+            <p>· 모기 몸 전체가 보이게, 가까이서</p>
+            <p>· 밝은 곳에서, 흔들리지 않게</p>
+            <p>· 다리의 줄무늬가 보이면 더 정확해요</p>
+          </div>
+        </article>
+
+        <article class="glass result">
+          <div class="result-head">
+            <p class="label">판별 결과</p>
+            <span class="badge-soon">준비 중</span>
+          </div>
+
+          <div class="result-body">
+            <div class="ph result-photo">올린 사진이<br>여기에 보여요</div>
+            <div class="result-info">
+              <p class="result-name">아직 준비 중이에요</p>
+              <p class="result-alias">사진으로 모기 종류를 알려주는 기능을 만들고 있습니다.</p>
+              <div class="match">
+                <div class="match-head"><span>일치도</span><span class="num">--</span></div>
+                <div class="match-track"><div class="match-fill" style="width:0%"></div></div>
+              </div>
+              <p class="result-alias">그동안은 아래 <strong>주요 모기 4종</strong>을 보고 직접 견주어 보세요.</p>
+            </div>
+          </div>
+
+          <div class="result-facts">
+            <div>
+              <p class="fact-title">생김새</p>
+              <p class="fact-body">몸의 무늬와 다리 줄무늬로 구분합니다.</p>
+            </div>
+            <div>
+              <p class="fact-title">옮길 수 있는 병</p>
+              <p class="fact-body">종류마다 다릅니다. 아래 도감에서 확인하세요.</p>
+            </div>
+            <div>
+              <p class="fact-title">이렇게 하세요</p>
+              <p class="fact-body">집 주변 고인 물을 비우는 것이 가장 효과적입니다.</p>
+            </div>
+          </div>
+
+          <p class="result-foot">
+            ※ 사진 판별은 아직 제공하지 않습니다. 물린 뒤 열이 나거나 몸이 아프면 병원에 가세요.
+          </p>
+        </article>
+      </section>
+
+      <!-- 주요 모기 4종 -->
+      <div class="section-head">
+        <h2>우리 주변 모기 4종</h2>
+        <p>김해에서 볼 수 있는 대표적인 모기입니다.</p>
+      </div>
+
+      <section class="species-grid" aria-label="주요 모기 4종">
+        <article class="glass species">
+          <img src="assets/mosquito/culex-pipiens.jpg" alt="빨간집모기 확대 사진. 갈색 몸에 가는 다리를 가진 모기.">
+          <h3 class="species-name">빨간집모기</h3>
+          <p class="species-desc">밤에 집 안으로 들어오는 가장 흔한 모기예요.</p>
+          <p class="species-desc"><strong>옮길 수 있는 병</strong> · 웨스트나일열</p>
+        </article>
+
+        <article class="glass species">
+          <img src="assets/mosquito/culex-tritaeniorhynchus.jpg" alt="작은빨간집모기 확대 사진. 붉은 갈색을 띠는 작은 모기.">
+          <h3 class="species-name">작은빨간집모기</h3>
+          <p class="species-desc">논과 축사 주변에 많아요. 여름밤에 활동합니다.</p>
+          <p class="species-desc"><strong>옮길 수 있는 병</strong> · 일본뇌염</p>
+        </article>
+
+        <article class="glass species">
+          <img src="assets/mosquito/aedes-albopictus.jpg" alt="흰줄숲모기 확대 사진. 검은 몸에 흰 줄무늬가 뚜렷한 모기.">
+          <h3 class="species-name">흰줄숲모기</h3>
+          <p class="species-desc">낮에도 물어요. 풀숲과 공원에서 조심하세요.</p>
+          <p class="species-desc"><strong>옮길 수 있는 병</strong> · 뎅기열 · 지카바이러스</p>
+        </article>
+
+        <article class="glass species">
+          <img src="assets/mosquito/anopheles-sinensis.jpg" alt="얼룩날개모기 확대 사진. 날개에 얼룩무늬가 있는 모기.">
+          <h3 class="species-name">얼룩날개모기</h3>
+          <p class="species-desc">앉을 때 몸을 비스듬히 세우는 것이 특징이에요.</p>
+          <p class="species-desc"><strong>옮길 수 있는 병</strong> · 말라리아</p>
+        </article>
+      </section>
+
+      <!-- 유충 -->
+      <div class="section-head">
+        <h2>모기는 물에서 자랍니다</h2>
+        <p>알·유충·번데기 세 단계가 모두 물속에서 일어나요. 그래서 고인 물을 비우면 모기가 줄어듭니다.</p>
+      </div>
+
+      <section class="glass side-card" style="margin-bottom:40px">
+        <div class="result-body">
+          <img src="assets/mosquito/culex-larvae.jpg" alt="물속에서 헤엄치는 모기 유충 여러 마리." style="width:100%;border-radius:16px">
+          <div class="result-info">
+            <h3 class="species-name">집 주변에서 물을 비울 곳</h3>
+            <ul class="analysis-list">
+              <li>화분 받침에 고인 물</li>
+              <li>빈 용기·페트병·폐타이어</li>
+              <li>막힌 빗물받이와 하수구</li>
+              <li>쓰지 않는 물통과 항아리</li>
+            </ul>
+            <p class="species-desc">일주일에 한 번만 비워도 모기가 알에서 어른이 되기 전에 끊을 수 있어요.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-left">
+      모기 사진 출처 · 흰줄숲모기·얼룩날개모기·유충 <strong>CDC (퍼블릭 도메인)</strong> ·
+      빨간집모기 根川大橋, 작은빨간집모기 Kyu3a <strong>(CC BY-SA 4.0)</strong><br>
+      물린 뒤 열이 나거나 몸이 아프면 병원 진료를 받으세요. 이 페이지는 의학적 진단을 대신하지 않습니다.
+    </div>
+    <div class="footer-right">
+      <a href="gimhae.html">전문가용 화면 →</a>
+    </div>
+  </footer>
+
+  <script src="weather-bg.js"></script>
+  <script src="app-ui.js"></script>
+  <script src="guide.js"></script>
+</body>
+</html>

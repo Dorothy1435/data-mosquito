@@ -1,0 +1,2217 @@
+/* =============================================================
+   모기제로 — 디자인 시스템 (시안 v5 기준)
+   -------------------------------------------------------------
+   날씨 사진을 배경에 깔고, 그 위에 반투명 유리 카드를 올리는
+   어두운 톤의 환경정보 대시보드 스타일이다.
+
+   파일 구성
+     1) 디자인 토큰
+     2) 기본 스타일 · 폰트
+     3) 날씨 배경 레이어와 움직임
+     4) 공통 부품 (유리 카드 · 버튼 · 배지)
+     5) 상단 내비게이션
+     6) 홈 화면
+     7) 모기 예보 화면
+     8) 모기 도감 화면
+     9) script.js가 만들어내는 요소
+    10) 접근성
+
+   글자 크기는 프로젝트 규칙에 따라 최소 14px을 지킨다.
+   ============================================================= */
+
+/* ---------- 1) 디자인 토큰 ---------- */
+:root {
+  /* 바탕 — 사진이 없을 때 보이는 밑색 */
+  --bg-deep: #070b14;
+  --bg-deep-2: #0c1322;
+
+  /* 글자 */
+  --text: #eef2f7;
+  --text-soft: #d6dce6;
+  --text-muted: #b7c0cf;
+  --text-dim: #8d99ad;
+  --text-faint: #6b778a;
+
+  /* 유리 카드 */
+  --glass-bg: rgba(10, 15, 28, 0.40);
+  --glass-bg-strong: rgba(10, 15, 28, 0.62);
+  --glass-line: rgba(255, 255, 255, 0.10);
+  --glass-line-strong: rgba(255, 255, 255, 0.18);
+  --glass-blur: blur(22px) saturate(125%);
+
+  /* 포인트 색 */
+  --accent: #7fe3c4;
+  --accent-deep: #06201a;
+  --accent-soft: #b5f2df;
+
+  /* 위험 단계 5색 (시안 지정) */
+  --stage-1: #5fd08a;  /* 매우 양호 */
+  --stage-2: #b5d65a;  /* 양호 */
+  --stage-3: #f2c94c;  /* 보통 */
+  --stage-4: #f08a3e;  /* 위험 */
+  --stage-5: #e5484d;  /* 매우 위험 */
+
+  /* 모양 */
+  --radius-lg: 28px;
+  --radius: 22px;
+  --radius-sm: 16px;
+  --pill: 999px;
+
+  /* 여백 — 화면 좌우 안쪽 여백 */
+  --gutter: 56px;
+  --maxw: 1440px;
+}
+
+/* ---------- 2) 기본 스타일 · 폰트 ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg-deep);
+  color: var(--text);
+  font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* 가로 스크롤 방지 — 배경 레이어가 화면 밖으로 넘치기 때문 */
+  overflow-x: hidden;
+}
+
+/* 버튼·입력칸은 브라우저 기본 글꼴(13.33px)을 쓰기 때문에
+   그냥 두면 프로젝트 규칙인 '최소 14px'을 어기게 된다.
+   본문 글꼴과 크기를 물려받도록 여기서 한 번에 맞춘다. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-soft);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* 숫자 전용 글꼴 — 자릿수가 흔들리지 않게 고정폭 숫자를 쓴다 */
+.num {
+  font-family: "Space Grotesk", "IBM Plex Sans KR", sans-serif;
+  font-feature-settings: "tnum";
+}
+
+/* 화면에는 안 보이지만 스크린리더는 읽는 텍스트 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 페이지 내용을 감싸는 틀 */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* ---------- 3) 날씨 배경 레이어와 움직임 ---------- */
+
+/* 사진이 깔리는 자리. 화면 위쪽 1100px만 쓰고 아래로 서서히 사라진다. */
+.weather-bg {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1100px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(#000 60%, transparent);
+  mask-image: linear-gradient(#000 60%, transparent);
+}
+
+.weather-bg img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  opacity: 0;
+  /* 사진이 바뀔 때 1.2초에 걸쳐 부드럽게 교체된다 */
+  transition: opacity 1.2s ease;
+}
+
+.weather-bg img.is-active {
+  opacity: 1;
+}
+
+/* 사진 위에 덮는 어두운 막 — 글자가 읽히도록 대비를 확보한다 */
+.weather-tint {
+  position: absolute;
+  inset: 0;
+  transition: background 1.2s ease;
+  background: linear-gradient(180deg, rgba(7, 11, 20, 0.30) 0%, rgba(7, 11, 20, 0.72) 100%);
+}
+
+/* 날씨별로 막의 색을 조금씩 다르게 한다 */
+body[data-weather="storm"] .weather-tint,
+body[data-weather="rain"] .weather-tint {
+  background: linear-gradient(180deg, rgba(7, 11, 20, 0.42) 0%, rgba(7, 11, 20, 0.80) 100%);
+}
+
+body[data-time="night"] .weather-tint {
+  background: linear-gradient(180deg, rgba(4, 7, 16, 0.30) 0%, rgba(4, 7, 16, 0.82) 100%);
+}
+
+body[data-weather="snow"] .weather-tint,
+body[data-weather="fog"] .weather-tint {
+  background: linear-gradient(180deg, rgba(7, 11, 20, 0.34) 0%, rgba(7, 11, 20, 0.76) 100%);
+}
+
+/* 사진이 아주 천천히 확대되는 효과 (켄 번스) */
+.zoom {
+  animation: kenburns 40s ease-in-out infinite alternate;
+}
+
+@keyframes kenburns {
+  from { transform: scale(1.02); }
+  to { transform: scale(1.1) translateX(-1.5%); }
+}
+
+/* 움직이는 날씨 효과가 올라가는 자리 — 화면 전체에 고정된다 */
+.weather-fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 빗줄기 — 굵기가 다른 두 겹을 겹쳐 깊이를 준다 */
+.fx-rain {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(104deg, transparent 49.2%, rgba(220, 235, 255, 0.45) 50%, transparent 50.8%),
+    linear-gradient(101deg, transparent 49.4%, rgba(220, 235, 255, 0.25) 50%, transparent 50.6%);
+  background-size: 37px 110px, 23px 70px;
+  animation: fall 0.5s linear infinite;
+  opacity: 0.7;
+}
+
+.fx-rain.far {
+  opacity: 0.55;
+  filter: blur(0.6px);
+  background-size: 19px 60px, 13px 44px;
+  animation-duration: 0.9s;
+}
+
+@keyframes fall {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 0 220px, 0 140px; }
+}
+
+/* 눈 */
+.fx-snow {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(3px 3px at 20px 30px, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(2px 2px at 80px 110px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(4px 4px at 140px 60px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 190px 160px, rgba(255, 255, 255, 0.7), transparent);
+  background-size: 220px 200px;
+  animation: snowfall 9s linear infinite;
+}
+
+.fx-snow.far {
+  background-size: 140px 130px;
+  opacity: 0.6;
+  filter: blur(0.8px);
+  animation-duration: 14s;
+}
+
+@keyframes snowfall {
+  from { background-position: 0 0; }
+  to { background-position: 60px 600px; }
+}
+
+/* 안개 — 옆으로 천천히 흐른다 */
+.fx-fog {
+  position: absolute;
+  left: -40%;
+  right: -40%;
+  top: 120px;
+  height: 900px;
+  background:
+    radial-gradient(500px 160px at 15% 40%, rgba(225, 232, 240, 0.55), transparent 70%),
+    radial-gradient(600px 180px at 50% 65%, rgba(225, 232, 240, 0.45), transparent 70%),
+    radial-gradient(520px 170px at 85% 35%, rgba(225, 232, 240, 0.5), transparent 70%);
+  filter: blur(20px);
+  animation: drift 30s ease-in-out infinite alternate;
+}
+
+/* 구름 */
+.fx-clouds {
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  top: 0;
+  height: 1100px;
+  background:
+    radial-gradient(420px 140px at 8% 120px, rgba(210, 218, 230, 0.60), transparent 70%),
+    radial-gradient(520px 160px at 30% 330px, rgba(190, 200, 215, 0.50), transparent 70%),
+    radial-gradient(460px 150px at 55% 90px, rgba(210, 218, 230, 0.55), transparent 70%),
+    radial-gradient(500px 170px at 80% 380px, rgba(190, 200, 215, 0.50), transparent 70%);
+  filter: blur(16px);
+  opacity: 0.5;
+  animation: drift 28s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from { transform: translateX(-10%); }
+  to { transform: translateX(10%); }
+}
+
+/* 번개 번쩍임 */
+.fx-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(900px 600px at 82% 25%, rgba(200, 215, 255, 0.9), rgba(200, 215, 255, 0.2) 60%, transparent);
+  opacity: 0;
+  animation: flash 6s infinite;
+}
+
+@keyframes flash {
+  0%, 58%, 64%, 100% { opacity: 0; }
+  59% { opacity: 0.8; }
+  60% { opacity: 0.1; }
+  61.5% { opacity: 0.6; }
+}
+
+/* 밤하늘 별 */
+.fx-stars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1100px;
+  background-image:
+    radial-gradient(1.6px 1.6px at 20px 30px, #ffffff, transparent),
+    radial-gradient(1px 1px at 90px 130px, #ffffff, transparent),
+    radial-gradient(1.3px 1.3px at 160px 60px, #ffffff, transparent),
+    radial-gradient(1px 1px at 210px 180px, #ffffff, transparent);
+  background-size: 240px 210px;
+  -webkit-mask-image: linear-gradient(#000, transparent);
+  mask-image: linear-gradient(#000, transparent);
+  animation: twinkle 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.25; }
+  to { opacity: 1; }
+}
+
+/* 움직임을 원하지 않는 사용자에게는 애니메이션을 멈춘다 */
+@media (prefers-reduced-motion: reduce) {
+  .zoom,
+  .fx-rain,
+  .fx-snow,
+  .fx-fog,
+  .fx-clouds,
+  .fx-flash,
+  .fx-stars {
+    animation: none;
+  }
+}
+
+/* ---------- 4) 공통 부품 ---------- */
+
+/* 유리 카드 — 이 디자인의 기본 단위 */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+}
+
+/* 카드 안 작은 제목 */
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+/* 사진이 들어갈 자리 표시 */
+.ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  border: 1px dashed var(--glass-line-strong);
+  border-radius: var(--radius-lg);
+  background: repeating-linear-gradient(135deg,
+    rgba(255, 255, 255, 0.05) 0 12px,
+    rgba(255, 255, 255, 0.02) 12px 24px);
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* 버튼 — 모바일에서도 누르기 쉽도록 최소 높이를 넉넉히 둔다 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 14px 26px;
+  border: 1px solid transparent;
+  border-radius: var(--pill);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-deep);
+}
+
+.btn-primary:hover {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.btn-ghost {
+  background: var(--glass-bg);
+  border-color: var(--glass-line-strong);
+  color: var(--text);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--text);
+}
+
+.btn-sm {
+  min-height: 40px;
+  padding: 10px 18px;
+  font-size: 14px;
+}
+
+/* 알약 모양 배지 */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--pill);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+/* 위험 단계별 색 — 색만으로 구분하지 않도록 항상 글자를 함께 쓴다 */
+.stage-safe { --stage-color: var(--stage-1); }
+.stage-good { --stage-color: var(--stage-2); }
+.stage-normal { --stage-color: var(--stage-3); }
+.stage-risk { --stage-color: var(--stage-4); }
+.stage-danger { --stage-color: var(--stage-5); }
+
+/* 단계 배지 — 점 + 글자 */
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  border: 1px solid color-mix(in srgb, var(--stage-color, var(--stage-4)) 45%, transparent);
+  border-radius: var(--pill);
+  background: color-mix(in srgb, var(--stage-color, var(--stage-4)) 22%, transparent);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stage-badge::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--stage-color, var(--stage-4));
+  box-shadow: 0 0 18px var(--stage-color, var(--stage-4));
+}
+
+.stage-badge.lg {
+  font-size: 30px;
+}
+
+/* 5단계 눈금 막대 */
+.scale {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.scale-track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--pill);
+  background: linear-gradient(90deg,
+    var(--stage-1), var(--stage-2), var(--stage-3), var(--stage-4), var(--stage-5));
+}
+
+.scale-knob {
+  position: absolute;
+  top: -5px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border: 3px solid #1b355f;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: left 0.6s ease;
+}
+
+.scale-labels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.scale-labels span {
+  text-align: center;
+}
+
+.scale-labels span.is-on {
+  font-weight: 600;
+  color: var(--stage-color, var(--stage-4));
+}
+
+/* ---------- 5) 상단 내비게이션 ---------- */
+.topnav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 24px var(--gutter);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  font-size: 18px;
+}
+
+.navlinks {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  font-size: 16px;
+}
+
+.navlinks a {
+  color: var(--text-muted);
+  padding: 8px 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.navlinks a:hover {
+  color: var(--text);
+}
+
+.navlinks a.is-current {
+  color: #ffffff;
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 현재 날씨를 보여주는 작은 칩 */
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--pill);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  font-size: 14px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.expert-link {
+  padding: 10px 16px;
+  border: 1px solid var(--glass-line-strong);
+  border-radius: var(--pill);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.expert-link:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* 모바일용 메뉴 버튼 — 데스크톱에서는 숨긴다 */
+.nav-toggle {
+  display: none;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--glass-line-strong);
+  border-radius: var(--pill);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ---------- 6) 홈 화면 ---------- */
+
+/* 히어로 — 오늘의 숫자 하나를 가장 크게 */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 80px 0 40px;
+  text-align: center;
+}
+
+.hero-place {
+  font-size: 16px;
+}
+
+/* 지역 고르는 칸 — 알약 안에 들어가므로 테두리를 없앤다 */
+.place-select {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.place-select option {
+  background: #0c1322;
+  color: var(--text);
+}
+
+.hero-place-detail {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.hero-place .link-soft {
+  margin-left: 8px;
+  font-size: 14px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.hero-kicker {
+  margin-top: 28px;
+  font-size: 20px;
+  color: var(--text-soft);
+}
+
+/* 화면에서 가장 눈에 띄어야 하는 숫자 */
+.hero-number {
+  font-size: 260px;
+  font-weight: 300;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  text-shadow: 0 10px 60px rgba(0, 0, 0, 0.25);
+}
+
+.hero-advice {
+  margin-top: 18px;
+  max-width: 640px;
+  font-size: 20px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+.hero-scale {
+  margin-top: 26px;
+}
+
+.hero-cta {
+  display: flex;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* 아래로 내려가라는 안내 */
+.scroll-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 90px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.scroll-hint svg {
+  animation: bob 2.4s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* 스크롤 스토리 01 → 02 → 03 */
+.story {
+  display: flex;
+  flex-direction: column;
+  gap: 140px;
+  padding: 140px 0 0;
+}
+
+.story-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 80px;
+  align-items: center;
+}
+
+.story-text {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.story-step {
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+}
+
+.story-title {
+  font-size: 56px;
+}
+
+.story-body {
+  max-width: 440px;
+  font-size: 19px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.story-body b {
+  color: #ffffff;
+}
+
+.story-figure {
+  min-height: 520px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* 03 — 수식처럼 보여주는 마무리 */
+.story-finale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.story-finale .story-title {
+  font-size: 64px;
+}
+
+.formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.formula-term {
+  padding: 18px 26px;
+  font-size: 18px;
+}
+
+.formula-op {
+  font-size: 36px;
+  color: var(--text-faint);
+}
+
+.formula-result {
+  padding: 10px 30px;
+  font-size: 44px;
+  color: var(--stage-4);
+}
+
+/* 홈 하단 안내 카드 2장 */
+.cta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 120px 0 0;
+}
+
+.cta-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 240px;
+  padding: 40px;
+}
+
+.cta-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.cta-title {
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.cta-desc {
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+.cta-card .btn {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+/* 바닥글 */
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+  max-width: var(--maxw);
+  margin: 100px auto 0;
+  padding: 32px var(--gutter) 48px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.site-footer a {
+  color: var(--text-muted);
+}
+
+.footer-left {
+  max-width: 720px;
+  line-height: 1.7;
+}
+
+.footer-right {
+  display: flex;
+  gap: 24px;
+  white-space: nowrap;
+}
+
+/* ---------- 7) 모기 예보 화면 ---------- */
+.page-head {
+  padding: 40px 0 28px;
+}
+
+.page-head h1 {
+  font-size: 48px;
+}
+
+.page-head p {
+  margin-top: 12px;
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+/* 위쪽 대시보드 — 왼쪽 큰 카드 + 오른쪽 세로 묶음 */
+.dash {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.dash-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dash-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 오늘의 지수 큰 카드 */
+.index-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 36px 40px 40px;
+}
+
+.index-card .hero-number {
+  font-size: 150px;
+}
+
+.index-card .hero-advice {
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+/* 작은 지표 타일 2개 */
+.tile-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 26px;
+}
+
+.tile-value {
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.tile-note {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* 시간대별 막대 */
+.hours {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 26px;
+}
+
+.hours-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  min-height: 150px;
+}
+
+.hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hour-name {
+  font-size: 14px;
+  color: var(--text-muted);
+  order: 3;
+}
+
+.hour-value {
+  font-size: 16px;
+  font-weight: 600;
+  order: 1;
+}
+
+.hour-bar {
+  width: 100%;
+  max-width: 34px;
+  min-height: 4px;
+  border-radius: 8px;
+  background: var(--stage-color, var(--stage-4));
+  order: 2;
+  transition: height 0.5s ease;
+}
+
+.hour.is-now .hour-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 5일 예보 목록 */
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 26px;
+}
+
+.day {
+  display: grid;
+  grid-template-columns: 44px 68px 1fr 56px 76px;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.day + .day {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.day-name { color: var(--text-soft); }
+.day-date { color: var(--text-dim); font-size: 14px; }
+
+.day-track {
+  height: 6px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+
+.day-fill {
+  height: 100%;
+  border-radius: var(--pill);
+  background: var(--stage-color, var(--stage-4));
+  transition: width 0.5s ease;
+}
+
+.day-score {
+  text-align: right;
+  font-weight: 600;
+}
+
+.day-stage {
+  text-align: right;
+  font-size: 14px;
+  color: var(--stage-color, var(--text-muted));
+}
+
+/* 행동요령 + 동네 순위 */
+.pair-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.todo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 26px;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 16px;
+  color: var(--text-soft);
+}
+
+.todo-list li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* 우리 동네 순위 */
+.rankbox {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 26px;
+}
+
+.rankbox-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--text-soft);
+}
+
+.rankbox-lead .num {
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rankbox-lead .of {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* 17칸 점 — 우리 동네가 몇 번째인지 한눈에 */
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dots i {
+  flex: 1;
+  height: 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.dots i.is-me {
+  background: var(--stage-color, var(--stage-4));
+  box-shadow: 0 0 12px var(--stage-color, var(--stage-4));
+}
+
+/* ---------- 나들이 지수 ---------- */
+
+/* 나들이 지수 4단계 색 */
+.outing-best { --outing-color: #b5f2df; }
+.outing-good { --outing-color: #7fe3c4; }
+.outing-soso { --outing-color: #f2c94c; }
+.outing-bad  { --outing-color: #b7c0cf; }
+.outing-none { --outing-color: #8d99ad; }
+
+/* 홈 화면의 한 줄 요약 칩 */
+.outing-chip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 30px;
+  padding: 14px 22px 14px 16px;
+  border-radius: var(--pill);
+}
+
+.outing-chip-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(127, 227, 196, 0.16);
+  font-size: 20px;
+}
+
+.outing-chip-label {
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.outing-chip-score {
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.outing-chip-grade {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--outing-color, var(--accent));
+}
+
+.outing-chip-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.outing-chip-advice {
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+/* 예보 화면의 나들이 지수 카드 — 좌(점수) · 중(시간대별) · 우(조건) */
+.outing-card {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 300px;
+  gap: 36px;
+  padding: 26px 30px;
+  align-items: center;
+}
+
+.outing-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.outing-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.outing-score {
+  font-size: 76px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.outing-grade {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--outing-color, var(--accent));
+}
+
+.outing-advice-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+/* 4단계 눈금 */
+.outing-scale {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.outing-scale i {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(183, 192, 207, 0.35);
+}
+
+.outing-scale i.is-on {
+  background: var(--outing-color, var(--accent));
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.outing-scale-labels {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.outing-scale-labels span.is-on {
+  color: var(--outing-color, var(--accent));
+  font-weight: 600;
+}
+
+/* 가운데 — 시간대별 막대 */
+.outing-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.outing-hours-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.outing-hours-title {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.outing-best-window {
+  padding: 5px 12px;
+  border-radius: var(--pill);
+  background: rgba(127, 227, 196, 0.12);
+  font-size: 14px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.outing-hours-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: end;
+}
+
+.outing-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  height: 150px;
+  border-radius: 12px;
+}
+
+/* 추천 시간대는 배경을 살짝 밝혀 강조한다 */
+.outing-hour.is-best {
+  background: rgba(127, 227, 196, 0.10);
+}
+
+.outing-hour-score {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.outing-hour.is-best .outing-hour-score {
+  color: #ffffff;
+}
+
+.outing-hour-bar {
+  width: 26px;
+  min-height: 4px;
+  border-radius: 8px 8px 4px 4px;
+  background: rgba(127, 227, 196, 0.45);
+  transition: height 0.5s ease;
+}
+
+.outing-hour.is-best .outing-hour-bar {
+  background: var(--accent);
+}
+
+/* 점수가 낮은 시간대는 회색으로 — 색만이 아니라 숫자로도 구분된다 */
+.outing-hour.is-low .outing-hour-bar {
+  background: rgba(183, 192, 207, 0.35);
+}
+
+.outing-hour-name {
+  padding-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.outing-hour.is-best .outing-hour-name {
+  color: var(--accent);
+}
+
+/* 오른쪽 — 오늘 나들이 조건 4줄 */
+.outing-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.outing-conditions-title {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.outing-condition {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 14px;
+}
+
+.outing-condition-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.outing-condition-value {
+  margin-left: auto;
+  text-align: right;
+}
+
+/* 조건 문구의 색 — 좋음/주의/나쁨 */
+.outing-condition-value.tone-good { color: var(--accent); }
+.outing-condition-value.tone-warn { color: var(--stage-3); }
+.outing-condition-value.tone-bad { color: var(--stage-4); }
+.outing-condition-value.tone-dim { color: var(--text-dim); }
+
+/* 자체 산출임을 밝히는 안내 */
+.outing-disclaimer {
+  grid-column: 1 / -1;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* 지도 영역 */
+.map-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.map-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 26px 20px;
+}
+
+.map-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.map-area {
+  height: 520px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.map-note {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* 지도 범례 */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--stage-color, var(--stage-3));
+  display: inline-block;
+}
+
+.legend-title {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+/* 지도 옆 설명 카드들 */
+.map-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.side-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 26px;
+}
+
+.side-place {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.side-place .rank-tag {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.side-score {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.side-score .num {
+  font-size: 64px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* 왜 높은지 보여주는 막대 3줄 */
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.why-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.why-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.why-head em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.why-track {
+  height: 6px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+
+.why-fill {
+  height: 100%;
+  border-radius: var(--pill);
+  background: var(--accent);
+}
+
+/* 오늘 조심할 동네 TOP3 */
+.top3 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.top3 li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.top3 .rank-no {
+  color: var(--text-dim);
+  font-size: 15px;
+}
+
+.top3 .rank-score {
+  font-weight: 600;
+  color: var(--stage-color, var(--stage-4));
+}
+
+/* 섹션 제목 */
+.section-head {
+  padding: 40px 0 24px;
+}
+
+.section-head h2 {
+  font-size: 40px;
+}
+
+.section-head p {
+  margin-top: 10px;
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+/* 접히는 상세 영역 */
+.more-details {
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+}
+
+.more-details > summary {
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-muted);
+  list-style: none;
+}
+
+.more-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more-details > summary::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+.more-details[open] > summary::before {
+  content: "▾ ";
+}
+
+.more-details > summary:hover {
+  color: var(--text);
+}
+
+/* ---------- 8) 모기 도감 화면 ---------- */
+.id-row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 20px;
+}
+
+/* 사진 올리는 자리 */
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 30px;
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 260px;
+  padding: 30px;
+  border: 1px dashed var(--glass-line-strong);
+  border-radius: var(--radius-lg);
+  background: repeating-linear-gradient(135deg,
+    rgba(255, 255, 255, 0.05) 0 12px,
+    rgba(255, 255, 255, 0.02) 12px 24px);
+  text-align: center;
+}
+
+.dropzone-icon {
+  font-size: 40px;
+}
+
+.dropzone-title {
+  font-size: 18px;
+  color: var(--text-soft);
+}
+
+.dropzone-hint {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.upload-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tips-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.tips p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* 판별 결과 */
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 30px;
+}
+
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.badge-soon {
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--stage-3) 45%, transparent);
+  border-radius: var(--pill);
+  background: color-mix(in srgb, var(--stage-3) 18%, transparent);
+  font-size: 14px;
+  color: var(--stage-3);
+}
+
+.result-body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.result-photo {
+  min-height: 200px;
+  border-radius: var(--radius-sm);
+}
+
+.result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-name {
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.result-alias {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.match {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.match-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.match-track {
+  height: 8px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+
+.match-fill {
+  height: 100%;
+  border-radius: var(--pill);
+  background: var(--accent);
+}
+
+.result-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.fact-title {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.fact-body {
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.result-foot {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* 모기 4종 카드 */
+.species-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.species {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.species img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.species-name {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.species-desc {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* ---------- 9) script.js가 만들어내는 요소 ---------- */
+
+/* 날씨 카드 */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metric-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.metric-value {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.metric-note {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* 분석 근거 목록 */
+.analysis-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-list li {
+  display: flex;
+  gap: 10px;
+  font-size: 16px;
+  color: var(--text-soft);
+}
+
+.analysis-list li::before {
+  content: "·";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* 김해 구역 순위 */
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ranking-list li {
+  display: grid;
+  grid-template-columns: 34px 1fr 120px 54px;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.ranking-rank { color: var(--text-dim); }
+.ranking-name { color: var(--text-soft); }
+.ranking-score { text-align: right; font-weight: 600; }
+
+.ranking-bar {
+  height: 6px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+
+.ranking-fill {
+  height: 100%;
+  border-radius: var(--pill);
+  background: var(--stage-color, var(--stage-4));
+}
+
+/* 나들이 지수 타일 */
+.outing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.outing-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.outing-icon { font-size: 22px; }
+.outing-name { font-size: 14px; color: var(--text-dim); }
+.outing-value { font-size: 26px; font-weight: 600; }
+.outing-unit { font-size: 14px; color: var(--text-muted); }
+.outing-advice { font-size: 14px; color: var(--text-muted); }
+
+.outing-badge {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.10);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.outing-note,
+.outing-loading {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* 계산 상세 */
+.calc-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.calc-formula {
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.calc-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 15px;
+}
+
+.calc-row.calc-total {
+  border-bottom: none;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.calc-label { color: var(--text-muted); }
+.calc-value { font-weight: 600; }
+.calc-note { font-size: 14px; color: var(--text-dim); }
+
+/* 데이터 출처 배지 */
+.data-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* 지도 말풍선 — Leaflet 기본 흰 배경을 어두운 톤으로 바꾼다 */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgba(12, 19, 34, 0.95);
+  color: var(--text);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-content-wrapper {
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+}
+
+.leaflet-popup-content {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--text-dim);
+}
+
+.leaflet-control-zoom a {
+  background: rgba(12, 19, 34, 0.9);
+  color: var(--text);
+  border-color: var(--glass-line);
+}
+
+.leaflet-control-attribution {
+  background: rgba(12, 19, 34, 0.75);
+  color: var(--text-dim);
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-muted);
+}
+
+.popup-precision {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+/* ---------- 10) 접근성 ---------- */
+
+/* 키보드로 이동할 때 어디에 있는지 분명히 보이게 한다 */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* 화면을 건너뛰어 본문으로 가는 링크 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: var(--accent-deep);
+  border-radius: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* ---------- 좁은 화면 대응 (이번 단계에서는 최소한만) ---------- */
+@media (max-width: 1180px) {
+  :root { --gutter: 32px; }
+
+  .dash,
+  .map-row,
+  .id-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* 나들이 카드는 점수와 조건을 위아래로, 시간대별은 전체 폭으로 */
+  .outing-card {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .outing-hours {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .species-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-number { font-size: 190px; }
+  .story-title { font-size: 44px; }
+  .story-finale .story-title { font-size: 48px; }
+}
+
+@media (max-width: 860px) {
+  :root { --gutter: 20px; }
+
+  .navlinks {
+    display: none;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 76px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 16px;
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius);
+    background: rgba(8, 13, 24, 0.96);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  }
+
+  body.menu-open .navlinks {
+    display: flex;
+  }
+
+  .nav-toggle { display: inline-flex; align-items: center; }
+  .weather-chip { display: none; }
+
+  .hero-number { font-size: 130px; }
+  .hero { padding: 40px 0 24px; }
+
+  .story { gap: 80px; padding-top: 80px; }
+  .story-row { grid-template-columns: 1fr; gap: 32px; }
+  .story-figure { min-height: 280px; }
+  .story-title { font-size: 34px; }
+  .story-finale .story-title { font-size: 34px; }
+
+  .formula { gap: 14px; }
+  .formula-op { font-size: 24px; }
+  .formula-result { font-size: 32px; }
+
+  .cta-grid,
+  .tile-row,
+  .pair-row,
+  .upload-buttons,
+  .result-facts,
+  .species-grid {
+    grid-template-columns: 1fr;
+    padding-top: 60px;
+  }
+
+  .outing-chip {
+    flex-wrap: wrap;
+    gap: 10px;
+    border-radius: var(--radius);
+  }
+
+  .outing-chip-divider { display: none; }
+  .outing-hour { height: 110px; }
+  .outing-hour-bar { width: 18px; }
+
+  .result-body { grid-template-columns: 1fr; }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .page-head h1 { font-size: 34px; }
+  .section-head h2 { font-size: 28px; }
+  .map-area { height: 380px; }
+}
