@@ -126,39 +126,70 @@
     if (!isDay && (kind === 'clear' || kind === 'cloudy')) add('fx-stars');
   }
 
-  /* ---------- 낮인지 밤인지 판단 ----------
-     API가 is_day 를 주면 그대로 쓰고, 없으면 일출·일몰 시각으로 직접 따진다. */
-  function decideIsDay(input) {
-    if (input.isDay != null) return Boolean(input.isDay);
+  /* ---------- 하루를 네 때로 나눈다 ----------
+     낮/밤 둘로만 나누면, 일몰 20분 전에도 한낮의 파란 하늘 사진이 나온다.
+     실제로는 이미 노을이 진 시각이라 화면이 어색해진다.
+     그래서 일출·일몰 앞뒤 한 시간을 '동틀녘·해질녘'으로 따로 둔다.
 
-    if (input.sunrise && input.sunset) {
-      const now = input.now ? new Date(input.now) : new Date();
-      const rise = new Date(input.sunrise);
-      const set = new Date(input.sunset);
-      if (!Number.isNaN(rise.getTime()) && !Number.isNaN(set.getTime())) {
-        return now >= rise && now < set;
-      }
+       dawn  동틀녘 : 일출 ~ 일출+1시간
+       day   낮     : 그 사이
+       dusk  해질녘 : 일몰-1시간 ~ 일몰
+       night 밤     : 일몰 ~ 일출
+
+     사진은 낮/밤 두 벌뿐이라, 동틀녘·해질녘에는 낮 사진에
+     따뜻하고 어두운 막을 씌워 노을처럼 보이게 한다. (CSS가 처리)               */
+  const GOLDEN_MINUTES = 60;
+
+  function decidePhase(input) {
+    // 날씨를 언제 관측했는지가 아니라 '지금' 을 기준으로 삼는다.
+    // 18시에 받아 온 값을 19시에 보고 있다면 화면은 밤이어야 한다.
+    const now = new Date();
+    const rise = input.sunrise ? new Date(input.sunrise) : null;
+    const set = input.sunset ? new Date(input.sunset) : null;
+
+    const hasSun = rise && set
+      && !Number.isNaN(rise.getTime()) && !Number.isNaN(set.getTime());
+
+    if (hasSun) {
+      const golden = GOLDEN_MINUTES * 60 * 1000;
+      if (now < rise || now >= set) return { phase: 'night', isDay: false };
+      if (now < new Date(rise.getTime() + golden)) return { phase: 'dawn', isDay: true };
+      if (now >= new Date(set.getTime() - golden)) return { phase: 'dusk', isDay: true };
+      return { phase: 'day', isDay: true };
     }
 
-    // 정보가 전혀 없으면 시각으로 대충 나눈다.
-    const hour = new Date().getHours();
-    return hour >= 6 && hour < 19;
+    // 일출·일몰을 모르면 API의 is_day 를 쓴다.
+    if (input.isDay != null) {
+      return { phase: input.isDay ? 'day' : 'night', isDay: Boolean(input.isDay) };
+    }
+
+    // 그것도 없으면 시각으로 대충 나눈다.
+    const hour = now.getHours();
+    if (hour < 6 || hour >= 19) return { phase: 'night', isDay: false };
+    if (hour < 7) return { phase: 'dawn', isDay: true };
+    if (hour >= 18) return { phase: 'dusk', isDay: true };
+    return { phase: 'day', isDay: true };
   }
 
   /* ---------- 실제 적용 ---------- */
   let currentImage = null;
+  let lastInput = null;
 
   function apply(input) {
     const data = input || {};
     mount();
 
+    // 마지막에 받은 날씨를 기억해 둔다. 시간이 흐르면 이 값으로 다시 계산한다.
+    // (직접 kind 를 넘겨 시험해 보는 경우는 기억하지 않는다)
+    if (data.weatherCode != null || data.sunrise) lastInput = data;
+
     const kind = data.kind || toWeatherKind(data.weatherCode);
-    const isDay = decideIsDay(data);
-    const imageName = pickImage(kind, isDay);
+    const when = decidePhase(data);
+    const imageName = pickImage(kind, when.isDay);
 
     // CSS가 보고 배경 막 색과 움직임을 정한다.
     document.body.dataset.weather = kind;
-    document.body.dataset.time = isDay ? 'day' : 'night';
+    document.body.dataset.time = when.phase;
 
     if (imageName !== currentImage) {
       // 필요한 사진만 그때 만들어 붙인다.
@@ -172,9 +203,25 @@
       }
     }
 
-    renderEffects(kind, isDay);
+    renderEffects(kind, when.isDay);
+    startClock();
 
-    return { kind, isDay, image: imageName, label: KIND_LABEL[kind] || '맑음' };
+    return {
+      kind, isDay: when.isDay, phase: when.phase,
+      image: imageName, label: KIND_LABEL[kind] || '맑음',
+    };
+  }
+
+  /* ---------- 시간이 흐르면 배경도 따라 바뀌게 ----------
+     해질녘은 몇 분 사이에 넘어간다. 페이지를 켜 둔 채로 두어도
+     낮 → 해질녘 → 밤 으로 알아서 바뀌도록 5분마다 다시 계산한다. */
+  let clockTimer = null;
+
+  function startClock() {
+    if (clockTimer) return;
+    clockTimer = setInterval(() => {
+      if (lastInput) apply(lastInput);
+    }, 5 * 60 * 1000);
   }
 
   /* ---------- 상단 칩에 쓸 문구 ---------- */

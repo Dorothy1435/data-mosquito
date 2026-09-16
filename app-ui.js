@@ -95,7 +95,6 @@
       isDay: w.isDay,
       sunrise: w.sunrise,
       sunset: w.sunset,
-      now: w.observedAt,
     });
   }
 

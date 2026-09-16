@@ -198,6 +198,46 @@ body[data-time="night"] .weather-tint {
   background: linear-gradient(180deg, rgba(4, 7, 16, 0.30) 0%, rgba(4, 7, 16, 0.82) 100%);
 }
 
+/* 해질녘·동틀녘 — 사진은 낮 것을 그대로 쓰되 노을처럼 보이게 한다.
+   위쪽은 주황빛, 아래로 갈수록 짙은 남색으로 떨어뜨린다. */
+body[data-time="dusk"] .weather-tint {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 128, 48, 0.42) 0%,
+      rgba(196, 78, 82, 0.40) 24%,
+      rgba(92, 46, 92, 0.52) 48%,
+      rgba(8, 12, 28, 0.86) 100%);
+}
+
+/* 사진은 어둡게만 누르고 색은 건드리지 않는다.
+   sepia 나 hue-rotate 를 걸면 파란 하늘이 초록빛으로 돌아 더 어색해진다.
+   따뜻한 노을빛은 위에 덮는 막(.weather-tint)이 낸다. */
+body[data-time="dusk"] .weather-bg img,
+body[data-time="dawn"] .weather-bg img {
+  filter: brightness(0.46) saturate(0.88);
+}
+
+/* 동틀녘은 해질녘보다 차갑고 옅게 */
+body[data-time="dawn"] .weather-tint {
+  background:
+    linear-gradient(180deg,
+      rgba(255, 186, 132, 0.32) 0%,
+      rgba(148, 132, 176, 0.40) 32%,
+      rgba(70, 76, 128, 0.50) 56%,
+      rgba(10, 14, 30, 0.82) 100%);
+}
+
+/* 밤 사진은 맑음·비 두 장뿐이라, 밤 안개·밤 눈에는 낮 사진을 쓴다.
+   그 경우에만 어둡게 눌러 준다. 진짜 밤 사진(파일명에 night)은 그대로 둔다. */
+body[data-time="night"] .weather-bg img:not([src*="night"]) {
+  filter: brightness(0.42) saturate(0.85) hue-rotate(-8deg);
+}
+
+/* 사진 밝기가 바뀔 때도 부드럽게 */
+.weather-bg img {
+  transition: opacity 1.2s ease, filter 1.2s ease;
+}
+
 body[data-weather="snow"] .weather-tint,
 body[data-weather="fog"] .weather-tint {
   background: linear-gradient(180deg, rgba(7, 11, 20, 0.34) 0%, rgba(7, 11, 20, 0.76) 100%);
