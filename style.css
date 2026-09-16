@@ -822,8 +822,9 @@ select {
 
 .source-item {
   display: grid;
-  /* 이름 · 막대 · 시설 수(강조) · 기여도%(보조) */
-  grid-template-columns: 110px minmax(0, 1fr) 72px 48px;
+  /* 이름 · 막대 · 시설 수(강조) · 기여도%(보조)
+     이름 칸은 '개인하수처리시설'(8글자)이 한 줄에 들어가도록 폭을 잡는다. */
+  grid-template-columns: 132px minmax(0, 1fr) 72px 48px;
   align-items: center;
   gap: 12px;
 }
@@ -1140,7 +1141,10 @@ select {
     grid-template-columns: 88px minmax(0, 1fr) 46px;
   }
 
-  .source-count {
+  /* 좁은 화면에서는 시설 수를 감추고 기여도%만 남긴다.
+     .source-item 안으로 범위를 좁혀, 소개 페이지의 16종 그리드
+     (.source-tile)에 있는 시설 수까지 사라지지 않게 한다. */
+  .source-item .source-count {
     display: none;
   }
 
@@ -2495,11 +2499,15 @@ body.citizen-mode [data-audience="expert"] { display: none !important; }
   border-radius: 12px;
   background: #fff;
 }
-.source-icon { grid-area: icon; font-size: 1.25rem; line-height: 1; }
-.source-name { grid-area: name; font-size: 0.82rem; font-weight: 700; color: #1f3b36; }
-.source-count { grid-area: count; font-size: 1.05rem; font-weight: 800; color: #14312c; }
-.source-unit { margin-left: 2px; font-size: 0.72rem; font-weight: 600; color: #7b8a86; }
-.source-risk {
+/* 주의: 아래 규칙은 반드시 .source-tile 안으로 범위를 좁혀 둔다.
+   김해 전문가 화면의 발생원 목록(.source-item)도 .source-name / .source-count
+   라는 같은 클래스명을 쓰는데, 범위를 안 정하면 그쪽까지 grid-area 가 적용돼
+   이름과 시설 수가 겹쳐 보이는 문제가 생긴다. */
+.source-tile .source-icon { grid-area: icon; font-size: 1.25rem; line-height: 1; }
+.source-tile .source-name { grid-area: name; font-size: 0.82rem; font-weight: 700; color: #1f3b36; }
+.source-tile .source-count { grid-area: count; font-size: 1.05rem; font-weight: 800; color: #14312c; }
+.source-tile .source-unit { margin-left: 2px; font-size: 0.72rem; font-weight: 600; color: #7b8a86; }
+.source-tile .source-risk {
   grid-area: risk; margin-top: 5px; font-size: 0.72rem; font-weight: 700;
 }
 .source-high { border-left-color: #d94c45; }
