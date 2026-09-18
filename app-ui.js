@@ -228,10 +228,23 @@
 
     if (score) score.textContent = now.score;
     if (grade) grade.textContent = now.grade.label;
-    if (advice) {
-      const window = O.formatWindow(best);
-      advice.textContent = window ? `${window}에 나가기 좋아요` : '오늘 나들이 참고하세요';
+    if (advice) advice.textContent = shortAdvice(now, best, O);
+  }
+
+  // 한 줄 안내. 점수가 낮은데 '나가기 좋아요'라고 하면 안 되므로
+  // 반드시 점수와 말이 맞도록 한다.
+  function shortAdvice(now, best, O) {
+    if (!now.available) return '날씨를 불러오면 알려드릴게요.';
+    const when = O.formatWindow(best);
+
+    if (now.score < 40) {
+      // 나쁜 이유가 있으면 그걸 그대로 알려 준다.
+      return now.capReason ? `오늘은 실내가 나아요 · ${now.capReason}` : '오늘은 실내가 나아요';
     }
+    if (now.score < 60) {
+      return when ? `그나마 ${when}이 나아요` : '나가신다면 준비물을 챙기세요';
+    }
+    return when ? `${when}에 나가기 좋아요` : '오늘 나들이하기 괜찮아요';
   }
 
   // 예보 화면의 나들이 지수 카드

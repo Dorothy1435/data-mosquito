@@ -76,12 +76,14 @@
     tint.className = 'weather-tint';
     bgLayer.appendChild(tint);
 
-    // 빗줄기·눈 같은 움직임이 올라가는 층
+    // 빗줄기·눈 같은 움직임이 올라가는 층.
+    // 사진 층(.weather-bg) 안에 넣어야 한다. 바깥(body)에 두면
+    // 화면 전체에 비가 내려 아래쪽 글자 위에도 빗줄기가 겹친다.
     fxLayer = document.createElement('div');
     fxLayer.className = 'weather-fx';
     fxLayer.setAttribute('aria-hidden', 'true');
+    bgLayer.appendChild(fxLayer);
 
-    document.body.insertBefore(fxLayer, document.body.firstChild);
     document.body.insertBefore(bgLayer, document.body.firstChild);
   }
 
@@ -113,8 +115,10 @@
     };
 
     if (kind === 'rain' || kind === 'storm') {
+      // 먼 비 → 중간 → 가까운 비 순으로 쌓아 깊이를 만든다.
       add('fx-rain far');
-      add('fx-rain');
+      add('fx-rain mid');
+      add('fx-rain near');
     }
     if (kind === 'storm') add('fx-flash');
     if (kind === 'snow') {
