@@ -79,7 +79,7 @@ body {
   background: var(--bg-deep);
   color: var(--text);
   font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   /* 가로 스크롤 방지 — 배경 레이어가 화면 밖으로 넘치기 때문 */
@@ -467,7 +467,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: 0.04em;
   color: var(--text-dim);
 }
@@ -622,7 +622,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 .scale-labels {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -676,7 +676,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   display: flex;
   align-items: center;
   gap: 36px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .navlinks a {
@@ -812,7 +812,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 .hero-advice {
   margin-top: 18px;
   max-width: 640px;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1.6;
   color: var(--text-soft);
 }
@@ -1081,7 +1081,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .tile-note {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -1109,13 +1109,13 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .hour-name {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
   order: 3;
 }
 
 .hour-value {
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 600;
   order: 1;
 }
@@ -1148,7 +1148,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   grid-template-columns: 44px 68px 1fr 56px 76px;
   align-items: center;
   gap: 12px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .day + .day {
@@ -1211,7 +1211,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 16px;
+  font-size: 19px;
   color: var(--text-soft);
 }
 
@@ -1533,6 +1533,170 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   color: var(--text-dim);
 }
 
+/* ---------- 오늘 가기 좋은 공원 ---------- */
+.parks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.park-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 지도 그림(또는 사진)이 들어가는 자리.
+   색 보정은 안쪽 .park-map 에만 걸어야 한다.
+   바깥에 걸면 순위 배지·아이콘까지 색이 뒤집힌다. */
+.park-photo {
+  position: relative;
+  height: 180px;
+  overflow: hidden;
+  background: #0c1322;
+}
+
+.park-map {
+  position: absolute;
+  inset: 0;
+  background-size: 200%;         /* 지도 타일을 키워 공원 주변만 보이게 */
+  background-repeat: no-repeat;
+  /* OpenStreetMap 타일은 밝은 색이라 어두운 화면에서 튄다.
+     색을 뒤집어 어두운 지도처럼 보이게 맞춘다. */
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) saturate(0.75) contrast(0.92);
+}
+
+/* 실제 사진이 들어오면 색을 건드리지 않는다 */
+.park-map.is-photo {
+  background-size: cover;
+  background-position: center !important;
+  filter: none;
+}
+
+/* 지도 위에 어두운 막을 덮어 아래쪽 글자가 읽히게 */
+.park-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7, 11, 20, 0.05) 0%, rgba(7, 11, 20, 0.55) 100%);
+}
+
+/* 공원이 어디인지 가운데에 표시 */
+.park-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 3px solid #0c1322;
+  background: #ff7a45;
+  box-shadow: 0 0 0 6px rgba(255, 122, 69, 0.28);
+}
+
+.park-rank {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  color: var(--accent-deep);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.park-icon {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  z-index: 1;
+  font-size: 30px;
+}
+
+.park-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px 22px;
+}
+
+.park-name {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.park-where {
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+.park-reason {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.park-tag {
+  padding: 6px 12px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.park-tag.good {
+  background: rgba(127, 227, 196, 0.16);
+  color: var(--accent);
+}
+
+.parks-note {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+/* ---------- 오늘 이렇게 하세요 (큰 카드) ---------- */
+.do-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.do-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 26px 24px;
+}
+
+.do-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(127, 227, 196, 0.18);
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.do-text {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
 /* 지도 영역 */
 .map-row {
   display: grid;
@@ -1574,7 +1738,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -1981,12 +2145,12 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .metric-value {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 600;
 }
 
 .metric-note {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -2003,7 +2167,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 .analysis-list li {
   display: flex;
   gap: 10px;
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-soft);
 }
 
@@ -2028,7 +2192,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   grid-template-columns: 34px 1fr 120px 54px;
   align-items: center;
   gap: 12px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .ranking-rank { color: var(--text-dim); }
@@ -2221,7 +2385,9 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
     order: 3;
   }
 
-  .species-grid {
+  .species-grid,
+  .parks-grid,
+  .do-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2275,10 +2441,13 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   .pair-row,
   .upload-buttons,
   .result-facts,
-  .species-grid {
+  .species-grid,
+  .parks-grid,
+  .do-grid {
     grid-template-columns: 1fr;
-    padding-top: 60px;
   }
+
+  .cta-grid { padding-top: 60px; }
 
   .outing-chip {
     flex-wrap: wrap;

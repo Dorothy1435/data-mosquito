@@ -80,6 +80,8 @@
       renderDailyOutlook(d);
       renderSideCard(d);
       renderRank(d);
+      renderDoCards();
+      renderParks(d);
     } catch (error) {
       // 한 군데가 실패해도 페이지 전체가 멈추지 않게 한다.
       console.warn('화면 갱신 중 문제가 발생했습니다.', error);
@@ -140,6 +142,9 @@
   }
 
   /* ---------- 나들이 지수 ---------- */
+  // 공원 추천이 이 점수를 기준으로 삼기 때문에 계산 결과를 기억해 둔다.
+  let lastOutingScore = null;
+
   function renderOuting(d) {
     if (!window.OutingIndex) return;
     const O = window.OutingIndex;
@@ -184,6 +189,8 @@
       mosquitoIndex: d.index,
       peakHourText: buildMosquitoPeakText(series),
     });
+
+    lastOutingScore = now.available ? now.score : null;
 
     renderOutingChip(now, best, O);
     renderOutingCard(now, outingSeries, best, O);
@@ -343,6 +350,97 @@
           <span class="hour-name">${i === 0 ? '지금' : point.hourLabel}</span>
         </div>`;
     }).join('');
+  }
+
+  /* ---------- 오늘 이렇게 하세요 (큰 카드) ----------
+     script.js 가 #actionTips 에 채워 넣은 문장을 그대로 가져다
+     어르신도 읽기 쉬운 큰 카드로 다시 그린다. */
+  function renderDoCards() {
+    const grid = $('doGrid');
+    const source = $('actionTips');
+    if (!grid || !source) return;
+
+    const tips = Array.from(source.querySelectorAll('li'))
+      .map((li) => li.textContent.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    if (!tips.length) return;
+    grid.innerHTML = tips.map((tip, i) => `
+      <article class="glass do-card">
+        <span class="do-num">${i + 1}</span>
+        <p class="do-text">${tip}</p>
+      </article>`).join('');
+  }
+
+  /* ---------- 오늘 가기 좋은 공원 ---------- */
+  let parkData = null;      // 한 번만 불러온다
+
+  async function loadParks() {
+    if (parkData) return parkData;
+    try {
+      const res = await fetch('./data/gimhae-parks.json');
+      if (!res.ok) throw new Error('공원 자료를 받지 못했습니다.');
+      parkData = await res.json();
+    } catch (error) {
+      console.warn('공원 자료 불러오기 실패', error);
+      parkData = [];
+    }
+    return parkData;
+  }
+
+  function renderParks(d) {
+    const grid = $('parksGrid');
+    const note = $('parksNote');
+    if (!grid || !window.ParkPicks || !window.OutingIndex) return;
+
+    const score = lastOutingScore;
+    if (score == null) return;
+
+    loadParks().then((parks) => {
+      const picks = window.ParkPicks.pick(parks, score, {
+        from: { lat: d.lat, lng: d.lng },
+        limit: 3,
+      });
+
+      if (!picks.length) {
+        grid.innerHTML = '<article class="glass park-card"><div class="park-body">'
+          + '<p class="park-name">공원 정보를 불러오지 못했습니다.</p>'
+          + '<p class="park-where">잠시 뒤 다시 확인해 주세요.</p></div></article>';
+        if (note) note.textContent = '';
+        return;
+      }
+
+      grid.innerHTML = picks.map((s, i) => {
+        const pic = s.picture;
+        // 지도 그림은 공원 지점이 가운데로 오도록 위치를 맞춘다.
+        const bg = `background-image:url('${pic.src}');background-position:${pic.fx}% ${pic.fy}%`;
+        const tags = s.reason.split(' · ').map((t, k) =>
+          `<span class="park-tag${k === 0 ? ' good' : ''}">${t}</span>`).join('');
+        return `
+          <article class="glass park-card">
+            <div class="park-photo">
+              <div class="park-map${pic.isMap ? '' : ' is-photo'}" style="${bg}" role="img"
+                   aria-label="${s.park.name} ${pic.isMap ? '위치 지도' : '사진'}"></div>
+              ${pic.isMap ? '<span class="park-pin" aria-hidden="true"></span>' : ''}
+              <span class="park-rank">추천 ${i + 1}위</span>
+              <span class="park-icon" aria-hidden="true">${s.icon}</span>
+            </div>
+            <div class="park-body">
+              <h3 class="park-name">${s.park.name}</h3>
+              <p class="park-where">${s.park.district} · ${s.park.type}</p>
+              <div class="park-reason">${tags}</div>
+            </div>
+          </article>`;
+      }).join('');
+
+      if (note) {
+        note.textContent = picks[0].picture.isMap
+          ? '※ 사진 대신 그 자리의 지도 그림을 보여드립니다. 지도 © OpenStreetMap 기여자. '
+            + '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다.'
+          : '※ 공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다.';
+      }
+    });
   }
 
   /* ---------- 지도 옆 '우리 동네' 카드 ---------- */
