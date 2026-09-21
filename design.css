@@ -1361,7 +1361,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .outing-advice-text {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.6;
   color: var(--text-soft);
 }
@@ -1389,7 +1389,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 .outing-scale-labels {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-dim);
   text-align: center;
 }
@@ -1414,7 +1414,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .outing-hours-title {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -1422,7 +1422,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   padding: 5px 12px;
   border-radius: var(--pill);
   background: rgba(127, 227, 196, 0.12);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--accent);
   white-space: nowrap;
 }
@@ -1451,7 +1451,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .outing-hour-score {
-  font-size: 14px;
+  font-size: 17px;
   color: var(--text-muted);
 }
 
@@ -1478,7 +1478,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 
 .outing-hour-name {
   padding-bottom: 8px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
@@ -1494,7 +1494,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
 }
 
 .outing-conditions-title {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -1505,7 +1505,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.05);
-  font-size: 14px;
+  font-size: 17px;
 }
 
 .outing-condition-icon {
@@ -1529,7 +1529,7 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   grid-column: 1 / -1;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-dim);
 }
 
@@ -2456,8 +2456,34 @@ body[data-weather="storm"] .fx-rain.mid { opacity: 1.2; }
   }
 
   .outing-chip-divider { display: none; }
-  .outing-hour { height: 110px; }
-  .outing-hour-bar { width: 18px; }
+  .outing-hour { height: 130px; }
+  .outing-hour-bar { width: 22px; }
+
+  /* 나들이 카드 — 휴대폰에서는 한 줄로 쌓는다.
+     두 칸으로 두면 '매우 좋음'이 한 글자씩 세로로 꺾인다.
+     순서: 점수 → 시간대별 → 조건 → 안내문 */
+  .outing-card {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 22px 20px;
+  }
+  /* 그리드 칸은 기본적으로 안쪽 내용만큼 늘어난다.
+     min-width:0 이 없으면 막대 줄이 칸을 밀어내 페이지 전체가 옆으로 밀린다. */
+  .outing-card > * { min-width: 0; }
+  .outing-summary { order: 0; }
+  .outing-hours { order: 1; }
+  .outing-conditions { order: 2; }
+  .outing-disclaimer { order: 3; }
+
+  /* 9칸을 좁은 화면에 욱여넣지 않고, 옆으로 밀어서 보게 한다 */
+  .outing-hours-row {
+    grid-auto-columns: 58px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .outing-hour-name { white-space: nowrap; }
+  .outing-hours-head { flex-wrap: wrap; }
 
   .result-body { grid-template-columns: 1fr; }
 
