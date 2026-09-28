@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>모기제로 | 오늘의 모기지수</title>
-  <meta name="description" content="오늘의 모기지수와 나들이 지수, 가기 좋은 공원, 시간대별·5일 예보를 한 화면에서 확인하세요.">
+  <meta name="description" content="오늘의 모기지수, 챙길 것, 나들이 지수, 시간대별·5일 예보, 동네별 지도, 가기 좋은 공원, 모기 도감을 한 화면에서 확인하세요.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@500;600&family=Space+Grotesk:wght@300;500&family=Baloo+2:wght@800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,300,0,0&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="design.css">
   <link rel="stylesheet" href="chat.css">
@@ -15,67 +15,53 @@
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
 
-  <header class="topnav">
-    <a class="brand" href="index.html">
-      <span class="brand-mark" aria-hidden="true">🦟</span>
-      <span>모기제로</span>
-    </a>
-
-    <nav class="navlinks" id="primaryNav" aria-label="주요 메뉴">
-      <a href="index.html">홈</a>
-      <a href="forecast.html">자세한 예보</a>
-      <a href="guide.html">모기 도감</a>
+  <!-- 상단: 워드마크 · 메뉴 · 지금 상태 -->
+  <header class="nav">
+    <a class="mark" href="index.html" aria-label="모기제로 홈"><span class="mo">MOSQUITO</span><span class="zero">ZERO</span></a>
+    <nav class="lk" id="primaryNav" aria-label="주요 메뉴">
+      <a href="#main" aria-current="page">홈</a>
+      <a href="#outing">나들이</a>
+      <a href="#guide">모기 도감</a>
+      <a href="gimhae.html">전문가용</a>
     </nav>
-
-    <div class="nav-right">
-      <span class="weather-chip" id="navWeather">날씨 확인 중…</span>
-      <a class="expert-link" href="gimhae.html">전문가용 화면</a>
-      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
-    </div>
+    <span class="now" id="navWeather">날씨 확인 중</span>
+    <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
   </header>
 
   <main id="main">
-    <div class="shell">
+    <div class="wrap">
 
-      <!-- ① 오늘의 모기지수 -->
+      <!-- 히어로: 한 줄 결론 + 큰 숫자 -->
       <section class="hero" aria-labelledby="heroTitle">
-        <div class="pill hero-place">
-          <span aria-hidden="true">📍</span>
-          <label class="sr-only" for="regionSelect">지역 선택</label>
-          <select id="regionSelect" class="place-select"></select>
-          <button id="myLocationButton" class="link-soft" type="button">현재 위치로</button>
-        </div>
-        <p class="hero-place-detail" id="locationText">위치를 확인하는 중…</p>
-
-        <p class="hero-kicker" id="heroTitle">오늘의 모기지수</p>
-        <p class="hero-number num" id="indexValue">--</p>
-        <p class="stage-badge lg" id="stageBadge">확인 중</p>
-        <p class="hero-advice" id="adviceText">데이터를 불러오는 중입니다.</p>
-
-        <div class="scale hero-scale">
-          <div class="scale-track">
-            <div class="scale-knob" id="indexScaleKnob" style="left:0%"></div>
-          </div>
-          <div class="scale-labels" id="indexScaleLabels">
-            <span>매우 양호</span><span>양호</span><span>보통</span><span>위험</span><span>매우 위험</span>
+        <div class="hero-copy">
+          <h1 id="heroTitle"><span id="heroLine1">오늘 모기,</span> <em id="heroLine2">확인 중.</em><br><span id="heroLine3">잠시만요.</span></h1>
+          <p id="adviceText">날씨를 불러오는 중입니다.</p>
+          <div class="cta">
+            <a class="btn p" href="#kit">오늘 챙길 것</a>
+            <a class="btn" href="#parks">가기 좋은 공원</a>
           </div>
         </div>
-
-        <div class="glass outing-chip" id="outingChip">
-          <span class="outing-chip-icon" aria-hidden="true">🚶</span>
-          <span class="outing-chip-label">나들이 지수</span>
-          <span class="outing-chip-score num" id="outingChipScore">--</span>
-          <span class="outing-chip-grade" id="outingChipGrade">확인 중</span>
-          <span class="outing-chip-divider" aria-hidden="true"></span>
-          <span class="outing-chip-advice" id="outingChipAdvice">날씨를 불러오는 중입니다.</span>
-        </div>
-
-        <div class="hero-meta">
-          <span class="data-pill" id="weatherSourceBadge">실제 날씨</span>
-          <span class="data-pill" id="locationSourceBadge">지역 선택</span>
-          <span class="data-pill" id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
-          <span id="updatedText">최종 갱신: -</span>
-          <button id="retryButton" class="btn btn-ghost btn-sm" type="button" hidden>날씨 다시 불러오기</button>
+        <div class="idx">
+          <div class="where">
+            <span class="ms" aria-hidden="true">location_on</span>
+            <label class="sr-only" for="regionSelect">지역 선택</label>
+            <select id="regionSelect" class="place-select"></select>
+            <button id="myLocationButton" class="link" type="button">현재 위치로</button>
+          </div>
+          <span class="n num" id="indexValue">--</span>
+          <span class="stage" id="stageBadge"><i></i>확인 중</span>
+          <div class="scale" aria-hidden="true">
+            <div class="t"><div class="kn" id="indexScaleKnob" style="left:0%"></div></div>
+            <div class="l" id="indexScaleLabels"><span>매우 양호</span><span>양호</span><span>보통</span><span>위험</span><span>매우 위험</span></div>
+          </div>
+          <p class="meta">
+            <span id="locationText">위치를 확인하는 중</span> ·
+            <span id="updatedText">갱신 -</span>
+            <span class="data-pill" id="weatherSourceBadge">실제 날씨</span>
+            <span class="data-pill" id="locationSourceBadge">지역 선택</span>
+            <span class="data-pill" id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
+            <button id="retryButton" class="link" type="button" hidden>날씨 다시 불러오기</button>
+          </p>
         </div>
         <p class="sr-only" id="statusText"></p>
         <p class="sr-only" id="heroSummary"></p>
@@ -84,231 +70,147 @@
         <span class="sr-only" id="precisionBadge" hidden></span>
       </section>
 
-      <!-- ② 오늘 이렇게 하세요 -->
-      <div class="section-head">
-        <h2>오늘 이렇게 하세요</h2>
-        <p>오늘 모기 사정에 맞춰 알려드립니다.</p>
-      </div>
-      <section class="do-grid" id="doGrid" aria-label="오늘의 행동요령">
-        <article class="glass do-card"><span class="do-num">1</span><p class="do-text">불러오는 중입니다…</p></article>
-      </section>
-      <ul class="sr-only" id="actionTips"></ul>
-      <p class="sr-only" id="repellentText"></p>
-      <p class="sr-only" id="activeHoursText"></p>
-
-      <!-- ③ 오늘의 나들이 지수 -->
-      <div class="section-head">
-        <h2>오늘 나들이, 언제 나가면 좋을까요?</h2>
-        <p>날씨와 모기 사정을 합쳐 시간대별로 알려드립니다.</p>
-      </div>
-      <section class="glass outing-card" id="outingCard" aria-labelledby="outingTitle">
-        <div class="outing-summary">
-          <p class="label" id="outingTitle">🚶 오늘의 나들이 지수</p>
-          <div class="outing-score-row">
-            <span class="outing-score num" id="outingScore">--</span>
-            <span class="outing-grade" id="outingGrade">확인 중</span>
-          </div>
-          <p class="outing-advice-text" id="outingAdvice">날씨를 불러오는 중입니다.</p>
-          <div class="outing-scale" id="outingScaleBar" aria-hidden="true">
-            <i></i><i></i><i></i><i></i>
-          </div>
-          <div class="outing-scale-labels" id="outingScaleLabels">
-            <span>나쁨</span><span>보통</span><span>좋음</span><span>매우 좋음</span>
-          </div>
-        </div>
-
-        <div class="outing-hours">
-          <div class="outing-hours-head">
-            <span class="outing-hours-title">시간대별 나들이 지수</span>
-            <span class="outing-best-window" id="outingBestWindow" hidden></span>
-          </div>
-          <div class="outing-hours-row" id="outingHours"></div>
-        </div>
-
-        <div class="outing-conditions">
-          <p class="outing-conditions-title">오늘 나들이 조건</p>
-          <div id="outingConditions"></div>
-        </div>
-
-        <p class="outing-disclaimer">
-          ※ 나들이 지수는 공공기관의 공식 지수가 아니라, 기온·비·자외선·바람과 모기지수를 합쳐
-          이 사이트가 직접 계산한 <strong>참고용 예상값</strong>입니다.
-        </p>
+      <!-- 오늘 챙길 것 -->
+      <section class="s" id="kit" aria-labelledby="kitT">
+        <div class="h"><h2 id="kitT">오늘 <em>챙길 것.</em></h2><small>켜진 것만 챙기면 됩니다</small></div>
+        <ul class="kit" id="kitList" aria-live="polite">
+          <li class="wait"><span class="ms" aria-hidden="true">bug_report</span>기피제<span class="why">확인 중</span></li>
+          <li class="wait"><span class="ms" aria-hidden="true">wb_sunny</span>선크림<span class="why">확인 중</span></li>
+          <li class="wait"><span class="ms" aria-hidden="true">umbrella</span>우산<span class="why">확인 중</span></li>
+          <li class="wait"><span class="ms" aria-hidden="true">water_drop</span>물<span class="why">확인 중</span></li>
+          <li class="wait"><span class="ms" aria-hidden="true">masks</span>마스크<span class="why">확인 중</span></li>
+        </ul>
+        <p class="kit-line" id="kitLine">날씨를 불러오면 알려드립니다.</p>
+        <div class="do" id="doGrid" aria-label="오늘의 행동요령"></div>
+        <ul class="sr-only" id="actionTips"></ul>
+        <p class="sr-only" id="repellentText"></p>
+        <p class="sr-only" id="activeHoursText"></p>
       </section>
 
-      <!-- ④ 오늘 가기 좋은 공원 -->
-      <div class="section-head">
-        <h2>오늘 가기 좋은 공원</h2>
-        <p>오늘 날씨와 모기 사정을 함께 보고, 가까운 곳부터 골랐어요.</p>
-      </div>
-      <section class="parks-grid" id="parksGrid" aria-label="오늘 가기 좋은 공원">
-        <article class="glass park-card"><div class="park-body"><p class="park-name">불러오는 중입니다…</p></div></article>
-      </section>
-      <p class="parks-note" id="parksNote"></p>
-
-      <!-- ④ 시간대별 -->
-      <div class="section-head">
-        <h2>시간대별 모기지수</h2>
-        <p>숫자가 클수록 모기가 많습니다.</p>
-      </div>
-      <section class="glass hours" aria-label="시간대별 모기지수">
-        <div class="hours-row" id="mosquitoHours">
-          <p class="tile-note">불러오는 중입니다…</p>
-        </div>
-        <div class="tile-row" style="margin-top:18px">
-          <article class="glass tile">
-            <p class="label">🕐 모기 활발한 시간</p>
-            <p class="tile-value num" id="peakDangerTime">-</p>
-            <p class="tile-note" id="peakDangerNote">준비 중입니다.</p>
-          </article>
-          <article class="glass tile">
-            <p class="label">😌 가장 안전한 시간</p>
-            <p class="tile-value num" id="peakSafeTime">-</p>
-            <p class="tile-note" id="peakSafeNote">준비 중입니다.</p>
-          </article>
+      <!-- 나들이 -->
+      <section class="s" id="outing" aria-labelledby="outT">
+        <div class="h"><h2 id="outT">나들이, <em>언제가 좋을까.</em></h2><small>기온·비·자외선·바람·모기를 합친 참고값</small></div>
+        <div class="grid two">
+          <div class="p out" id="outingCard">
+            <h3>오늘의 나들이 지수</h3>
+            <div class="n"><span class="num" id="outingScore">--</span><small id="outingGrade">확인 중</small></div>
+            <p id="outingAdvice">날씨를 불러오는 중입니다.</p>
+            <div class="meter" id="outingScaleBar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <div class="meter-l" id="outingScaleLabels"><span>나쁨</span><span>보통</span><span>좋음</span><span>매우 좋음</span></div>
+            <div class="cond" id="outingConditions"></div>
+          </div>
+          <div class="p">
+            <h3>시간대별 나들이 지수 <span class="best" id="outingBestWindow" hidden></span></h3>
+            <div class="bars h9" id="outingHours"></div>
+            <h3 class="mt">앞으로 5일</h3>
+            <div class="days" id="daysList"><p class="dim">실제 날씨가 연결되면 5일 예보를 보여드립니다.</p></div>
+          </div>
         </div>
       </section>
 
-      <!-- ⑤ 5일 예보 + 우리 동네 -->
-      <div class="section-head">
-        <h2>앞으로 5일</h2>
-        <p>며칠 뒤 나들이 계획에 참고하세요.</p>
-      </div>
-      <section class="pair-row" aria-label="5일 예보와 우리 동네 순위">
-        <article class="glass days">
-          <div id="daysList">
-            <p class="tile-note">불러오는 중입니다…</p>
-          </div>
-        </article>
-        <article class="glass rankbox">
-          <p class="label">📍 우리 동네는 김해에서</p>
-          <p class="rankbox-lead" id="rankLead">
-            <span class="num">-</span>
-            <span>순위를 계산하는 중…</span>
-          </p>
-          <div class="dots" id="rankDots" aria-hidden="true"></div>
-          <p class="label" style="margin-top:8px">오늘 조심할 동네</p>
-          <ol class="ranking-list" id="rankingList"></ol>
-          <p class="sr-only" id="ranking-section"></p>
-        </article>
-      </section>
-
-      <!-- ⑥ 지도 -->
-      <div class="section-head" id="map-section">
-        <h2>동네별 모기지수 지도</h2>
-        <p>동그라미를 누르면 그 동네 정보가 나옵니다.</p>
-      </div>
-      <section class="map-row" aria-label="동네별 지도">
-        <article class="glass map-panel">
-          <div class="map-panel-head">
-            <span class="label">김해시 동네별 모기지수</span>
-            <button id="heatmapButton" class="btn btn-ghost btn-sm" type="button" aria-pressed="false">발생원 히트맵 보기</button>
-          </div>
-          <div id="map" class="map-area" aria-label="모기 위험 지도"></div>
-          <div class="legend" aria-label="지도 범례">
-            <span><i class="legend-dot stage-safe"></i> 매우 양호</span>
-            <span><i class="legend-dot stage-good"></i> 양호</span>
-            <span><i class="legend-dot stage-normal"></i> 보통</span>
-            <span><i class="legend-dot stage-risk"></i> 위험</span>
-            <span><i class="legend-dot stage-danger"></i> 매우 위험</span>
-          </div>
-          <div id="heatmapLegend" class="legend" aria-label="발생원 히트맵 범례" hidden>
-            <span class="legend-title">발생원 위험</span>
-            <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
-            <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
-            <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
-            <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
-            <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
-          </div>
-          <div id="heatmapInfo" class="map-note" hidden>
-            모기는 <strong>고인 물</strong>이 있는 곳에서 번식합니다. 원이 크고 색이 진할수록 발생원이 몰려 있는 동네입니다.
-          </div>
-        </article>
-
-        <div class="map-side">
-          <article class="glass side-card">
-            <p class="side-place">
-              <span aria-hidden="true">📍</span>
-              <span id="sidePlaceName">우리 동네</span>
-              <span class="rank-tag" id="sidePlaceRank"></span>
-            </p>
-            <div class="side-score">
-              <span class="num" id="sideScore">--</span>
-              <span class="stage-badge" id="sideStage">확인 중</span>
+      <!-- 시간대별 모기 + 동네 순위 -->
+      <section class="s" aria-labelledby="hrT">
+        <div class="h"><h2 id="hrT">시간대별 <em>모기.</em></h2><small>숫자가 클수록 많습니다</small></div>
+        <div class="grid w">
+          <div class="p">
+            <div class="bars h7" id="mosquitoHours"></div>
+            <div class="kv">
+              <div><div class="k">모기 많은 때</div><div class="v num" id="peakDangerTime">-</div><div class="s2" id="peakDangerNote"></div></div>
+              <div><div class="k">가장 적은 때</div><div class="v num" id="peakSafeTime">-</div><div class="s2" id="peakSafeNote"></div></div>
             </div>
-          </article>
+          </div>
+          <div class="p rank">
+            <h3>우리 동네는 김해에서</h3>
+            <div class="lead" id="rankLead"><span class="dim">순위를 계산하는 중</span></div>
+            <h3 class="mt">오늘 조심할 동네</h3>
+            <ol class="ranking-list" id="rankingList"></ol>
+            <p class="sr-only" id="ranking-section"></p>
+          </div>
+        </div>
+      </section>
 
-          <article class="glass side-card">
-            <p class="label">왜 이런 지수가 나왔을까요?</p>
-            <ul class="analysis-list" id="analysisList"></ul>
-          </article>
+      <!-- 지도 -->
+      <section class="s" id="map-section" aria-labelledby="mpT">
+        <div class="h"><h2 id="mpT">동네별 <em>지도.</em></h2>
+          <button id="heatmapButton" class="link" type="button" aria-pressed="false">발생원 히트맵 보기</button></div>
+        <div id="map" class="map" aria-label="모기 위험 지도"></div>
+        <div class="legend" aria-label="지도 범례">
+          <span><i class="dot stage-safe"></i>매우 양호</span><span><i class="dot stage-good"></i>양호</span><span><i class="dot stage-normal"></i>보통</span><span><i class="dot stage-risk"></i>위험</span><span><i class="dot stage-danger"></i>매우 위험</span>
+        </div>
+        <div id="heatmapLegend" class="legend" aria-label="발생원 히트맵 범례" hidden>
+          <span class="legend-title">발생원 위험</span>
+          <span><i class="dot" style="background:#86efac"></i>낮음</span><span><i class="dot" style="background:#facc15"></i>다소</span><span><i class="dot" style="background:#f59e0b"></i>보통</span><span><i class="dot" style="background:#ef4444"></i>높음</span><span><i class="dot" style="background:#b91c1c"></i>매우 높음</span>
+        </div>
+        <p id="heatmapInfo" class="dim" hidden>모기는 고인 물이 있는 곳에서 번식합니다. 원이 크고 색이 진할수록 발생원이 몰려 있는 동네입니다.</p>
+      </section>
 
-          <article class="glass side-card">
-            <p class="label">오늘 날씨</p>
+      <!-- 공원 -->
+      <section class="s" id="parks" aria-labelledby="pkT">
+        <div class="h"><h2 id="pkT">오늘 가기 좋은 <em>공원.</em></h2><small>가까운 순 · 공원 유형과 동네 자료로 계산한 참고값</small></div>
+        <div class="parks" id="parksGrid"><p class="dim">불러오는 중입니다.</p></div>
+        <p class="dim" id="parksNote"></p>
+      </section>
+
+      <!-- 왜 이 점수 + 날씨 -->
+      <section class="s" aria-labelledby="whT">
+        <div class="h"><h2 id="whT">왜 <em id="whyScore">이 점수일까.</em></h2></div>
+        <div class="grid two">
+          <div class="p"><h3>오늘 날씨</h3>
             <div class="metric-grid" id="weatherGrid"></div>
-            <details class="more-details">
-              <summary>더 자세히 보기</summary>
-              <div class="metric-grid" id="weatherGridMore" style="margin-top:14px"></div>
-              <ul class="analysis-list" id="analysisMore" style="margin-top:14px"></ul>
+            <details class="more"><summary>더 자세히</summary>
+              <div class="metric-grid" id="weatherGridMore"></div>
+              <ul class="analysis-list" id="analysisMore"></ul>
               <div class="calc-detail-body" id="calcDetailBody"></div>
             </details>
-            <p class="map-note" id="forecastSourceText"></p>
-            <p class="map-note" id="diurnalNote" hidden></p>
-          </article>
+            <p class="dim" id="forecastSourceText"></p>
+            <p class="dim" id="diurnalNote" hidden></p>
+          </div>
+          <div class="p"><h3>이유</h3><ul class="analysis-list" id="analysisList"></ul></div>
         </div>
       </section>
 
-      <!-- ⑦ 모기는 어디서 생기나 (짧은 설명) -->
-      <div class="section-head">
-        <h2>모기는 고인 물에서 시작됩니다</h2>
-        <p>이 세 가지만 기억하시면 됩니다.</p>
-      </div>
-      <section class="do-grid" aria-label="모기지수 설명">
-        <article class="glass do-card">
-          <span class="do-num">1</span>
-          <p class="do-text"><strong>고인 물</strong>에서 모기가 태어납니다.<br>
-            김해 안 <strong>1만 5천여 곳</strong>의 정화조·하수처리시설을 모두 살폈어요.</p>
-        </article>
-        <article class="glass do-card">
-          <span class="do-num">2</span>
-          <p class="do-text"><strong>덥고 습한 날</strong>, 비 온 뒤에 모기가 늘어납니다.<br>
-            매일 날씨를 받아 반영합니다.</p>
-        </article>
-        <article class="glass do-card">
-          <span class="do-num">3</span>
-          <p class="do-text">이 둘을 합쳐 <strong>0~100점</strong>으로 알려드립니다.<br>
-            오늘은 <strong class="num" id="formulaResult">--</strong>점입니다.</p>
-        </article>
+      <div class="rule"></div>
+
+      <!-- 모기 도감 -->
+      <section class="s" id="guide" aria-labelledby="gdT">
+        <div class="h"><h2 id="gdT">모기 <em>도감.</em></h2><small>우리 주변 모기 4종 · 사진 판별은 준비 중</small></div>
+        <div class="species">
+          <article><img src="assets/mosquito/culex-pipiens.jpg" alt="빨간집모기. 갈색 몸에 가는 다리." loading="lazy"><div class="sp"><b>빨간집모기</b><span class="al">밤에 집 안으로 들어오는 가장 흔한 모기</span><span class="dz">웨스트나일열</span><span class="do2">방충망 점검, 저녁 환기 시 주의</span></div></article>
+          <article><img src="assets/mosquito/culex-tritaeniorhynchus.jpg" alt="작은빨간집모기. 붉은 갈색을 띠는 작은 모기." loading="lazy"><div class="sp"><b>작은빨간집모기</b><span class="al">논과 축사 주변, 여름밤에 활동</span><span class="dz">일본뇌염</span><span class="do2">예방접종 확인, 논 근처 저녁 외출 주의</span></div></article>
+          <article><img src="assets/mosquito/aedes-albopictus.jpg" alt="흰줄숲모기. 검은 몸에 흰 줄무늬가 뚜렷한 모기." loading="lazy"><div class="sp"><b>흰줄숲모기</b><span class="al">낮에도 물어요. 풀숲과 공원</span><span class="dz">뎅기열 · 지카바이러스</span><span class="do2">화분 받침·폐타이어 물 비우기</span></div></article>
+          <article><img src="assets/mosquito/anopheles-sinensis.jpg" alt="얼룩날개모기. 날개에 얼룩무늬, 앉을 때 몸을 세운다." loading="lazy"><div class="sp"><b>얼룩날개모기</b><span class="al">앉을 때 몸을 비스듬히 세우는 게 특징</span><span class="dz">말라리아</span><span class="do2">물린 뒤 열이 나면 병원으로</span></div></article>
+        </div>
+        <div class="larva"><img src="assets/mosquito/culex-larvae.jpg" alt="물속의 모기 유충 여러 마리." loading="lazy"><div><b>모기는 물에서 자랍니다</b><span>알·유충·번데기 세 단계가 전부 물속에서 일어나요. 일주일에 한 번만 고인 물을 비워도 어른 모기가 되기 전에 끊을 수 있어요.</span></div></div>
+        <p class="dim">사진: CDC/James Gathany(퍼블릭 도메인), 根川大橋·Kyu3a(CC BY-SA 4.0)</p>
       </section>
 
-      <!-- ⑧ 바로가기 -->
-      <section class="cta-grid" aria-label="바로가기">
-        <article class="glass cta-card">
-          <span class="cta-icon" aria-hidden="true">🔍</span>
-          <h3 class="cta-title">이 모기, 위험한가요?</h3>
-          <p class="cta-desc">우리 주변 모기 4종과 옮길 수 있는 병을 정리했어요.</p>
-          <a class="btn btn-primary" href="guide.html">모기 도감 보기</a>
-        </article>
-        <article class="glass cta-card">
-          <span class="cta-icon" aria-hidden="true">📊</span>
-          <h3 class="cta-title">더 자세한 예보</h3>
-          <p class="cta-desc">나들이 지수 시간대별 그래프와 상세 분석을 봅니다.</p>
-          <a class="btn btn-ghost" href="forecast.html">자세한 예보 보기</a>
-        </article>
+      <!-- 오늘의 한 마디 -->
+      <section class="s" aria-label="오늘의 한 마디">
+        <p class="quip" id="quip">모기는 무는 건 전부 암컷이에요.<small>오늘의 한 마디 · 매일 바뀝니다</small></p>
       </section>
+
+      <!-- 제보 -->
+      <div class="report" id="report">
+        <img src="assets/bg/gimhae-night.jpg" alt="" loading="lazy">
+        <div class="in">
+          <h2>여기 모기 있어요!</h2>
+          <p>누르면 우리 동네 모기 지도에 표시하는 기능을 준비하고 있습니다</p>
+          <button class="btn p" type="button" id="reportBtn"><span class="ms" aria-hidden="true">bug_report</span>제보하기</button>
+        </div>
+      </div>
+
     </div>
   </main>
 
-  <footer class="site-footer">
-    <div class="footer-left">
-      모기지수와 나들이 지수는 <strong>참고용 예상값</strong>이며 의학적·방역적 판단을 대신하지 않습니다.<br>
-      공원 추천은 공원 유형과 동네 발생원 자료로 계산한 값이며, 공원별 모기 실측값은 아닙니다.<br>
-      날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터
-    </div>
-    <div class="footer-right">
-      <a href="gimhae.html">전문가용 화면 →</a>
+  <footer class="foot">
+    <div class="wrap">
+      모기지수와 나들이 지수는 참고용 예상값이며 의학적·방역적 판단을 대신하지 않습니다. 준비물은 날씨 값이 기준을 넘을 때 켜집니다.
+      공원 추천은 공원 유형과 동네 발생원 자료로 계산한 값이며 공원별 실측값이 아닙니다.<br>
+      배경 사진: 낮 · 발룡산에서 본 장유(Prime number, CC BY 4.0) / 밤 · 분성산 천문대에서 본 김해(Korea.net, CC BY-SA 2.0), 위키미디어 공용<br>
+      날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터 · <a href="gimhae.html">전문가용 화면</a>
     </div>
   </footer>
+  <div class="toast" id="toast" role="status"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="mosquito-model.js"></script>

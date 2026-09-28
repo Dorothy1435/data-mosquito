@@ -1,7 +1,9 @@
 /* =============================================================
    날씨 배경 — 지금 날씨에 맞는 사진을 화면 뒤에 깔아 준다.
    -------------------------------------------------------------
-   사진 8장(인제대 운동장)을 낮/밤 × 날씨 종류로 골라 쓴다.
+   김해 풍경 사진 두 장(낮·밤)을 시각에 맞춰 고르고,
+   날씨는 사진 위의 어두운 막 색과 빗줄기·구름 같은 움직임으로 보여 준다.
+   (사진 출처는 assets/bg/CREDITS.md)
    고른 결과는 <body> 의 data-time / data-weather 에 적어 두고,
    빗줄기·눈·안개 같은 움직임은 CSS가 그 값을 보고 켠다.
 
@@ -21,11 +23,8 @@
 
   const BG_PATH = 'assets/bg/';
 
-  // 쓸 수 있는 사진 8장
-  const IMAGES = [
-    'bg-clear', 'bg-cloudy', 'bg-rain', 'bg-storm',
-    'bg-fog', 'bg-snow', 'bg-night-clear', 'bg-night-rain',
-  ];
+  // 쓸 수 있는 사진: 낮(발룡산에서 본 장유) · 밤(분성산에서 본 김해 야경)
+  const IMAGES = ['gimhae-day', 'gimhae-night'];
 
   /* ---------- Open-Meteo weathercode → 날씨 종류 ----------
      0~1 맑음 / 2~3 흐림 / 45·48 안개 / 51~67·80~82 비
@@ -41,15 +40,11 @@
     return 'clear';
   }
 
-  /* ---------- 날씨 종류 + 낮/밤 → 사진 파일 ----------
-     밤 사진은 맑음과 비 두 장뿐이라, 나머지는 낮 사진을 어둡게 써서 채운다. */
+  /* ---------- 낮/밤 → 사진 파일 ----------
+     날씨 종류(kind)는 사진을 바꾸지 않는다. CSS가 body[data-weather] 를 보고
+     사진을 어둡게 하거나 빗줄기·구름을 얹는다. */
   function pickImage(kind, isDay) {
-    if (isDay) {
-      return 'bg-' + kind;              // clear·cloudy·rain·storm·fog·snow
-    }
-    if (kind === 'clear' || kind === 'cloudy') return 'bg-night-clear';
-    if (kind === 'rain' || kind === 'storm') return 'bg-night-rain';
-    return 'bg-' + kind;                // 밤 안개·밤 눈은 낮 사진 + 어둡게 보정
+    return isDay ? 'gimhae-day' : 'gimhae-night';
   }
 
   /* ---------- 날씨 이름 (화면 칩에 쓰는 한국어) ---------- */
@@ -232,7 +227,7 @@
   function describe(input) {
     const data = input || {};
     const kind = data.kind || toWeatherKind(data.weatherCode);
-    const isDay = decideIsDay(data);
+    const isDay = decidePhase(data).isDay;
     const label = KIND_LABEL[kind] || '맑음';
     if (data.temperature == null) return label;
     return `${Math.round(data.temperature)}° · ${label}`;

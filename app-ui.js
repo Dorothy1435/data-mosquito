@@ -1,21 +1,21 @@
 /* =============================================================
-   새 디자인 화면을 그리는 부분 (홈 · 모기 예보 공통)
+   홈 화면을 그리는 부분 (v14)
    -------------------------------------------------------------
    계산은 하지 않는다.
-   script.js 가 계산을 끝내고 보내는 'mosquito:updated' 이벤트를 받아,
+   script.js 가 계산을 끝내고 보내는 'mosquito:updated' 이벤트를 받아
    그 값으로 화면만 채운다.
 
    여기서 채우는 것
-     · 날씨 배경 사진 (weather-bg.js 에 넘김)
-     · 상단 날씨 칩
-     · 모기지수 5단계 눈금
-     · 나들이 지수 (홈 요약 칩 / 예보 카드)
-     · 시간대별 모기지수 막대
-     · 5일 예보
-     · 우리 동네 순위 점
+     · 배경 사진 (weather-bg.js 에 넘김)
+     · 상단 지금 상태 칩
+     · 히어로 한 줄 결론 · 단계 · 5단계 눈금
+     · 오늘 챙길 것 (준비물 5개)
+     · 나들이 지수 · 시간대별 나들이 · 5일 예보
+     · 시간대별 모기 막대 · 동네 순위
+     · 오늘 가기 좋은 공원
+     · 오늘의 한 마디 · 제보 버튼
 
    화면에 해당 요소가 없으면 조용히 건너뛴다.
-   그래서 홈과 예보가 같은 파일을 함께 쓸 수 있다.
    ============================================================= */
 
 (function () {
@@ -25,28 +25,41 @@
 
   /* ---------- 모기지수 5단계 ---------- */
   const STAGES = [
-    { max: 20, label: '매우 양호', className: 'stage-safe' },
-    { max: 40, label: '양호', className: 'stage-good' },
-    { max: 60, label: '보통', className: 'stage-normal' },
-    { max: 80, label: '위험', className: 'stage-risk' },
-    { max: 100, label: '매우 위험', className: 'stage-danger' },
+    { max: 20, label: '매우 양호', className: 'stage-safe', word: '거의 없음.' },
+    { max: 40, label: '양호', className: 'stage-good', word: '적은 편.' },
+    { max: 60, label: '보통', className: 'stage-normal', word: '조금 있음.' },
+    { max: 80, label: '위험', className: 'stage-risk', word: '많은 편.' },
+    { max: 100, label: '매우 위험', className: 'stage-danger', word: '아주 많음.' },
+  ];
+  const stageOf = (index) => STAGES.find((s) => index <= s.max) || STAGES[STAGES.length - 1];
+
+  /* ---------- 오늘의 한 마디 ---------- */
+  // 널리 알려진 상식 수준의 문구만 넣는다. 날짜에 따라 하나씩 돌아간다.
+  const QUIPS = [
+    '무는 모기는 전부 암컷이에요. 알을 낳으려고 피를 먹어요.',
+    '모기는 O형을 좋아한다는데, 혈액형보다 체온과 땀 냄새가 더 큰 이유예요.',
+    '모기는 숨에 섞인 이산화탄소를 멀리서도 알아채요. 뛰고 나면 더 잘 물려요.',
+    '모기는 느려서 선풍기 바람 하나로도 잘 못 다가와요.',
+    '검은 옷은 모기 눈에 잘 띄어요. 밝은 옷이 덜 물려요.',
+    '병뚜껑에 고인 물에도 모기가 알을 낳아요.',
+    '알에서 어른 모기까지 열흘 안팎이에요. 일주일에 한 번 물을 비우면 끊을 수 있어요.',
+    '물린 데를 긁으면 더 가려워져요. 차갑게 식히는 게 나아요.',
+    '흰줄숲모기는 낮에도 물어요. 풀숲에 갈 땐 낮에도 기피제를.',
+    '모기는 한낮보다 해 질 무렵에 가장 바빠요.',
+    '기피제는 옷 위가 아니라 드러난 피부에 발라야 해요.',
+    '모기는 보통 100m 넘게 날아가지 않아요. 우리 집 근처 고인 물이 범인일 때가 많아요.',
+    '비 오는 날에도 모기는 날아요. 빗방울보다 훨씬 가볍거든요.',
+    '방충망 구멍은 모기에게 문이에요. 손가락이 들어가면 모기도 들어와요.',
   ];
 
-  function stageOf(index) {
-    return STAGES.find((s) => index <= s.max) || STAGES[STAGES.length - 1];
-  }
-
-  /* ---------- 페이지가 열리면 배경부터 깔아 둔다 ---------- */
+  /* ---------- 페이지가 열리면 ---------- */
   document.addEventListener('DOMContentLoaded', () => {
-    if (window.WeatherBackground) {
-      // 날씨를 아직 모르는 동안에는 시각만 보고 기본 배경을 깐다.
-      window.WeatherBackground.apply({});
-    }
+    if (window.WeatherBackground) window.WeatherBackground.apply({});   // 날씨를 모를 땐 시각만으로
     setupNavToggle();
-    markCurrentNav();
+    renderQuip();
+    setupReport();
   });
 
-  /* ---------- 모바일 메뉴 ---------- */
   function setupNavToggle() {
     const button = $('menuButton');
     if (!button) return;
@@ -56,35 +69,61 @@
     });
   }
 
-  // 지금 보고 있는 메뉴에 표시를 남긴다.
-  function markCurrentNav() {
-    const here = location.pathname.replace(/\/$/, '').split('/').pop() || 'index';
-    document.querySelectorAll('.navlinks a').forEach((link) => {
-      const target = (link.getAttribute('href') || '').replace(/\.html$/, '').replace(/^\//, '') || 'index';
-      if (target === here.replace(/\.html$/, '')) {
-        link.classList.add('is-current');
-        link.setAttribute('aria-current', 'page');
-      }
+  function renderQuip() {
+    const el = $('quip');
+    if (!el) return;
+    const now = new Date();
+    const day = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 864e5);
+    const text = QUIPS[day % QUIPS.length];
+    el.innerHTML = `${text}<small>오늘의 한 마디 · 매일 바뀝니다</small>`;
+  }
+
+  // 제보 버튼: 기능은 아직 없다. 저장하는 척하지 않고 준비 중이라고 말한다.
+  function setupReport() {
+    const btn = $('reportBtn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      try { if (navigator.vibrate) navigator.vibrate(20); } catch (e) { /* 진동 미지원 */ }
+      toast('제보 기능은 준비 중이에요. 위치 정보 동의 절차를 확인한 뒤 열립니다.');
     });
   }
 
+  let toastTimer = null;
+  function toast(message) {
+    const el = $('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
   /* ---------- 계산 결과가 오면 화면을 채운다 ---------- */
+  let lastAir = null;         // 대기질 (script.js 가 'air:updated' 로 보낸다)
+  let lastDetail = null;      // 마지막 계산 결과 (대기질이 늦게 오면 준비물을 다시 그린다)
+  let lastOutingScore = null; // 공원 추천 기준
+
+  document.addEventListener('air:updated', (event) => {
+    lastAir = event.detail || null;
+    if (lastDetail) renderKit(lastDetail);
+  });
+
   document.addEventListener('mosquito:updated', (event) => {
     const d = event.detail || {};
+    lastDetail = d;
     try {
       applyBackground(d);
-      renderWeatherChip(d);
-      renderIndexScale(d);
+      renderNow(d);
+      renderHero(d);
       renderOuting(d);
+      renderKit(d);
+      renderDoList();
       renderMosquitoHours(d);
       renderDailyOutlook(d);
-      renderSideCard(d);
       renderRank(d);
-      renderDoCards();
       renderParks(d);
     } catch (error) {
-      // 한 군데가 실패해도 페이지 전체가 멈추지 않게 한다.
-      console.warn('화면 갱신 중 문제가 발생했습니다.', error);
+      console.warn('화면 갱신 중 문제가 발생했습니다.', error);   // 한 군데가 실패해도 페이지는 살아 있어야 한다
     }
   });
 
@@ -92,111 +131,142 @@
   function applyBackground(d) {
     if (!window.WeatherBackground) return;
     const w = d.weatherData || {};
-    window.WeatherBackground.apply({
-      weatherCode: w.weatherCode,
-      isDay: w.isDay,
-      sunrise: w.sunrise,
-      sunset: w.sunset,
-    });
+    window.WeatherBackground.apply({ weatherCode: w.weatherCode, isDay: w.isDay, sunrise: w.sunrise, sunset: w.sunset });
   }
 
-  /* ---------- 상단 날씨 칩 ---------- */
-  function renderWeatherChip(d) {
-    const chip = $('navWeather');
-    if (!chip) return;
+  /* ---------- 상단 지금 상태 ---------- */
+  function renderNow(d) {
+    const el = $('navWeather');
+    if (!el) return;
     const w = d.weatherData || {};
-    const temp = w.temperature == null ? null : Math.round(w.temperature);
-    const text = w.weatherText || '날씨 정보 없음';
-    chip.textContent = temp == null ? text : `${temp}° · ${text}`;
-    if (!w.isLive) chip.textContent += ' (샘플)';
+    const now = new Date();
+    const hh = now.getHours(), mm = String(now.getMinutes()).padStart(2, '0');
+    const clock = (hh < 12 ? '오전 ' + hh : '오후 ' + (hh === 12 ? 12 : hh - 12)) + ':' + mm;
+    const temp = w.temperature == null ? '' : ` · ${Math.round(w.temperature)}°`;
+    const text = w.weatherText ? ` ${w.weatherText}` : '';
+    const sample = w.isLive ? '' : ' (샘플)';
+    el.textContent = `${clock}${temp}${text}${sample}`;
   }
 
-  /* ---------- 모기지수 5단계 눈금 ---------- */
-  function renderIndexScale(d) {
-    const knob = $('indexScaleKnob');
-    const labels = $('indexScaleLabels');
+  /* ---------- 히어로: 한 줄 결론 + 단계 + 눈금 ---------- */
+  function renderHero(d) {
     if (d.index == null) return;
-
     const stage = stageOf(d.index);
-    if (knob) {
-      knob.style.left = `${Math.min(100, Math.max(0, d.index))}%`;
-    }
-    if (labels) {
-      Array.from(labels.children).forEach((el) => {
-        const on = el.textContent.trim() === stage.label;
-        el.classList.toggle('is-on', on);
-      });
-      labels.className = `scale-labels ${stage.className}`;
-    }
+    const series = d.series || [];
 
-    // 큰 숫자와 단계 배지에도 단계 색을 물려준다.
+    // 첫 줄: 지금 얼마나 많은지. 둘째 줄: 그래서 뭘 하면 되는지.
+    const l1 = $('heroLine1'), l2 = $('heroLine2'), l3 = $('heroLine3');
+    if (l1) l1.textContent = '오늘 모기,';
+    if (l2) l2.textContent = stage.word;
+    if (l3) l3.textContent = secondLine(d.index, series);
+
     const badge = $('stageBadge');
-    if (badge) {
-      badge.className = `stage-badge lg ${stage.className}`;
-      badge.textContent = stage.label;
-    }
+    if (badge) { badge.className = `stage ${stage.className}`; badge.innerHTML = `<i></i>${stage.label}`; }
 
-    // 홈 스토리 마지막의 수식 결과도 같은 값으로 채운다.
-    const formula = $('formulaResult');
-    if (formula) formula.textContent = d.index;
+    const knob = $('indexScaleKnob');
+    if (knob) knob.style.left = `${Math.min(100, Math.max(0, d.index))}%`;
+    const labels = $('indexScaleLabels');
+    if (labels) Array.from(labels.children).forEach((el) => el.classList.toggle('is-on', el.textContent.trim() === stage.label));
+
+    const why = $('whyScore');
+    if (why) why.textContent = `${d.index}점일까.`;
+  }
+
+  // 앞으로 몇 시간 안에 모기가 크게 늘면 그걸 먼저 말한다.
+  function secondLine(index, series) {
+    const peak = peakAhead(series);
+    if (peak && peak.index >= 61 && peak.index > index + 10) return `${hourWord(peak.hourOfDay)}엔 긴 옷 하나.`;
+    if (index >= 81) return '오늘은 되도록 실내에서.';
+    if (index >= 61) return '긴 옷과 기피제 챙기세요.';
+    if (index >= 41) return '기피제 하나면 충분해요.';
+    return '가볍게 다녀오세요.';
+  }
+
+  function peakAhead(series) {
+    let peak = null;
+    (series || []).slice(0, 12).forEach((p) => { if (!peak || p.index > peak.index) peak = p; });
+    return peak;
+  }
+
+  function hourWord(h) {
+    if (h == null) return '저녁';
+    if (h >= 4 && h < 8) return '새벽';
+    if (h >= 8 && h < 12) return '오전';
+    if (h >= 12 && h < 17) return '낮';
+    if (h >= 17 && h < 21) return '저녁';
+    return '밤';
   }
 
   /* ---------- 나들이 지수 ---------- */
-  // 공원 추천이 이 점수를 기준으로 삼기 때문에 계산 결과를 기억해 둔다.
-  let lastOutingScore = null;
-
   function renderOuting(d) {
     if (!window.OutingIndex) return;
     const O = window.OutingIndex;
     const w = d.weatherData || {};
     const series = d.series || [];
 
-    // 시간대별 입력을 만든다. (모기지수는 이미 시간별로 계산돼 있다)
-    // series 는 '지금'부터 시간 순서대로 들어 있다.
     const todayDate = new Date().getDate();
     const hours = series.map((point) => {
       const when = new Date(point.time);
       return {
         hour: point.hourOfDay,
         isToday: Number.isNaN(when.getTime()) ? true : when.getDate() === todayDate,
-        temperature: point.temperature,
-        rainMm: point.precipNow,
-        rainProbability: point.precipProbability,
-        windSpeed: point.windSpeed,
-        uvIndex: point.uvIndex,
-        mosquitoIndex: point.index,
+        temperature: point.temperature, rainMm: point.precipNow, rainProbability: point.precipProbability,
+        windSpeed: point.windSpeed, uvIndex: point.uvIndex, mosquitoIndex: point.index,
       };
     });
-
     const outingSeries = O.computeSeries(hours);
 
-    // 추천 시간대는 '해가 떠 있는 동안'에서만 고른다.
-    // 새벽 3시가 조용하다고 나들이를 권할 수는 없다.
+    // 추천 시간대는 해가 떠 있는 동안에서만 고른다.
     const daylight = hoursOfDaylight(w);
     const daySeries = outingSeries.filter((p) => p.hour >= daylight.from && p.hour <= daylight.to);
     const best = O.findBestWindow(daySeries.length ? daySeries : outingSeries);
 
-    // '지금'의 나들이 지수.
-    // 자외선은 하루 최대값이 아니라 '지금 이 시각' 값을 쓴다.
-    // (저녁인데 한낮의 최대 자외선을 보여 주면 사실과 다르다.)
     const nowPoint = series[0] || {};
     const now = O.compute({
       temperature: w.temperature,
       rainMm: w.currentRain ? 1 : 0,
       rainProbability: w.dailyRainProbability ?? w.precipitationProbability,
       windSpeed: w.windSpeed,
-      uvIndex: nowPoint.uvIndex != null ? nowPoint.uvIndex : w.uvIndexMax,
+      uvIndex: nowPoint.uvIndex != null ? nowPoint.uvIndex : w.uvIndexMax,   // 지금 시각의 자외선
       mosquitoIndex: d.index,
-      peakHourText: buildMosquitoPeakText(series),
+      peakHourText: mosquitoPeakText(series),
+    });
+    lastOutingScore = now.available ? now.score : null;
+    d.outingNow = now; d.outingBest = best;
+
+    const score = $('outingScore'), grade = $('outingGrade'), advice = $('outingAdvice');
+    if (score) score.textContent = now.available ? now.score : '--';
+    if (grade) grade.textContent = now.grade.label;
+    if (advice) advice.innerHTML = now.available ? O.buildAdvice(now.score, best, null).join('<br>') : '날씨를 불러오면 알려드릴게요.';
+
+    const order = ['나쁨', '보통', '좋음', '매우 좋음'];
+    const at = order.indexOf(now.grade.label);
+    [$('outingScaleBar'), $('outingScaleLabels')].forEach((box) => {
+      if (box) Array.from(box.children).forEach((el, i) => el.classList.toggle('is-on', i === at));
     });
 
-    lastOutingScore = now.available ? now.score : null;
+    const windowEl = $('outingBestWindow');
+    if (windowEl) { const t = O.formatWindow(best); windowEl.textContent = t ? `추천 ${t}` : ''; windowEl.hidden = !t; }
 
-    renderOutingChip(now, best, O);
-    renderOutingCard(now, outingSeries, best, O);
+    const hoursEl = $('outingHours');
+    if (hoursEl) {
+      hoursEl.innerHTML = outingSeries.length ? outingSeries.map((p) => {
+        const inBest = best && !best.tomorrow === p.isToday && p.hour >= best.from && p.hour <= best.to;
+        const height = Math.max(6, Math.round((p.score / 100) * 90));
+        const name = p.isToday ? `${p.hour}시` : `내일 ${p.hour}`;
+        return `<div class="outing-hour${inBest ? ' is-best' : ''}${p.score < 50 ? ' is-low' : ''}">
+          <span class="outing-hour-score">${p.score}</span><div class="outing-hour-bar" style="height:${height}px"></div><span class="outing-hour-name">${name}</span></div>`;
+      }).join('') : '<p class="dim">시간대별 정보를 불러오지 못했습니다.</p>';
+    }
+
+    const cond = $('outingConditions');
+    if (cond) {
+      cond.innerHTML = now.conditions.map((row) => `<div class="outing-condition">
+        <span class="outing-condition-icon" aria-hidden="true">${row.icon}</span><span>${row.name}</span>
+        <span class="outing-condition-value tone-${row.tone}">${row.text}</span></div>`).join('');
+    }
   }
 
-  // 해가 떠 있는 시간대를 구한다. 일출·일몰을 알면 그걸 쓰고, 없으면 7~19시로 본다.
   function hoursOfDaylight(weather) {
     const rise = weather.sunrise ? new Date(weather.sunrise) : null;
     const set = weather.sunset ? new Date(weather.sunset) : null;
@@ -206,288 +276,86 @@
     return { from: 7, to: 19 };
   }
 
-  // 모기가 가장 많아지는 시간대를 문장으로.
-  function buildMosquitoPeakText(series) {
-    if (!series || !series.length) return null;
-    let peak = series[0];
-    series.forEach((p) => { if (p.index > peak.index) peak = p; });
+  function mosquitoPeakText(series) {
+    const peak = peakAhead(series);
+    if (!peak) return null;
     if (peak.index < 41) return '오늘은 적은 편이에요';
     return `${peak.hourOfDay}시부터 많아요`;
   }
 
-  // 홈 화면의 한 줄 요약 칩
-  function renderOutingChip(now, best, O) {
-    const chip = $('outingChip');
-    if (!chip) return;
+  /* ---------- 오늘 챙길 것 (준비물) ----------
+     기준을 넘은 것만 켠다. 기준은 기상청·환경부 단계를 따른다.
+       기피제  모기지수 41점 이상, 또는 앞으로 12시간 안에 61점 이상
+       선크림  지금(낮이면 앞으로) 자외선 3 이상 (기상청 '보통' 이상)
+       우산    비가 오는 중, 또는 강수확률 40% 이상
+       물      체감온도 28도 이상
+       마스크  초미세먼지 36 이상 또는 미세먼지 81 이상 (환경부 '나쁨')      */
+  function renderKit(d) {
+    const list = $('kitList');
+    if (!list || d.index == null) return;
+    const w = d.weatherData || {};
+    const series = d.series || [];
+    const peak = peakAhead(series);
 
-    const score = $('outingChipScore');
-    const grade = $('outingChipGrade');
-    const advice = $('outingChipAdvice');
+    const uvAhead = Math.max(...series.slice(0, 8).map((p) => (p.uvIndex == null ? -1 : p.uvIndex)), -1);
+    const uv = uvAhead >= 0 ? uvAhead : (w.uvIndexMax ?? null);
+    const rainProb = w.dailyRainProbability ?? w.precipitationProbability ?? null;
+    const feels = w.feelsLike ?? w.temperature ?? null;
+    const air = lastAir;
 
-    chip.className = `glass outing-chip ${now.grade.className}`;
+    const items = [
+      { key: 'bug_report', name: '기피제',
+        on: d.index >= 41 || (peak && peak.index >= 61),
+        why: d.index >= 41 ? `지금 ${d.index}점` : (peak && peak.index >= 61 ? `${peak.hourOfDay}시 ${peak.index}점` : '오늘은 적어요') },
+      { key: 'wb_sunny', name: '선크림',
+        on: uv != null && uv >= 3,
+        why: uv == null ? '정보 없음' : `자외선 ${Math.round(uv)}` },
+      { key: 'umbrella', name: '우산',
+        on: Boolean(w.currentRain) || (rainProb != null && rainProb >= 40),
+        why: w.currentRain ? '지금 비' : (rainProb == null ? '정보 없음' : `비 ${Math.round(rainProb)}%`) },
+      { key: 'water_drop', name: '물',
+        on: feels != null && feels >= 28,
+        why: feels == null ? '정보 없음' : `체감 ${Math.round(feels)}도` },
+      { key: 'masks', name: '마스크',
+        on: air && ((air.pm25 != null && air.pm25 >= 36) || (air.pm10 != null && air.pm10 >= 81)),
+        why: !air ? '확인 중' : (air.pm25 == null ? '정보 없음' : `초미세먼지 ${air.pm25}`) },
+    ];
 
-    if (!now.available) {
-      if (score) score.textContent = '--';
-      if (grade) grade.textContent = '정보 없음';
-      if (advice) advice.textContent = '날씨를 불러오면 알려드릴게요.';
-      return;
-    }
+    list.innerHTML = items.map((it) => `<li class="${it.on ? 'on' : ''}"><span class="ms" aria-hidden="true">${it.key}</span>${it.name}<span class="why">${it.why}</span></li>`).join('');
 
-    if (score) score.textContent = now.score;
-    if (grade) grade.textContent = now.grade.label;
-    if (advice) advice.textContent = shortAdvice(now, best, O);
-  }
-
-  // 한 줄 안내. 점수가 낮은데 '나가기 좋아요'라고 하면 안 되므로
-  // 반드시 점수와 말이 맞도록 한다.
-  function shortAdvice(now, best, O) {
-    if (!now.available) return '날씨를 불러오면 알려드릴게요.';
-    const when = O.formatWindow(best);
-
-    if (now.score < 40) {
-      // 나쁜 이유가 있으면 그걸 그대로 알려 준다.
-      return now.capReason ? `오늘은 실내가 나아요 · ${now.capReason}` : '오늘은 실내가 나아요';
-    }
-    if (now.score < 60) {
-      return when ? `그나마 ${when}이 나아요` : '나가신다면 준비물을 챙기세요';
-    }
-    return when ? `${when}에 나가기 좋아요` : '오늘 나들이하기 괜찮아요';
-  }
-
-  // 예보 화면의 나들이 지수 카드
-  function renderOutingCard(now, outingSeries, best, O) {
-    const card = $('outingCard');
-    if (!card) return;
-
-    card.className = `glass outing-card ${now.grade.className}`;
-
-    const score = $('outingScore');
-    const grade = $('outingGrade');
-    const advice = $('outingAdvice');
-
-    if (score) score.textContent = now.available ? now.score : '--';
-    if (grade) grade.textContent = now.grade.label;
-    if (advice) {
-      advice.innerHTML = now.available
-        ? O.buildAdvice(now.score, best, null).join('<br>')
-        : '날씨를 불러오면 알려드릴게요.';
-    }
-
-    // 4단계 눈금
-    const bar = $('outingScaleBar');
-    const labels = $('outingScaleLabels');
-    const order = ['나쁨', '보통', '좋음', '매우 좋음'];
-    const activeAt = order.indexOf(now.grade.label);
-    if (bar) {
-      Array.from(bar.children).forEach((el, i) => el.classList.toggle('is-on', i === activeAt));
-    }
-    if (labels) {
-      Array.from(labels.children).forEach((el, i) => el.classList.toggle('is-on', i === activeAt));
-    }
-
-    // 추천 시간대
-    const windowEl = $('outingBestWindow');
-    if (windowEl) {
-      const text = O.formatWindow(best);
-      windowEl.textContent = text ? `추천 ${text}` : '추천 시간대 계산 중';
-      windowEl.hidden = !text;
-    }
-
-    // 시간대별 막대
-    const hoursEl = $('outingHours');
-    if (hoursEl) {
-      if (!outingSeries.length) {
-        hoursEl.innerHTML = '<p class="outing-hours-title">시간대별 정보를 불러오지 못했습니다.</p>';
-      } else {
-        const maxBar = 110;
-        hoursEl.innerHTML = outingSeries.map((point) => {
-          const inBest = best && !best.tomorrow === point.isToday
-            && point.hour >= best.from && point.hour <= best.to;
-          const low = point.score < 50;
-          const height = Math.max(6, Math.round((point.score / 100) * maxBar));
-          // 날짜가 넘어가는 칸은 '내일'임을 밝힌다.
-          const name = point.isToday ? `${point.hour}시` : `내일 ${point.hour}시`;
-          return `
-            <div class="outing-hour${inBest ? ' is-best' : ''}${low ? ' is-low' : ''}">
-              <span class="outing-hour-score num">${point.score}</span>
-              <div class="outing-hour-bar" style="height:${height}px"></div>
-              <span class="outing-hour-name">${name}</span>
-            </div>`;
-        }).join('');
-      }
-    }
-
-    // 오늘 나들이 조건 4줄
-    const conditions = $('outingConditions');
-    if (conditions) {
-      conditions.innerHTML = now.conditions.map((row) => `
-        <div class="outing-condition">
-          <span class="outing-condition-icon" aria-hidden="true">${row.icon}</span>
-          <span>${row.name}</span>
-          <span class="outing-condition-value tone-${row.tone}">${row.text}</span>
-        </div>`).join('');
+    // 한 줄 요약: 나들이 등급 + 켜진 준비물
+    const line = $('kitLine');
+    if (line) {
+      const on = items.filter((it) => it.on).map((it) => it.name);
+      const outing = d.outingNow;
+      const head = outing && outing.available ? `나들이 <em>${outing.grade.label}.</em> ` : '';
+      const tail = on.length === 0 ? '오늘은 챙길 게 없어요.'
+        : on.length === 1 ? `${on[0]}만 챙기세요.`
+        : `${on.slice(0, -1).join(', ')}${on.length > 2 ? '' : ''} 그리고 ${on[on.length - 1]} 챙기세요.`;
+      line.innerHTML = head + tail;
     }
   }
 
-  /* ---------- 시간대별 모기지수 막대 ---------- */
+  /* ---------- 오늘 이렇게 하세요 (script.js 의 행동요령을 줄 목록으로) ---------- */
+  function renderDoList() {
+    const box = $('doGrid'), source = $('actionTips');
+    if (!box || !source) return;
+    const tips = Array.from(source.querySelectorAll('li')).map((li) => li.textContent.trim()).filter(Boolean).slice(0, 3);
+    box.innerHTML = tips.map((t) => `<div><span class="ms" aria-hidden="true">check</span><span>${t}</span></div>`).join('');
+  }
+
+  /* ---------- 시간대별 모기 막대 ---------- */
   function renderMosquitoHours(d) {
     const box = $('mosquitoHours');
     if (!box) return;
     const series = (d.series || []).slice(0, 7);
-    if (!series.length) {
-      box.innerHTML = '<p class="tile-note">시간대별 정보를 불러오지 못했습니다.</p>';
-      return;
-    }
-
-    const maxBar = 110;
-    box.innerHTML = series.map((point, i) => {
-      const stage = stageOf(point.index);
-      const height = Math.max(6, Math.round((point.index / 100) * maxBar));
-      return `
-        <div class="hour ${stage.className}${i === 0 ? ' is-now' : ''}">
-          <span class="hour-value num">${point.index}</span>
-          <div class="hour-bar" style="height:${height}px"></div>
-          <span class="hour-name">${i === 0 ? '지금' : point.hourLabel}</span>
-        </div>`;
+    if (!series.length) { box.innerHTML = '<p class="dim">시간대별 정보를 불러오지 못했습니다.</p>'; return; }
+    box.innerHTML = series.map((p, i) => {
+      const stage = stageOf(p.index);
+      const height = Math.max(6, Math.round((p.index / 100) * 110));
+      return `<div class="hour ${stage.className}${i === 0 ? ' is-now' : ''}">
+        <span class="hour-value">${p.index}</span><div class="hour-bar" style="height:${height}px"></div><span class="hour-name">${i === 0 ? '지금' : p.hourLabel}</span></div>`;
     }).join('');
-  }
-
-  /* ---------- 오늘 이렇게 하세요 (큰 카드) ----------
-     script.js 가 #actionTips 에 채워 넣은 문장을 그대로 가져다
-     어르신도 읽기 쉬운 큰 카드로 다시 그린다. */
-  function renderDoCards() {
-    const grid = $('doGrid');
-    const source = $('actionTips');
-    if (!grid || !source) return;
-
-    const tips = Array.from(source.querySelectorAll('li'))
-      .map((li) => li.textContent.trim())
-      .filter(Boolean)
-      .slice(0, 3);
-
-    if (!tips.length) return;
-    grid.innerHTML = tips.map((tip, i) => `
-      <article class="glass do-card">
-        <span class="do-num">${i + 1}</span>
-        <p class="do-text">${tip}</p>
-      </article>`).join('');
-  }
-
-  /* ---------- 오늘 가기 좋은 공원 ---------- */
-  let parkData = null;      // 한 번만 불러온다
-
-  async function loadParks() {
-    if (parkData) return parkData;
-    try {
-      const res = await fetch('./data/gimhae-parks.json');
-      if (!res.ok) throw new Error('공원 자료를 받지 못했습니다.');
-      parkData = await res.json();
-    } catch (error) {
-      console.warn('공원 자료 불러오기 실패', error);
-      parkData = [];
-    }
-    return parkData;
-  }
-
-  function renderParks(d) {
-    const grid = $('parksGrid');
-    const note = $('parksNote');
-    if (!grid || !window.ParkPicks || !window.OutingIndex) return;
-
-    const score = lastOutingScore;
-    if (score == null) return;
-
-    loadParks().then((parks) => {
-      const picks = window.ParkPicks.pick(parks, score, {
-        from: { lat: d.lat, lng: d.lng },
-        limit: 3,
-      });
-
-      if (!picks.length) {
-        grid.innerHTML = '<article class="glass park-card"><div class="park-body">'
-          + '<p class="park-name">공원 정보를 불러오지 못했습니다.</p>'
-          + '<p class="park-where">잠시 뒤 다시 확인해 주세요.</p></div></article>';
-        if (note) note.textContent = '';
-        return;
-      }
-
-      grid.innerHTML = picks.map((s, i) => {
-        const pic = s.picture;
-        // 지도 그림은 공원 지점이 가운데로 오도록 위치를 맞춘다.
-        const bg = `background-image:url('${pic.src}');background-position:${pic.fx}% ${pic.fy}%`;
-        const tags = s.reason.split(' · ').map((t, k) =>
-          `<span class="park-tag${k === 0 ? ' good' : ''}">${t}</span>`).join('');
-        return `
-          <article class="glass park-card">
-            <div class="park-photo">
-              <div class="park-map${pic.isMap ? '' : ' is-photo'}" style="${bg}" role="img"
-                   aria-label="${s.park.name} ${pic.isMap ? '위치 지도' : '사진'}"></div>
-              ${pic.isMap ? '<span class="park-pin" aria-hidden="true"></span>' : ''}
-              <span class="park-rank">추천 ${i + 1}위</span>
-              <span class="park-icon" aria-hidden="true">${s.icon}</span>
-            </div>
-            <div class="park-body">
-              <h3 class="park-name">${s.park.name}</h3>
-              <p class="park-where">${s.park.district} · ${s.park.type}</p>
-              <div class="park-reason">${tags}</div>
-            </div>
-          </article>`;
-      }).join('');
-
-      if (note) {
-        note.textContent = picks[0].picture.isMap
-          ? '※ 사진 대신 그 자리의 지도 그림을 보여드립니다. 지도 © OpenStreetMap 기여자. '
-            + '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다.'
-          : '※ 공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다.';
-      }
-    });
-  }
-
-  /* ---------- 지도 옆 '우리 동네' 카드 ---------- */
-  function renderSideCard(d) {
-    const name = $('sidePlaceName');
-    const score = $('sideScore');
-    const badge = $('sideStage');
-    const rankTag = $('sidePlaceRank');
-    if (!name && !score) return;
-
-    const stage = d.index == null ? null : stageOf(d.index);
-    // 김해 안이면 읍·면·동 이름을, 밖이면 지역 이름을 보여 준다.
-    if (name) name.textContent = d.district || (d.region && d.region.name) || '우리 동네';
-    if (score) score.textContent = d.index == null ? '--' : d.index;
-    if (badge && stage) {
-      badge.className = `stage-badge ${stage.className}`;
-      badge.textContent = stage.label;
-    }
-    if (rankTag) {
-      const rank = d.precision && d.precision.ranking;
-      rankTag.textContent = rank ? `김해 ${rank.total_districts}곳 중 ${rank.rank}위` : '';
-    }
-  }
-
-  /* ---------- 우리 동네 순위 점 ---------- */
-  function renderRank(d) {
-    const lead = $('rankLead');
-    const dots = $('rankDots');
-    const rank = d.precision && d.precision.ranking;
-
-    if (!rank) {
-      // 김해 밖이면 순위를 낼 수 없다. 없는 순위를 지어내지 않는다.
-      if (lead) lead.innerHTML = '<span>김해 지역만 동네별 순위를 제공합니다.</span>';
-      if (dots) dots.innerHTML = '';
-      return;
-    }
-
-    if (lead) {
-      lead.innerHTML = `<span class="num">${rank.rank}</span>`
-        + `<span>번째로 모기가 많아요 <span class="of">/ ${rank.total_districts}곳</span></span>`;
-    }
-    if (dots) {
-      const stage = stageOf(d.index);
-      dots.className = `dots ${stage.className}`;
-      dots.innerHTML = Array.from({ length: rank.total_districts }, (unused, i) =>
-        `<i${i === rank.rank - 1 ? ' class="is-me"' : ''}></i>`).join('');
-    }
   }
 
   /* ---------- 5일 예보 ---------- */
@@ -495,24 +363,54 @@
     const box = $('daysList');
     if (!box) return;
     const days = d.dailyOutlook || [];
-    if (!days.length) {
-      box.innerHTML = '<p class="tile-note">실제 날씨가 연결되면 5일 예보를 보여드립니다.</p>';
-      return;
-    }
-
+    if (!days.length) { box.innerHTML = '<p class="dim">실제 날씨가 연결되면 5일 예보를 보여드립니다.</p>'; return; }
     const names = ['일', '월', '화', '수', '목', '금', '토'];
     box.innerHTML = days.map((day, i) => {
       const stage = stageOf(day.index);
-      const date = day.date;
-      const label = i === 0 ? '오늘' : names[date.getDay()];
-      return `
-        <div class="day ${stage.className}">
-          <span class="day-name">${label}</span>
-          <span class="day-date num">${date.getMonth() + 1}/${date.getDate()}</span>
-          <span class="day-track"><span class="day-fill" style="width:${day.index}%"></span></span>
-          <span class="day-score num">${day.index}</span>
-          <span class="day-stage">${stage.label}</span>
-        </div>`;
+      return `<div class="day ${stage.className}">
+        <span class="day-name">${i === 0 ? '오늘' : names[day.date.getDay()]}</span>
+        <span class="day-date num">${day.date.getMonth() + 1}/${day.date.getDate()}</span>
+        <span class="day-track"><span class="day-fill" style="width:${day.index}%"></span></span>
+        <span class="day-score num">${day.index}</span><span class="day-stage">${stage.label}</span></div>`;
     }).join('');
+  }
+
+  /* ---------- 우리 동네 순위 ---------- */
+  function renderRank(d) {
+    const lead = $('rankLead');
+    if (!lead) return;
+    const rank = d.precision && d.precision.ranking;
+    // 김해 밖이면 순위를 낼 수 없다. 없는 순위를 지어내지 않는다.
+    lead.innerHTML = rank
+      ? `<span class="num">${rank.rank}</span><span>번째로 모기가 많아요 · ${rank.total_districts}곳 중</span>`
+      : '<span class="dim">김해 지역만 동네별 순위를 제공합니다.</span>';
+  }
+
+  /* ---------- 오늘 가기 좋은 공원 ---------- */
+  let parkData = null;
+  async function loadParks() {
+    if (parkData) return parkData;
+    try {
+      const res = await fetch('./data/gimhae-parks.json');
+      if (!res.ok) throw new Error('공원 자료를 받지 못했습니다.');
+      parkData = await res.json();
+    } catch (error) { console.warn('공원 자료 불러오기 실패', error); parkData = []; }
+    return parkData;
+  }
+
+  function renderParks(d) {
+    const grid = $('parksGrid'), note = $('parksNote');
+    if (!grid || !window.ParkPicks) return;
+    if (lastOutingScore == null) { grid.innerHTML = '<p class="dim">날씨를 불러오면 공원을 골라드립니다.</p>'; return; }
+    loadParks().then((parks) => {
+      const picks = window.ParkPicks.pick(parks, lastOutingScore, { from: { lat: d.lat, lng: d.lng }, limit: 3 });
+      if (!picks.length) { grid.innerHTML = '<p class="dim">공원 정보를 불러오지 못했습니다.</p>'; return; }
+      grid.innerHTML = picks.map((s, i) => {
+        const q = encodeURIComponent(`${s.park.name} 김해`);
+        return `<a href="https://www.openstreetmap.org/?mlat=${s.park.lat}&mlon=${s.park.lon}#map=17/${s.park.lat}/${s.park.lon}" target="_blank" rel="noopener" aria-label="${s.park.name} 지도 열기 (새 창)">
+          <span class="r">${i + 1}위 · ${s.park.district}</span><span class="nm">${s.park.name}</span><span class="m">${s.reason}</span></a>`;
+      }).join('');
+      if (note) note.textContent = '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다. 공원을 누르면 지도가 열립니다.';
+    });
   }
 }());

@@ -1641,6 +1641,9 @@ function buildOutingTile({ icon, name, value, unit, gradeLabel, tone, advice, ba
 
 // 나들이 지수 카드 3종(식중독 · 미세먼지 · 초미세먼지)을 그린다.
 async function renderOutingIndices(lat, lng, weatherData) {
+  // 대기질은 화면에 타일이 없어도 받아 둔다. 준비물(마스크) 판단에 쓰기 때문이다.
+  const airForKit = await loadAirQuality(lat, lng);
+  document.dispatchEvent(new CustomEvent('air:updated', { detail: airForKit }));
   if (!outingGrid) return;
 
   // (1) 식중독지수 — 날씨로 자체 산출
