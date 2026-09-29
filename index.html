@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>모기제로 | 오늘의 모기지수</title>
-  <meta name="description" content="오늘의 모기지수, 챙길 것, 나들이 지수, 시간대별·5일 전망, 동네별 지도, 가기 좋은 공원, 모기 도감을 한 화면에서 확인하세요.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta name="description" content="오늘 김해 모기지수와 챙길 것, 시간대별 모기, 동네별 지도, 가기 좋은 공원, 모기 도감을 한 화면에서 확인하세요.">
+  <link rel="icon" href="assets/brand/logo-icon.png">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <!-- 글꼴: 본문 Pretendard(한글) · 숫자 Geist · 워드마크 Baloo 2 -->
+  <!-- 글꼴: Pretendard 한 가지만 쓴다 (토스 Product Sans 와 가장 가까운 공개 글꼴) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Baloo+2:wght@800&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="design.css">
   <link rel="stylesheet" href="chat.css">
@@ -18,19 +16,17 @@
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
 
-  <!-- 상단: 워드마크 · 메뉴 · 지역 선택 -->
+  <!-- 상단 -->
   <header class="nav">
     <div class="nav-in">
-      <a class="mark" href="index.html" aria-label="모기제로 홈"><span class="mo">MOSQUITO</span><span class="zero">ZERO</span></a>
+      <a class="brand" href="index.html" aria-label="모기제로 홈"><img src="assets/brand/logo-icon.png" alt=""><span>모기제로</span></a>
       <nav class="lk" id="primaryNav" aria-label="주요 메뉴">
+        <a href="#flow">오늘 하루</a>
         <a href="#kit">챙길 것</a>
-        <a href="#today">오늘 하루</a>
         <a href="#town">우리 동네</a>
-        <a href="#why">점수 이유</a>
-        <a href="#guide">모기 도감</a>
+        <a href="mosquito-info.html">모기 도감</a>
       </nav>
       <div class="where">
-        <svg class="pin" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="10" r="2.6" stroke="currentColor" stroke-width="2.2"/></svg>
         <label class="sr-only" for="regionSelect">지역 선택</label>
         <select id="regionSelect" class="place-select"></select>
         <button id="myLocationButton" class="loc-btn" type="button">현재 위치로</button>
@@ -41,37 +37,29 @@
 
   <main id="main">
 
-    <!-- 히어로: 화면을 채운 김해 사진 카드 위에 큰 숫자 하나와 한 줄 결론 (토스 첫 화면 방식) -->
-    <section class="hero" aria-labelledby="heroTitle" data-tick="지금">
+    <!-- 1. 첫 화면: 김해 사진 카드 위에 오늘 모기지수 -->
+    <section class="hero" aria-labelledby="heroTitle">
       <div class="hero-card">
         <img class="hero-img" src="assets/bg/gimhae-day.jpg" alt="발룡산에서 내려다본 김해 장유 전경">
         <div class="hero-shade" aria-hidden="true"></div>
         <div class="hero-in">
-          <p class="eyebrow up">
-            <span id="navWeather">날씨 확인 중</span>
-            <span class="src" id="weatherSourceBadge">실제 날씨</span>
-          </p>
+          <p class="eyebrow up"><span id="navWeather">날씨 확인 중</span><span class="src" id="weatherSourceBadge">실제 날씨</span></p>
           <div class="idx up">
-            <span class="n num" id="indexValue">--</span>
-            <div class="stage-wrap">
+            <p class="idx-label">오늘 모기지수</p>
+            <div class="idx-row">
+              <span class="n" id="indexValue">--</span>
               <span class="stage-row"><span class="lvl lvl-lg" id="stageFace" aria-hidden="true"></span><span class="stage" id="stageBadge"><i></i>확인 중</span></span>
-              <small>오늘 모기지수, 참고용 예상값이에요</small>
             </div>
           </div>
           <h1 id="heroTitle" class="up"><span id="heroLine2">확인 중.</span> <span id="heroLine3">잠시만요.</span></h1>
-          <div class="hero-foot up">
-            <p id="flowLine">날씨를 불러오는 중입니다.</p>
-            <div class="cta">
-              <a class="pill-btn light" href="#kit">오늘 챙길 것 <i aria-hidden="true">↓</i></a>
-            </div>
-          </div>
         </div>
       </div>
       <p class="meta">
+        <span>참고용 예상값이에요.</span>
         <span id="locationText">위치를 확인하는 중</span>
         <span id="updatedText">갱신 -</span>
-        <span class="data-pill" id="locationSourceBadge">지역 선택</span>
-        <span class="data-pill" id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
+        <span id="locationSourceBadge">지역 선택</span>
+        <span id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
         <button id="retryButton" class="link" type="button" hidden>날씨 다시 불러오기</button>
       </p>
       <p class="sr-only" id="adviceText"></p>
@@ -82,37 +70,37 @@
       <span class="sr-only" id="precisionBadge" hidden></span>
     </section>
 
-    <!-- 지금부터 24시간: 색 칸 24개 -->
-    <section class="s flow" aria-labelledby="flT">
-      <div class="wrap">
-        <div class="h rv">
+    <!-- 2. 지금부터 24시간: 왼쪽 글, 오른쪽 회색 액자 속 막대 (토스 기능 소개 방식) -->
+    <section class="s" id="flow" aria-labelledby="flT">
+      <div class="wrap split">
+        <div class="copy rv">
           <h2 id="flT">지금부터 24시간,<br>언제 모기가 많을까요</h2>
-          <p>막대가 높을수록 모기가 많아요. 가장 많은 때는 파란색이에요.</p>
+          <p id="flowLine">날씨를 불러오는 중이에요.</p>
+          <p class="note">막대가 높을수록 모기가 많아요. 검은 막대가 지금, 파란 막대가 가장 많은 때예요.</p>
         </div>
-        <div class="ribbon-wrap rv">
+        <div class="frame rv">
           <div class="ribbon" id="dayRibbon" aria-label="지금부터 24시간 모기지수"></div>
           <div class="ribbon-l" id="dayRibbonLabels" aria-hidden="true"></div>
         </div>
       </div>
     </section>
 
-    <!-- 오늘 챙길 것: 상자 없이 그림 + 이름 + 이유 -->
-    <section class="s" id="kit" aria-labelledby="kitT" data-tick="챙길 것">
-      <div class="wrap">
-        <div class="h rv">
-          <h2 id="kitT">오늘 챙길 것</h2>
-          <p>켜진 것만 챙기면 됩니다. 날씨 값이 기준을 넘을 때 켜져요.</p>
-        </div>
-        <ul class="kit" id="kitList" aria-live="polite">
-          <li class="wait rv"><span class="top"><span class="ico"></span></span><span class="nm">기피제</span><span class="why">날씨 확인 중</span></li>
-          <li class="wait rv"><span class="top"><span class="ico"></span></span><span class="nm">선크림</span><span class="why">날씨 확인 중</span></li>
-          <li class="wait rv"><span class="top"><span class="ico"></span></span><span class="nm">우산</span><span class="why">날씨 확인 중</span></li>
-          <li class="wait rv"><span class="top"><span class="ico"></span></span><span class="nm">물</span><span class="why">날씨 확인 중</span></li>
-          <li class="wait rv"><span class="top"><span class="ico"></span></span><span class="nm">마스크</span><span class="why">대기질 확인 중</span></li>
-        </ul>
-        <div class="tip rv">
-          <p class="kit-line" id="kitLine">날씨를 불러오면 알려드립니다.</p>
+    <!-- 3. 오늘 챙길 것: 왼쪽 글, 오른쪽 켜짐/꺼짐 목록 -->
+    <section class="s" id="kit" aria-labelledby="kitT">
+      <div class="wrap split rev">
+        <div class="copy rv">
+          <h2 id="kitT">나가기 전에<br>이것만 챙기세요</h2>
+          <p id="kitLine">날씨를 불러오면 알려드려요.</p>
           <div class="do" id="doGrid" aria-label="오늘의 행동요령"></div>
+        </div>
+        <div class="frame rv">
+          <ul class="kit" id="kitList" aria-live="polite">
+            <li class="wait"><span class="top"><span class="ico"></span></span><span class="nm">기피제</span><span class="why">확인 중</span></li>
+            <li class="wait"><span class="top"><span class="ico"></span></span><span class="nm">선크림</span><span class="why">확인 중</span></li>
+            <li class="wait"><span class="top"><span class="ico"></span></span><span class="nm">우산</span><span class="why">확인 중</span></li>
+            <li class="wait"><span class="top"><span class="ico"></span></span><span class="nm">물</span><span class="why">확인 중</span></li>
+            <li class="wait"><span class="top"><span class="ico"></span></span><span class="nm">마스크</span><span class="why">확인 중</span></li>
+          </ul>
         </div>
         <ul class="sr-only" id="actionTips"></ul>
         <p class="sr-only" id="repellentText"></p>
@@ -120,16 +108,15 @@
       </div>
     </section>
 
-    <!-- 오늘 하루: 검정 판 (애플 방식) -->
-    <section class="s dark" id="today" aria-labelledby="tdT" data-tick="오늘 하루">
+    <!-- 4. 오늘 하루: 검정 판 -->
+    <section class="s dark" id="today" aria-labelledby="tdT">
       <div class="wrap">
-        <div class="h rv">
-          <h2 id="tdT">오늘 하루</h2>
-          <p>두 시간마다 모기지수, 나들이하기 좋은 정도, 앞으로 5일.</p>
+        <div class="head rv">
+          <h2 id="tdT">두 시간마다 달라지는 모기,<br>나들이하기 좋은 때까지</h2>
         </div>
         <div class="grid today">
           <div class="panel rv">
-            <h3>시간대별 모기 <small>숫자가 클수록 많아요</small></h3>
+            <h3>시간대별 모기지수</h3>
             <div class="bars" id="mosquitoHours"></div>
             <div class="kv">
               <div><div class="k">가장 많은 때</div><div class="v" id="peakDangerTime">-</div><div class="s2" id="peakDangerNote"></div></div>
@@ -139,23 +126,23 @@
           <div class="panel out rv" id="outingCard">
             <h3>나들이 지수 <span class="best" id="outingBestWindow" hidden></span></h3>
             <div class="n"><span class="num" id="outingScore">--</span><small id="outingGrade" data-tone="확인 중">확인 중</small></div>
-            <p id="outingAdvice">날씨를 불러오는 중입니다.</p>
+            <p id="outingAdvice">날씨를 불러오는 중이에요.</p>
             <div class="meter" id="outingScaleBar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
             <div class="meter-l" id="outingScaleLabels"><span>나쁨</span><span>보통</span><span>좋음</span><span>매우 좋음</span></div>
             <div class="cond" id="outingConditions"></div>
           </div>
         </div>
         <h3 class="sub-h rv">앞으로 5일</h3>
-        <div class="days" id="daysList"><p class="dim">실제 날씨가 연결되면 5일 전망을 보여드립니다.</p></div>
+        <div class="days" id="daysList"><p class="dim">실제 날씨가 연결되면 5일 전망을 보여드려요.</p></div>
       </div>
     </section>
 
-    <!-- 우리 동네: 큰 지도 카드 + 순위 + 공원 -->
-    <section class="s" id="town" aria-labelledby="twT" data-tick="우리 동네">
+    <!-- 5. 우리 동네 -->
+    <section class="s" id="town" aria-labelledby="twT">
       <div class="wrap">
-        <div class="h rv">
-          <h2 id="twT">우리 동네</h2>
-          <p>김해 17개 읍·면·동을 발생원 자료와 실제 날씨로 비교했어요.</p>
+        <div class="head rv">
+          <h2 id="twT">우리 동네는<br>김해에서 몇 번째일까요</h2>
+          <p>17개 읍·면·동을 발생원 자료와 실제 날씨로 비교했어요.</p>
         </div>
         <div class="map-wrap rv" id="map-section">
           <div id="map" class="map" aria-label="모기 위험 지도"></div>
@@ -170,35 +157,34 @@
             </div>
           </div>
         </div>
-        <p id="heatmapInfo" class="dim map-info" hidden>모기는 고인 물이 있는 곳에서 번식합니다. 원이 크고 색이 진할수록 발생원이 몰려 있는 동네입니다.</p>
+        <p id="heatmapInfo" class="dim map-info" hidden>모기는 고인 물이 있는 곳에서 번식해요. 원이 크고 색이 진할수록 발생원이 몰려 있는 동네예요.</p>
         <div class="grid town">
           <div class="rank rv">
-            <h3>우리 동네는 김해에서</h3>
             <div class="lead" id="rankLead"><span class="dim">순위를 계산하는 중</span></div>
-            <h3 class="mt">오늘 조심할 동네</h3>
+            <h3>오늘 조심할 동네</h3>
             <ol class="ranking-list" id="rankingList"></ol>
             <p class="sr-only" id="ranking-section"></p>
           </div>
           <div class="park-col rv">
             <h3 id="parks">오늘 가기 좋은 공원</h3>
-            <div class="parks" id="parksGrid"><p class="dim">불러오는 중입니다.</p></div>
+            <div class="parks" id="parksGrid"><p class="dim">불러오는 중이에요.</p></div>
             <p class="dim" id="parksNote"></p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 왜 이 점수일까: 날씨 값 + 이유 -->
-    <section class="s gray" id="why" aria-labelledby="whT" data-tick="점수 이유">
+    <!-- 6. 왜 이 점수일까 -->
+    <section class="s gray" id="why" aria-labelledby="whT">
       <div class="wrap">
-        <div class="h rv">
+        <div class="head rv">
           <h2 id="whT">왜 <em id="whyScore">이 점수일까</em></h2>
-          <p>실제 날씨(Open-Meteo)와 김해 정밀 모델로 계산했어요.</p>
+          <p>실제 날씨와 김해 발생원 자료로 계산했어요.</p>
         </div>
         <div class="metric-grid rv" id="weatherGrid"></div>
         <div class="why-box rv">
           <ul class="analysis-list" id="analysisList"></ul>
-          <details class="more"><summary>더 자세히 보기</summary>
+          <details class="more"><summary>계산 근거 자세히 보기</summary>
             <div class="metric-grid small" id="weatherGridMore"></div>
             <ul class="analysis-list" id="analysisMore"></ul>
             <div class="calc-detail-body" id="calcDetailBody"></div>
@@ -209,39 +195,39 @@
       </div>
     </section>
 
-    <!-- 모기 도감: 상자 없이 사진 + 글, 사진 높이를 엇갈리게 -->
-    <section class="s" id="guide" aria-labelledby="gdT" data-tick="모기 도감">
+    <!-- 7. 모기 도감 -->
+    <section class="s" id="guide" aria-labelledby="gdT">
       <div class="wrap">
-        <div class="h rv">
-          <h2 id="gdT">우리 주변 모기 4종</h2>
-          <p>사진 판별 기능은 준비 중이에요.</p>
+        <div class="head rv">
+          <h2 id="gdT">우리 주변에서<br>병을 옮기는 모기 4종</h2>
+          <p>사는 곳을 알면 어디 물을 비울지 보여요. 사진 판별 기능은 준비 중이에요.</p>
+          <a class="more-link" href="mosquito-info.html">모기 도감 전체 보기 <i aria-hidden="true">›</i></a>
         </div>
         <div class="species">
-          <article class="rv"><img src="assets/mosquito/culex-pipiens.jpg" alt="빨간집모기. 갈색 몸에 가는 다리." loading="lazy"><div class="sp"><b>빨간집모기</b><span class="al">밤에 집 안으로 들어오는 가장 흔한 모기</span><span class="dz">웨스트나일열</span><span class="do2">방충망 점검, 저녁 환기 시 주의</span></div></article>
-          <article class="rv"><img src="assets/mosquito/culex-tritaeniorhynchus.jpg" alt="작은빨간집모기. 붉은 갈색을 띠는 작은 모기." loading="lazy"><div class="sp"><b>작은빨간집모기</b><span class="al">논과 축사 주변, 여름밤에 활동</span><span class="dz">일본뇌염</span><span class="do2">예방접종 확인, 논 근처 저녁 외출 주의</span></div></article>
+          <article class="rv"><img src="assets/mosquito/culex-pipiens.jpg" alt="빨간집모기. 갈색 몸에 가는 다리." loading="lazy"><div class="sp"><b>빨간집모기</b><span class="al">밤에 집 안으로 들어오는 가장 흔한 모기</span><span class="dz">웨스트나일열</span><span class="do2">방충망 점검, 저녁 환기 때 조심</span></div></article>
+          <article class="rv"><img src="assets/mosquito/culex-tritaeniorhynchus.jpg" alt="작은빨간집모기. 붉은 갈색을 띠는 작은 모기." loading="lazy"><div class="sp"><b>작은빨간집모기</b><span class="al">논과 축사 주변, 여름밤에 활동</span><span class="dz">일본뇌염</span><span class="do2">예방접종 확인, 논 근처 저녁 외출 조심</span></div></article>
           <article class="rv"><img src="assets/mosquito/aedes-albopictus.jpg" alt="흰줄숲모기. 검은 몸에 흰 줄무늬가 뚜렷한 모기." loading="lazy"><div class="sp"><b>흰줄숲모기</b><span class="al">낮에도 물어요. 풀숲과 공원</span><span class="dz">뎅기열 · 지카바이러스</span><span class="do2">화분 받침·폐타이어 물 비우기</span></div></article>
-          <article class="rv"><img src="assets/mosquito/anopheles-sinensis.jpg" alt="얼룩날개모기. 날개에 얼룩무늬, 앉을 때 몸을 세운다." loading="lazy"><div class="sp"><b>얼룩날개모기</b><span class="al">앉을 때 몸을 비스듬히 세우는 게 특징</span><span class="dz">말라리아</span><span class="do2">물린 뒤 열이 나면 병원으로</span></div></article>
+          <article class="rv"><img src="assets/mosquito/anopheles-sinensis.jpg" alt="얼룩날개모기. 날개에 얼룩무늬, 앉을 때 몸을 세운다." loading="lazy"><div class="sp"><b>얼룩날개모기</b><span class="al">앉을 때 몸을 비스듬히 세워요</span><span class="dz">말라리아</span><span class="do2">물린 뒤 열이 나면 병원으로</span></div></article>
         </div>
-        <div class="larva rv"><img src="assets/mosquito/culex-larvae.jpg" alt="물속의 모기 유충 여러 마리." loading="lazy"><div><b>모기는 물에서 자라요</b><span>알·유충·번데기 세 단계가 전부 물속에서 일어나요. 일주일에 한 번만 고인 물을 비워도 어른 모기가 되기 전에 끊을 수 있어요.</span></div></div>
-        <p class="dim">사진: CDC/James Gathany(퍼블릭 도메인), 根川大橋·Kyu3a(CC BY-SA 4.0)</p>
+        <div class="larva rv"><img src="assets/mosquito/culex-larvae.jpg" alt="물속의 모기 유충 여러 마리." loading="lazy"><div><h3>모기는 물에서 자라요</h3><p>알·유충·번데기 세 단계가 전부 물속에서 일어나요. 일주일에 한 번만 고인 물을 비워도 어른 모기가 되기 전에 끊을 수 있어요.</p></div></div>
       </div>
     </section>
 
-    <!-- 오늘의 한 마디 -->
+    <!-- 8. 오늘의 한 마디 -->
     <section class="s quip-s" aria-label="오늘의 한 마디">
       <div class="wrap">
-        <p class="quip rv" id="quip">모기는 무는 건 전부 암컷이에요.<small>오늘의 한 마디 · 매일 바뀝니다</small></p>
+        <p class="quip rv" id="quip">모기는 무는 건 전부 암컷이에요.<small>오늘의 한 마디</small></p>
       </div>
     </section>
 
-    <!-- 제보: 밤 사진 카드 -->
+    <!-- 9. 제보 -->
     <section class="report-s" aria-labelledby="rpT">
       <div class="report rv" id="report">
         <img src="assets/bg/gimhae-night.jpg" alt="" loading="lazy">
         <div class="in">
           <h2 id="rpT">여기 모기 있어요</h2>
           <p>누르면 우리 동네 모기 지도에 표시하는 기능을 준비하고 있어요.</p>
-          <button class="pill-btn light" type="button" id="reportBtn">제보하기 (준비 중)</button>
+          <button class="btn-white" type="button" id="reportBtn">제보하기 (준비 중)</button>
         </div>
       </div>
     </section>
@@ -250,10 +236,10 @@
 
   <footer class="foot">
     <div class="wrap">
-      <p>모기지수와 나들이 지수는 참고용 예상값이며 의학적·방역적 판단을 대신하지 않습니다. 준비물은 날씨 값이 기준을 넘을 때 켜집니다.
-      공원 추천은 공원 유형과 동네 발생원 자료로 계산한 값이며 공원별 실측값이 아닙니다.</p>
-      <p>배경 사진: 낮 · 발룡산에서 본 장유(Prime number, CC BY 4.0) / 밤 · 분성산 천문대에서 본 김해(Korea.net, CC BY-SA 2.0), 위키미디어 공용</p>
-      <p>날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터 · <a href="gimhae.html">전문가용 화면</a> · <a href="about.html">사이트 소개</a></p>
+      <p class="foot-brand">모기제로</p>
+      <p>모기지수와 나들이 지수는 참고용 예상값이며 의학적·방역적 판단을 대신하지 않습니다. 준비물은 날씨 값이 기준을 넘을 때 켜집니다. 공원 추천은 공원 유형과 동네 발생원 자료로 계산한 값이며 공원별 실측값이 아닙니다.</p>
+      <p>날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터 · 사진 CDC/James Gathany(퍼블릭 도메인), 根川大橋·Kyu3a(CC BY-SA 4.0) · 배경 사진 발룡산에서 본 장유(Prime number, CC BY 4.0), 분성산 천문대에서 본 김해(Korea.net, CC BY-SA 2.0)</p>
+      <p><a href="mosquito-info.html">모기 도감 자세히</a> · <a href="gimhae.html">전문가용 화면</a> · <a href="about.html">사이트 소개</a></p>
     </div>
   </footer>
   <div class="toast" id="toast" role="status"></div>
