@@ -79,7 +79,8 @@
     fxLayer.setAttribute('aria-hidden', 'true');
     bgLayer.appendChild(fxLayer);
 
-    document.body.insertBefore(bgLayer, document.body.firstChild);
+    // v16(애플 방식)부터 날씨 따라 바뀌는 배경은 쓰지 않는다. 김해 사진은 index.html 의 사진 카드에 고정으로 둔다.
+    // 배경 층을 만들기는 하되 화면에는 붙이지 않는다. (body 의 data-time · data-weather 값은 그대로 적는다)
   }
 
   /* ---------- 사진 한 장을 만들어 붙인다 (처음 쓸 때만) ---------- */

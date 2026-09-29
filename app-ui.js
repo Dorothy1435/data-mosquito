@@ -1,5 +1,5 @@
 /* =============================================================
-   홈 화면을 그리는 부분 (v14)
+   홈 화면을 그리는 부분 (v15 · 하늘)
    -------------------------------------------------------------
    계산은 하지 않는다.
    script.js 가 계산을 끝내고 보내는 'mosquito:updated' 이벤트를 받아
@@ -8,7 +8,7 @@
    여기서 채우는 것
      · 배경 사진 (weather-bg.js 에 넘김)
      · 상단 지금 상태 칩
-     · 히어로 한 줄 결론 · 단계 · 5단계 눈금
+     · 히어로 한 줄 결론 · 단계 · 오늘 24시간 띠 · 흐름 한 줄
      · 오늘 챙길 것 (준비물 5개)
      · 나들이 지수 · 시간대별 나들이 · 5일 예보
      · 시간대별 모기 막대 · 동네 순위
@@ -25,13 +25,37 @@
 
   /* ---------- 모기지수 5단계 ---------- */
   const STAGES = [
-    { max: 20, label: '매우 양호', className: 'stage-safe', word: '거의 없음.' },
-    { max: 40, label: '양호', className: 'stage-good', word: '적은 편.' },
-    { max: 60, label: '보통', className: 'stage-normal', word: '조금 있음.' },
-    { max: 80, label: '위험', className: 'stage-risk', word: '많은 편.' },
-    { max: 100, label: '매우 위험', className: 'stage-danger', word: '아주 많음.' },
+    { max: 20, label: '매우 양호', className: 'stage-safe', word: '거의 없어요.' },
+    { max: 40, label: '양호', className: 'stage-good', word: '적은 편이에요.' },
+    { max: 60, label: '보통', className: 'stage-normal', word: '조금 있어요.' },
+    { max: 80, label: '위험', className: 'stage-risk', word: '많은 편이에요.' },
+    { max: 100, label: '매우 위험', className: 'stage-danger', word: '아주 많아요.' },
   ];
   const stageOf = (index) => STAGES.find((s) => index <= s.max) || STAGES[STAGES.length - 1];
+
+  /* ---------- 단계 표시 아이콘 ----------
+     색만으로 단계를 구분하지 않도록(CLAUDE.md 규칙) 5칸 막대 아이콘을 함께 쓴다.
+     단계가 높을수록 칸이 더 많이 찬다. 찬 칸은 단계 색, 빈 칸은 옅은 색. */
+  const LEVEL_OF = { 'stage-safe': 1, 'stage-good': 2, 'stage-normal': 3, 'stage-risk': 4, 'stage-danger': 5 };
+  function faceSvg(className) {
+    const level = LEVEL_OF[className] || 0;
+    let bars = '';
+    for (let i = 0; i < 5; i += 1) {
+      const h = 6 + i * 3.5;
+      bars += `<rect x="${1 + i * 5}" y="${22 - h}" width="3.4" height="${h}" rx="1.2" class="${i < level ? 'on' : 'off'}"/>`;
+    }
+    return `<svg viewBox="0 0 26 23" width="100%" height="100%" aria-hidden="true">${bars}</svg>`;
+  }
+
+  /* ---------- 준비물 아이콘 (같은 굵기의 선 아이콘 한 벌) ---------- */
+  const KIT_ICONS = {
+    spray: '<rect x="6.5" y="9" width="9" height="12" rx="2"/><path d="M8.5 9V6h5v3M13.5 6h2.5"/><path d="M19 4.5h.01M21 7h.01M18.5 8h.01"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
+    umbrella: '<path d="M3 12a9 9 0 0 1 18 0Z"/><path d="M12 12v6.5a2 2 0 0 1-4 0M12 3v0"/>',
+    drop: '<path d="M12 3.2s6 6.4 6 10.8a6 6 0 0 1-12 0c0-4.4 6-10.8 6-10.8Z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/>',
+    mask: '<path d="M5 8.5c2.4-.9 4.6-1.3 7-1.3s4.6.4 7 1.3v4.3c0 3-3.3 5-7 5s-7-2-7-5Z"/><path d="M5 10H3.5v2.2c0 1.2.9 2 2 2.1M19 10h1.5v2.2c0 1.2-.9 2-2 2.1M9 11h6M9 14h6"/>',
+  };
+  const kitIcon = (key) => `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KIT_ICONS[key] || ''}</svg>`;
 
   /* ---------- 오늘의 한 마디 ---------- */
   // 널리 알려진 상식 수준의 문구만 넣는다. 날짜에 따라 하나씩 돌아간다.
@@ -115,6 +139,8 @@
       applyBackground(d);
       renderNow(d);
       renderHero(d);
+      renderDayRibbon(d);
+      renderFlowLine(d);
       renderOuting(d);
       renderKit(d);
       renderDoList();
@@ -156,9 +182,16 @@
 
     // 첫 줄: 지금 얼마나 많은지. 둘째 줄: 그래서 뭘 하면 되는지.
     const l1 = $('heroLine1'), l2 = $('heroLine2'), l3 = $('heroLine3');
-    if (l1) l1.textContent = '오늘 모기,';
+    if (l1) l1.textContent = '오늘 모기,';   // 예전 화면 호환
     if (l2) l2.textContent = stage.word;
     if (l3) l3.textContent = secondLine(d.index, series);
+
+    // 스크롤 이야기 첫 문장 (index.html #story)
+    const storyNow = $('storyNow');
+    if (storyNow) storyNow.textContent = `지금은 ${d.index}점, ${stage.word}`;
+
+    const face = $('stageFace');
+    if (face) { face.className = `lvl lvl-lg ${stage.className}`; face.innerHTML = faceSvg(stage.className); }
 
     const badge = $('stageBadge');
     if (badge) { badge.className = `stage ${stage.className}`; badge.innerHTML = `<i></i>${stage.label}`; }
@@ -169,7 +202,63 @@
     if (labels) Array.from(labels.children).forEach((el) => el.classList.toggle('is-on', el.textContent.trim() === stage.label));
 
     const why = $('whyScore');
-    if (why) why.textContent = `${d.index}점일까.`;
+    if (why) why.textContent = `${d.index}점일까`;
+  }
+
+  /* ---------- 오늘 24시간 띠 ----------
+     지금부터 24시간의 모기지수를 색 칸 24개로 늘어놓는다.
+     글을 읽지 않아도 '언제 많아지는지'가 색으로 보이게 하는 게 목적이다. */
+  function renderDayRibbon(d) {
+    const box = $('dayRibbon'), labels = $('dayRibbonLabels');
+    if (!box) return;
+    const series = (d.series || []).slice(0, 24);
+    if (!series.length) { box.innerHTML = ''; if (labels) labels.innerHTML = ''; return; }
+    const peakIndex = series.reduce((m, p, i) => (p.index > series[m].index ? i : m), 0);
+    box.innerHTML = series.map((p, i) => {
+      const stage = stageOf(p.index);
+      const name = i === 0 ? '지금' : p.hourLabel;
+      return `<span class="rc ${stage.className}${i === 0 ? ' is-now' : ''}${i === peakIndex ? ' is-peak' : ''}" style="--i:${i};--v:${p.index}" title="${name} ${p.index}점 · ${stage.label}"><b>${p.index}</b></span>`;
+    }).join('');
+    if (labels) {
+      labels.innerHTML = series.map((p, i) => {
+        const show = i === 0 || i % 3 === 0;          // 세 시간마다 시각을 적는다
+        const big = i === 0 || i % 6 === 0;           // 좁은 화면에서는 여섯 시간마다만 남긴다
+        return `<span class="${big ? 'big' : ''}${i === 0 ? ' now' : ''}">${show ? (i === 0 ? '지금' : shortHour(p.hourOfDay)) : ''}</span>`;
+      }).join('');
+    }
+  }
+
+  function shortHour(h) {
+    if (h == null) return '';
+    if (h === 0) return '자정';
+    if (h === 12) return '정오';
+    return h < 12 ? `오전${h}` : `오후${h - 12}`;
+  }
+
+  /* ---------- 흐름 한 줄: 언제부터 늘고 언제 가장 많은지 ---------- */
+  function renderFlowLine(d) {
+    const el = $('flowLine');
+    if (!el || d.index == null) return;
+    const series = (d.series || []).slice(0, 24);
+    if (!series.length) { el.textContent = '시간대별 예보를 불러오지 못했어요.'; return; }
+    const now = d.index;
+    const peak = series.reduce((m, p) => (p.index > m.index ? p : m), series[0]);
+    const low = series.reduce((m, p) => (p.index < m.index ? p : m), series[0]);
+    if (peak.index >= now + 8) {
+      const rise = series.find((p) => p.index >= now + 5) || peak;
+      el.textContent = `${timeWord(rise.hourOfDay)}부터 늘어나서 ${timeWord(peak.hourOfDay)}에 가장 많아요 (${peak.index}점 · ${stageOf(peak.index).label})`;
+    } else if (low.index <= now - 8) {
+      el.textContent = `${timeWord(low.hourOfDay)}엔 ${low.index}점까지 줄어요. 지금이 오늘 많은 편이에요.`;
+    } else {
+      el.textContent = `하루 종일 크게 달라지지 않아요. ${timeWord(peak.hourOfDay)}쯤 ${peak.index}점으로 가장 높아요.`;
+    }
+  }
+
+  // 21 → '밤 9시', 6 → '새벽 6시'
+  function timeWord(h) {
+    if (h == null) return '저녁';
+    const hh = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+    return `${hourWord(h)} ${hh}시`;
   }
 
   // 앞으로 몇 시간 안에 모기가 크게 늘면 그걸 먼저 말한다.
@@ -236,7 +325,7 @@
 
     const score = $('outingScore'), grade = $('outingGrade'), advice = $('outingAdvice');
     if (score) score.textContent = now.available ? now.score : '--';
-    if (grade) grade.textContent = now.grade.label;
+    if (grade) { grade.textContent = now.grade.label; grade.dataset.tone = now.grade.label; }
     if (advice) advice.innerHTML = now.available ? O.buildAdvice(now.score, best, null).join('<br>') : '날씨를 불러오면 알려드릴게요.';
 
     const order = ['나쁨', '보통', '좋음', '매우 좋음'];
@@ -304,24 +393,26 @@
     const air = lastAir;
 
     const items = [
-      { key: 'bug_report', name: '기피제',
+      { key: 'spray', name: '기피제',
         on: d.index >= 41 || (peak && peak.index >= 61),
         why: d.index >= 41 ? `지금 ${d.index}점` : (peak && peak.index >= 61 ? `${peak.hourOfDay}시 ${peak.index}점` : '오늘은 적어요') },
-      { key: 'wb_sunny', name: '선크림',
+      { key: 'sun', name: '선크림',
         on: uv != null && uv >= 3,
         why: uv == null ? '정보 없음' : `자외선 ${Math.round(uv)}` },
       { key: 'umbrella', name: '우산',
         on: Boolean(w.currentRain) || (rainProb != null && rainProb >= 40),
         why: w.currentRain ? '지금 비' : (rainProb == null ? '정보 없음' : `비 ${Math.round(rainProb)}%`) },
-      { key: 'water_drop', name: '물',
+      { key: 'drop', name: '물',
         on: feels != null && feels >= 28,
         why: feels == null ? '정보 없음' : `체감 ${Math.round(feels)}도` },
-      { key: 'masks', name: '마스크',
+      { key: 'mask', name: '마스크',
         on: air && ((air.pm25 != null && air.pm25 >= 36) || (air.pm10 != null && air.pm10 >= 81)),
         why: !air ? '확인 중' : (air.pm25 == null ? '정보 없음' : `초미세먼지 ${air.pm25}`) },
     ];
 
-    list.innerHTML = items.map((it) => `<li class="${it.on ? 'on' : ''}"><span class="ms" aria-hidden="true">${it.key}</span>${it.name}<span class="why">${it.why}</span></li>`).join('');
+    list.innerHTML = items.map((it) => `<li class="${it.on ? 'on' : ''}">
+      <span class="top"><span class="ico">${kitIcon(it.key)}</span></span>
+      <span class="nm">${it.name}</span><span class="st">${it.on ? '챙기세요' : '안 챙겨도 돼요'}</span><span class="why">${it.why}</span></li>`).join('');
 
     // 한 줄 요약: 나들이 등급 + 켜진 준비물
     const line = $('kitLine');
@@ -334,6 +425,15 @@
         : `${on.slice(0, -1).join(', ')}${on.length > 2 ? '' : ''} 그리고 ${on[on.length - 1]} 챙기세요.`;
       line.innerHTML = head + tail;
     }
+
+    // 스크롤 이야기 마지막 문장: 무엇을 챙기면 되는지
+    const storyKit = $('storyKit');
+    if (storyKit) {
+      const on = items.filter((it) => it.on).map((it) => it.name);
+      storyKit.textContent = on.length === 0 ? '오늘은 따로 챙길 게 없어요.'
+        : on.length === 1 ? `${on[0]} 하나만 챙기면 돼요.`
+        : `${on.slice(0, -1).join(', ')}이랑 ${on[on.length - 1]}, 챙겨 가세요.`;
+    }
   }
 
   /* ---------- 오늘 이렇게 하세요 (script.js 의 행동요령을 줄 목록으로) ---------- */
@@ -341,19 +441,22 @@
     const box = $('doGrid'), source = $('actionTips');
     if (!box || !source) return;
     const tips = Array.from(source.querySelectorAll('li')).map((li) => li.textContent.trim()).filter(Boolean).slice(0, 3);
-    box.innerHTML = tips.map((t) => `<div><span class="ms" aria-hidden="true">check</span><span>${t}</span></div>`).join('');
+    box.innerHTML = tips.map((t) => `<p>${t}</p>`).join('');
   }
 
   /* ---------- 시간대별 모기 막대 ---------- */
   function renderMosquitoHours(d) {
     const box = $('mosquitoHours');
     if (!box) return;
-    const series = (d.series || []).slice(0, 7);
+    const all = d.series || [];
+    // 지금, 그리고 두 시간마다 하나씩 → 최대 12개로 하루를 훑는다
+    const series = all.filter((p, i) => i === 0 || i % 2 === 0).slice(0, 12);
     if (!series.length) { box.innerHTML = '<p class="dim">시간대별 정보를 불러오지 못했습니다.</p>'; return; }
+    const peakAt = series.reduce((m, p, i) => (p.index > series[m].index ? i : m), 0);
     box.innerHTML = series.map((p, i) => {
       const stage = stageOf(p.index);
-      const height = Math.max(6, Math.round((p.index / 100) * 110));
-      return `<div class="hour ${stage.className}${i === 0 ? ' is-now' : ''}">
+      const height = Math.max(8, Math.round((p.index / 100) * 150));
+      return `<div class="hour ${stage.className}${i === 0 ? ' is-now' : ''}${i === peakAt ? ' is-peak' : ''}">
         <span class="hour-value">${p.index}</span><div class="hour-bar" style="height:${height}px"></div><span class="hour-name">${i === 0 ? '지금' : p.hourLabel}</span></div>`;
     }).join('');
   }
@@ -371,7 +474,7 @@
         <span class="day-name">${i === 0 ? '오늘' : names[day.date.getDay()]}</span>
         <span class="day-date num">${day.date.getMonth() + 1}/${day.date.getDate()}</span>
         <span class="day-track"><span class="day-fill" style="width:${day.index}%"></span></span>
-        <span class="day-score num">${day.index}</span><span class="day-stage">${stage.label}</span></div>`;
+        <span class="day-score num">${day.index}</span><span class="day-stage"><span class="lvl lvl-sm ${stage.className}">${faceSvg(stage.className)}</span>${stage.label}</span></div>`;
     }).join('');
   }
 
