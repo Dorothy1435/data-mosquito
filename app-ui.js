@@ -101,6 +101,28 @@
     high: ['오늘은 모기가 많은 날이에요. 기피제는 드러난 피부에 발라요.', '밝은 긴 옷이 제일 싸고 확실한 기피제예요.'],
     low: ['오늘은 모기가 적은 날이에요. 이럴 때 집 주변 물을 비워 두면 좋아요.'],
   };
+  /* ---------- 오늘 요약 흐름 띠 ----------
+     핵심 숫자를 짧은 조각으로 이어 한 줄로 흘린다. 같은 내용을 두 번 이어 붙여 끊김 없이 돈다.
+     화면 읽기 프로그램에는 첫 번째 묶음만 읽히게 두 번째는 aria-hidden. */
+  function renderTicker(d) {
+    const track = $('tickerTrack');
+    if (!track || d.index == null) return;
+    const w = d.weatherData || {};
+    const series = d.series || [];
+    const peak = series.slice(0, 24).reduce((m, p) => (!m || p.index > m.index ? p : m), null);
+    const bits = [`<b>지금 ${d.index}점</b> ${stageOf(d.index).label}`];
+    if (peak) bits.push(`<b>가장 많은 때</b> ${timeWord(peak.hourOfDay)} ${peak.index}점`);
+    if (w.temperature != null) bits.push(`<b>기온</b> ${Math.round(w.temperature)}°`);
+    const rain = w.dailyRainProbability ?? w.precipitationProbability;
+    if (rain != null) bits.push(`<b>비 올 확률</b> ${Math.round(rain)}%`);
+    const on = Array.from(document.querySelectorAll('#kitList li.on .nm')).map((el) => el.textContent);
+    bits.push(on.length ? `<b>챙길 것</b> ${on.join(' · ')}` : '<b>챙길 것</b> 없음');
+    const rank = d.precision && d.precision.ranking;
+    if (rank) bits.push(`<b>우리 동네</b> ${rank.total_districts}곳 중 ${rank.rank}번째`);
+    const one = bits.map((b) => `<span>${b}</span>`).join('');
+    track.innerHTML = `<div class="tk">${one}</div><div class="tk" aria-hidden="true">${one}</div>`;
+  }
+
   let lastQuipCtx = '';
   function renderContextQuip(d) {
     const el = $('quip');
@@ -172,6 +194,7 @@
       renderRank(d);
       renderParks(d);
       renderContextQuip(d);
+      renderTicker(d);
     } catch (error) {
       console.warn('화면 갱신 중 문제가 발생했습니다.', error);   // 한 군데가 실패해도 페이지는 살아 있어야 한다
     }
@@ -465,7 +488,7 @@
     const box = $('doGrid'), source = $('actionTips');
     if (!box || !source) return;
     const tips = Array.from(source.querySelectorAll('li')).map((li) => li.textContent.trim()).filter(Boolean).slice(0, 3);
-    box.innerHTML = tips.map((t) => `<p>${t}</p>`).join('');
+    box.innerHTML = tips.map((t, i) => `<p><i aria-hidden="true">${i + 1}</i>${t}</p>`).join('');
   }
 
   /* ---------- 시간대별 모기 막대 ---------- */

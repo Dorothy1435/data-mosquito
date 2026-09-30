@@ -61,6 +61,9 @@
 
       // 6) 상단 바: 첫 화면(보라)을 지나면 흰 바탕
       if (nav) nav.classList.toggle('solid', !hero || window.scrollY > hero.offsetHeight - 80);
+      // 떠 있는 카메라 버튼: 첫 화면을 지나면 보인다
+      const fab = document.querySelector('.fab-cam');
+      if (fab) fab.classList.toggle('show', !hero || window.scrollY > hero.offsetHeight * 0.6);
 
       if (reduceMotion) return;
 

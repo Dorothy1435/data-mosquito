@@ -522,3 +522,46 @@ body .mz-chat-fab::before { display: none; }
 .doc .lead { font-size: var(--t-lead); color: var(--g700); margin-bottom: 40px; }
 .doc h2 { font-size: 22px; margin: 36px 0 10px; }
 .doc p { font-size: 17px; line-height: 1.7; color: var(--g800); }
+
+/* ---------- 19) Wix 추천 31곳에서 가져온 기법 (2026-09-30) ----------
+   The Robin Collective · The Tea Story(흐름 띠), Tach Clothing · HERoines(떠 있는 버튼),
+   The Tea Story(동그라미 번호), The Robin Collective(메뉴 아이콘). 기법만 가져왔다. */
+
+/* 메뉴 아이콘 */
+.lk a { display: inline-flex; align-items: center; gap: 6px; }
+.lk a svg { flex: none; color: var(--g500); transition: color .2s; }
+.lk a:hover svg { color: var(--g900); }
+
+/* 오늘 요약 흐름 띠 */
+.ticker { margin-top: 24px; border-top: 1px solid var(--g200); border-bottom: 1px solid var(--g200); overflow: hidden; background: #fff; }
+.ticker-track { display: flex; width: max-content; animation: tick 38s linear infinite; }
+.ticker:hover .ticker-track { animation-play-state: paused; }   /* 마우스를 올리면 멈춰서 읽을 수 있다 */
+.tk { display: flex; flex: none; }
+.tk span, .ticker-track > span { display: inline-flex; align-items: center; gap: 8px; padding: 18px 28px; font-size: 18px; color: var(--g700); white-space: nowrap; }
+.tk span::after { content: ""; width: 6px; height: 6px; margin-left: 28px; border-radius: 50%; background: var(--blue); }
+.tk b { color: var(--g900); font-weight: 700; }
+@keyframes tick { to { transform: translateX(-50%); } }
+
+/* 떠 있는 카메라 버튼 */
+.fab-cam { position: fixed; left: 22px; bottom: 22px; z-index: 1100; display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 20px 0 16px; border: 0; border-radius: 999px; background: var(--g900); color: #fff; font: 700 16px var(--sans); cursor: pointer; box-shadow: 0 10px 28px rgba(0, 0, 0, .25); transition: transform .2s, background .2s; }
+.fab-cam:hover { background: #000; transform: translateY(-2px); } .fab-cam:active { transform: scale(.97); }
+
+/* 행동요령: 동그라미 번호 목록 */
+.do p { display: flex; align-items: flex-start; gap: 12px; padding-left: 0; font-size: 17px; color: var(--g800); }
+.do p::before { content: none; }
+.do p i { display: grid; place-items: center; flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%; background: var(--g900); color: #fff; font-style: normal; font-size: 14px; font-weight: 700; }
+
+@media (max-width: 900px) { .lk a svg { color: var(--g700); } }
+@media (max-width: 620px) {
+  .tk span, .ticker-track > span { padding: 14px 20px; font-size: 16px; }
+  .tk span::after { margin-left: 20px; }
+  .fab-cam { left: 12px; bottom: 16px; min-height: 50px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { width: auto; flex-wrap: wrap; } .ticker-track .tk + .tk { display: none; } .tk { flex-wrap: wrap; }
+}
+/* 카메라 버튼은 첫 화면을 지나서부터 나타난다 (첫 화면 글자를 가리지 않게) */
+.fab-cam { opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity .35s, transform .35s var(--ease), background .2s; }
+.fab-cam.show { opacity: 1; transform: none; pointer-events: auto; }
+/* '지금'과 '가장 많은 때'가 붙어 있으면 숫자가 겹치므로 가장 많은 때 숫자만 남긴다 */
+.rc.is-now:has(+ .rc.is-peak) b { display: none; }
