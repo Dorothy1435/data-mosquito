@@ -236,7 +236,7 @@
       <div class="wrap">
         <div class="head rv">
           <h2 id="gdT">우리 주변에서<br>병을 옮기는 모기 4종</h2>
-          <p>사는 곳을 알면 어디 물을 비울지 보여요. 사진 판별 기능은 준비 중이에요.</p>
+          <p>사는 곳을 알면 어디 물을 비울지 보여요. 잡은 모기는 <a href="#photo">사진으로 알아볼 수</a> 있어요.</p>
           <a class="more-link" href="mosquito-info.html">모기 도감 전체 보기 <i aria-hidden="true">›</i></a>
         </div>
         <div class="species">
@@ -266,15 +266,30 @@
           <button class="btn-white" type="button" id="reportBtn">여기 모기 있어요</button>
         </div>
       </div>
-      <!-- 제보 시험판 창: 동 단위만 고르고, 저장하지 않는다 -->
+      <!-- 제보 창: 1단계 위치 동의 → GPS / 거부하면 동네 직접 고르기. 시험판이라 저장하지 않는다 -->
       <dialog class="sheet" id="reportDialog" aria-labelledby="rdT">
         <form id="reportForm" method="dialog">
-          <h3 id="rdT">어느 동네에 모기가 있나요?</h3>
-          <label class="sr-only" for="reportDistrict">동네</label>
-          <select id="reportDistrict" class="sheet-select"></select>
-          <label class="sheet-agree"><input type="checkbox" id="reportAgree"> 시험판이라 저장되지 않고, 동네 이름만 지도에 잠깐 표시된다는 것을 확인했어요.</label>
+          <h3 id="rdT">지금 있는 곳에 모기가 있나요?</h3>
+          <div class="consent" id="reportConsent">
+            <p class="consent-t">위치 정보 이용 안내</p>
+            <dl>
+              <dt>무엇을</dt><dd>지금 휴대폰의 위치(GPS) 1회</dd>
+              <dt>왜</dt><dd>모기가 있는 곳을 지도에 표시하려고</dd>
+              <dt>보관</dt><dd>시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요</dd>
+            </dl>
+            <label class="sheet-agree"><input type="checkbox" id="reportAgree"> 위의 위치 정보 이용에 동의해요</label>
+            <p class="dim">동의하지 않아도 동네를 직접 골라 표시할 수 있어요.</p>
+          </div>
+          <div class="pick" id="reportPick" hidden>
+            <label for="reportDistrict">동네를 골라 주세요</label>
+            <select id="reportDistrict" class="sheet-select"></select>
+          </div>
           <p class="sheet-msg" id="reportMsg" role="alert"></p>
-          <div class="sheet-btns"><button class="btn-sub" type="button" id="reportCancel">닫기</button><button class="btn-main" type="submit">지도에 표시하기</button></div>
+          <div class="sheet-btns">
+            <button class="btn-sub" type="button" id="reportCancel">닫기</button>
+            <button class="btn-sub" type="button" id="reportManual">동네 직접 고르기</button>
+            <button class="btn-main" type="submit" id="reportSubmit">내 위치로 표시하기</button>
+          </div>
         </form>
       </dialog>
     </section>
@@ -290,6 +305,17 @@
     </div>
   </footer>
   <div class="toast" id="toast" role="status"></div>
+  <!-- 페이지 안 카메라 화면: 누르면 뒷면 카메라가 바로 켜진다 -->
+  <dialog class="cam" id="camDialog" aria-label="모기 사진 찍기">
+    <video id="camVideo" playsinline muted autoplay></video>
+    <div class="cam-guide" aria-hidden="true"><span></span></div>
+    <p class="cam-tip">모기가 동그라미 안에 크게 오게 찍어 주세요</p>
+    <div class="cam-bar">
+      <button class="cam-close" type="button" id="camClose">닫기</button>
+      <button class="cam-shot" type="button" id="camShot" aria-label="사진 찍기"></button>
+      <span aria-hidden="true"></span>
+    </div>
+  </dialog>
   <!-- 떠 있는 카메라 버튼: 어디서든 바로 모기를 찍을 수 있게 (Tach · HERoines 의 고정 버튼 기법) -->
   <button class="fab-cam" type="button" data-open="photoCamera" aria-label="모기 사진 찍어서 알아보기">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>

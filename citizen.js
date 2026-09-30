@@ -41,7 +41,12 @@
       if (file) handleFile(file);
     }));
     // 버튼을 누르면 숨겨 둔 파일 입력을 연다 (키보드로도 쓸 수 있게 버튼을 둔다)
-    document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => $(b.dataset.open).click()));
+    // '카메라로 찍기'는 페이지 안에서 카메라를 바로 연다. 안 되는 기기에서는 휴대폰 기본 카메라(파일 입력)로 넘어간다.
+    document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.open === 'photoCamera') openCamera();
+      else $(b.dataset.open).click();
+    }));
+    setupCamera();
     const again = $('photoAgain');
     if (again) again.addEventListener('click', resetPhoto);
   }
@@ -53,13 +58,19 @@
   }
 
   async function handleFile(file) {
-    const box = $('photoBox');
     if (!/^image\//.test(file.type)) { showError('사진 파일만 올릴 수 있어요.'); return; }
-    box.dataset.state = 'loading';
+    $('photoBox').dataset.state = 'loading';
     let dataUrl;
     try { dataUrl = await shrink(file, 1024); }
     catch (e) { showError('사진을 읽지 못했어요. 다시 찍어 주세요.'); return; }
+    identify(dataUrl);
+  }
+
+  async function identify(dataUrl) {
+    const box = $('photoBox');
+    box.dataset.state = 'loading';
     $('photoPreview').src = dataUrl;
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     try {
       const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
@@ -70,6 +81,51 @@
       showError('인터넷 연결을 확인하고 다시 시도해 주세요.');
     }
   }
+
+  /* ---------- 페이지 안 카메라 ----------
+     getUserMedia 로 뒷면 카메라를 바로 켠다 (HTTPS 에서만 동작, Vercel 은 HTTPS).
+     찍은 화면을 캔버스로 옮겨 긴 변 1024px JPEG 로 만든다 — 위치 정보 같은 메타데이터는 처음부터 없다.
+     카메라 권한을 거부했거나 지원하지 않으면 휴대폰 기본 카메라(파일 입력)를 연다. */
+  let camStream = null;
+
+  function setupCamera() {
+    const dlg = $('camDialog');
+    if (!dlg) return;
+    $('camShot').addEventListener('click', takeShot);
+    $('camClose').addEventListener('click', closeCamera);
+    dlg.addEventListener('close', stopStream);
+  }
+
+  async function openCamera() {
+    const dlg = $('camDialog');
+    if (!dlg || !dlg.showModal || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('photoCamera').click(); return; }
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    } catch (e) {
+      $('photoCamera').click();   // 권한 거부·카메라 없음 → 휴대폰 기본 카메라로
+      return;
+    }
+    const v = $('camVideo');
+    v.srcObject = camStream;
+    dlg.showModal();
+    try { await v.play(); } catch (_) { /* 버튼을 눌러 연 것이라 자동 재생 제한은 거의 없다 */ }
+  }
+
+  function takeShot() {
+    const v = $('camVideo');
+    if (!v.videoWidth) return;
+    const scale = Math.min(1, 1024 / Math.max(v.videoWidth, v.videoHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(v.videoWidth * scale);
+    c.height = Math.round(v.videoHeight * scale);
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    const dataUrl = c.toDataURL('image/jpeg', 0.85);
+    $('camDialog').classList.add('flash');
+    setTimeout(() => { $('camDialog').classList.remove('flash'); closeCamera(); identify(dataUrl); }, 180);
+  }
+
+  function closeCamera() { stopStream(); const d = $('camDialog'); if (d && d.open) d.close(); }
+  function stopStream() { if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; } }
 
   // 사진을 줄여 JPEG 로 다시 만든다. 다시 그리면 사진 속 촬영 위치 정보(EXIF)가 사라진다.
   function shrink(file, maxSide) {
@@ -115,46 +171,83 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  /* ---------------- 2) 여기 모기 있어요 (시험판) ---------------- */
+  /* ---------------- 2) 여기 모기 있어요 (시험판) ----------------
+     위치 동의 → GPS 1회 → 지도에 표시. 동의하지 않거나 GPS 가 안 되면 동네를 직접 고른다.
+     시험판이라 위치를 서버로 보내거나 저장하지 않는다.
+     (저장하는 정식 기능은 위치기반서비스사업 신고, 개인위치정보 이용약관·동의, 보관 기간을 정한 뒤에 연다) */
   const reportMarkers = [];
+  const GIMHAE = { minLat: 35.13, maxLat: 35.40, minLng: 128.68, maxLng: 129.05 };
 
   function setupReport() {
     const btn = $('reportBtn'), dlg = $('reportDialog');
     if (!btn || !dlg) return;
-    const sel = $('reportDistrict');
+    const sel = $('reportDistrict'), msg = $('reportMsg'), submit = $('reportSubmit');
     const model = window.GimhaeMosquitoModel;
     const names = model && model.COORDS ? Object.keys(model.COORDS) : [];
     sel.innerHTML = '<option value="">동네를 골라 주세요</option>' + names.map((n) => `<option>${n}</option>`).join('');
+    let mode = 'gps';
 
-    btn.addEventListener('click', () => { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); });
+    const setMode = (m) => {
+      mode = m;
+      $('reportConsent').hidden = m !== 'gps';
+      $('reportPick').hidden = m !== 'pick';
+      $('reportManual').hidden = m !== 'gps';
+      submit.textContent = m === 'gps' ? '내 위치로 표시하기' : '이 동네에 표시하기';
+      msg.textContent = '';
+    };
+    btn.addEventListener('click', () => {
+      setMode('gps');
+      $('reportAgree').checked = false;
+      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    });
     $('reportCancel').addEventListener('click', () => dlg.close());
+    $('reportManual').addEventListener('click', () => { setMode('pick'); sel.focus(); });
+
     $('reportForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const name = sel.value;
-      const agree = $('reportAgree').checked;
-      const msg = $('reportMsg');
-      if (!name) { msg.textContent = '동네를 골라 주세요.'; sel.focus(); return; }
-      if (!agree) { msg.textContent = '안내를 읽고 동의에 체크해 주세요.'; return; }
-      msg.textContent = '';
-      markOnMap(name);
-      dlg.close();
-      toast(`${name}에 표시했어요. 시험판이라 저장되지 않고, 이 화면을 닫으면 사라져요.`);
-      const map = document.getElementById('map');
-      if (map) map.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (mode === 'pick') {
+        if (!sel.value) { msg.textContent = '동네를 골라 주세요.'; sel.focus(); return; }
+        const c = model.COORDS[sel.value];
+        mark(c[0], c[1], `${sel.value} (동네 선택)`);
+        dlg.close();
+        return;
+      }
+      if (!$('reportAgree').checked) { msg.textContent = '위치 정보 이용에 동의하거나, 동네를 직접 골라 주세요.'; return; }
+      if (!navigator.geolocation) { msg.textContent = '이 기기에서는 위치를 쓸 수 없어요. 동네를 직접 골라 주세요.'; setMode('pick'); return; }
+      submit.disabled = true;
+      msg.textContent = '위치를 확인하는 중이에요…';
+      navigator.geolocation.getCurrentPosition((pos) => {
+        submit.disabled = false;
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        if (lat < GIMHAE.minLat || lat > GIMHAE.maxLat || lng < GIMHAE.minLng || lng > GIMHAE.maxLng) {
+          msg.textContent = '지금 위치가 김해 밖이에요. 김해 안에서만 표시할 수 있어요.';
+          return;
+        }
+        const dong = model && model.nearestDistrict ? model.nearestDistrict(lat, lng) : '';
+        mark(lat, lng, `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m`);
+        dlg.close();
+      }, (err) => {
+        submit.disabled = false;
+        msg.textContent = err.code === 1
+          ? '위치 권한이 꺼져 있어요. 동네를 직접 골라 주세요.'
+          : '위치를 찾지 못했어요. 동네를 직접 골라 주세요.';
+        setMode('pick');
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
   }
 
-  function markOnMap(name) {
-    const model = window.GimhaeMosquitoModel;
-    const c = model && model.COORDS && model.COORDS[name];
+  function mark(lat, lng, label) {
     // script.js 의 전역 지도(map)와 Leaflet(L)을 쓴다. 없으면 조용히 건너뛴다.
-    if (!c || typeof L === 'undefined' || typeof map === 'undefined' || !map) return;
-    const mk = L.circleMarker([c[0], c[1]], { radius: 11, color: '#fff', weight: 3, fillColor: '#3182F6', fillOpacity: 1 })
+    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) return;
+    const mk = L.circleMarker([lat, lng], { radius: 11, color: '#fff', weight: 3, fillColor: '#3182F6', fillOpacity: 1 })
       .addTo(map)
-      .bindPopup(`<b>여기 모기 있어요</b><br>${name} · 방금 · 시험판(저장 안 됨)`);
+      .bindPopup(`<b>여기 모기 있어요</b><br>${label}<br>방금 · 시험판(저장 안 됨)`);
     reportMarkers.push(mk);
-    map.setView([c[0], c[1]], Math.max(map.getZoom(), 12), { animate: true });
-    mk.openPopup();
+    map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
+    const el = document.getElementById('map');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => mk.openPopup(), 500);
+    toast('지도에 표시했어요. 시험판이라 저장되지 않아요.');
   }
 
   function toast(message) {
