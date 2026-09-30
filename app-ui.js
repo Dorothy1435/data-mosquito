@@ -606,8 +606,13 @@
       if (!picks.length) { grid.innerHTML = '<p class="dim">공원 정보를 불러오지 못했습니다.</p>'; return; }
       grid.innerHTML = picks.map((s, i) => {
         const q = encodeURIComponent(`${s.park.name} 김해`);
+        // 자유 이용 사진이 있으면 사진, 없으면 그 공원 자리의 지도 조각을 보여 준다 (park-picks.js pictureOf)
+        const pic = s.picture || {};
+        const img = pic.src
+          ? `<span class="pk-img${pic.isMap ? ' is-map' : ''}"><img src="${pic.src}" alt="${pic.isMap ? `${s.park.name} 위치 지도` : `${s.park.name} 사진`}" loading="lazy" style="object-position:${pic.fx}% ${pic.fy}%">${pic.isMap ? '<i class="pk-pin" aria-hidden="true"></i>' : ''}${s.park.credit ? `<small class="pk-credit">${s.park.credit}</small>` : ''}</span>`
+          : '';
         return `<a href="https://www.openstreetmap.org/?mlat=${s.park.lat}&mlon=${s.park.lon}#map=17/${s.park.lat}/${s.park.lon}" target="_blank" rel="noopener" aria-label="${s.park.name} 지도 열기 (새 창)">
-          <span class="r">${i + 1}위 · ${s.park.district}</span><span class="nm">${s.park.name}</span><span class="m">${s.reason}</span></a>`;
+          ${img}<span class="pk-txt"><span class="r">${i + 1}위 · ${s.park.district}</span><span class="nm">${s.park.name}</span><span class="m">${s.reason}</span></span></a>`;
       }).join('');
       if (note) note.textContent = '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다. 공원을 누르면 지도가 열립니다.';
     });

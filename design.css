@@ -679,3 +679,37 @@ body .mz-chat-fab::before { display: none; }
   .where { min-height: 44px; }
   .nav-toggle { min-height: 44px; }
 }
+
+/* ---------- 23) 오늘 가기 좋은 공원: 나들이 지수 바로 아래 사진 카드 (2026-09-30) ---------- */
+.park-row { margin-top: 16px; padding: 40px; border-radius: 28px; background: var(--dark-panel); }
+.park-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 24px; flex-wrap: wrap; margin-bottom: 24px; }
+.park-head h3 { color: #fff; } .park-head p { font-size: 15px; color: var(--d-ink-2); }
+.park-row .parks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.park-row .parks a { display: grid; grid-template-rows: auto 1fr; gap: 0; padding: 0; border: 0; border-radius: 22px; overflow: hidden; background: #2A2A31; color: #fff; transition: transform .35s var(--ease); }
+.park-row .parks a:hover { transform: translateY(-4px); }
+.park-row .parks a::after { content: none; }
+.pk-img { position: relative; display: block; aspect-ratio: 16 / 10; overflow: hidden; background: #3A3A42; }
+.pk-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .8s var(--ease); }
+.park-row .parks a:hover .pk-img img { transform: scale(1.05); }
+.pk-img.is-map img { filter: grayscale(.2) contrast(1.05); transform: scale(1.6); }
+.park-row .parks a:hover .pk-img.is-map img { transform: scale(1.7); }
+.pk-pin { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 4px #fff, 0 0 0 10px rgba(49, 130, 246, .3); }
+.pk-credit { position: absolute; right: 8px; bottom: 6px; max-width: 90%; padding: 2px 8px; border-radius: 6px; background: rgba(0, 0, 0, .55); font-size: 11px; line-height: 1.5; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-txt { display: grid; gap: 4px; padding: 18px 20px 20px; }
+.park-row .parks .r { font-size: 14px; color: var(--d-ink-2); }
+.park-row .parks .nm { font-size: 20px; font-weight: 700; color: #fff; }
+.park-row .parks .m { font-size: 15px; line-height: 1.5; color: var(--d-ink-2); }
+.park-row #parksNote { margin-top: 16px; color: var(--g500); }
+.grid.town { grid-template-columns: 1fr !important; max-width: 640px; }
+@media (max-width: 900px) { .park-row .parks { grid-template-columns: 1fr; } .park-row .parks a { grid-template-columns: 140px 1fr; grid-template-rows: auto; } .pk-img { aspect-ratio: auto; height: 100%; min-height: 120px; } }
+@media (max-width: 620px) { .park-row { padding: 24px 16px; border-radius: 24px; } .park-row .parks a { grid-template-columns: 112px 1fr; } .pk-txt { padding: 14px 16px; } .park-row .parks .nm { font-size: 18px; } }
+
+/* ---------- 24) 날아다니는 모기 (첫 화면) ---------- */
+.flyer { position: absolute; left: 0; top: 0; z-index: 2; width: 120px; height: 80px; pointer-events: none; will-change: transform; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .35)); }
+.flyer .wing { transform-box: fill-box; transform-origin: 30% 90%; animation: flap .05s linear infinite alternate; }
+.flyer .w2 { animation-delay: .025s; }
+@keyframes flap { from { transform: scaleY(1) rotate(0); } to { transform: scaleY(.25) rotate(8deg); } }
+.flyer .legs { animation: dangle 1.6s ease-in-out infinite alternate; transform-origin: 55px 44px; }
+@keyframes dangle { to { transform: rotate(4deg); } }
+@media (max-width: 620px) { .flyer { width: 84px; height: 56px; } }
+@media (prefers-reduced-motion: reduce) { .flyer { display: none; } }

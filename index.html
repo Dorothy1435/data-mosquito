@@ -43,6 +43,23 @@
       <div class="hero-card">
         <img class="hero-img" src="assets/bg/gimhae-day.jpg" alt="발룡산에서 내려다본 김해 장유 전경">
         <div class="hero-shade" aria-hidden="true"></div>
+        <!-- 날아다니는 모기: 마우스를 따라 윙윙 날아다닌다 (motion.js setupMosquito) -->
+        <div class="flyer" id="flyer" aria-hidden="true">
+          <svg viewBox="0 0 120 80" width="100%" height="100%">
+            <g class="legs" stroke="#1d1d1f" stroke-width="2" fill="none" stroke-linecap="round">
+              <path d="M52 44 L40 60 L30 74"/><path d="M58 45 L54 63 L50 78"/><path d="M64 45 L70 62 L78 76"/>
+              <path d="M50 42 L34 50 L18 54"/><path d="M68 43 L84 54 L100 58"/>
+            </g>
+            <g class="wing w1"><ellipse cx="62" cy="30" rx="24" ry="8" transform="rotate(-24 62 30)" fill="rgba(255,255,255,.55)" stroke="rgba(255,255,255,.9)" stroke-width="1.2"/></g>
+            <g class="wing w2"><ellipse cx="58" cy="32" rx="20" ry="6.5" transform="rotate(-38 58 32)" fill="rgba(255,255,255,.35)" stroke="rgba(255,255,255,.8)" stroke-width="1"/></g>
+            <path d="M58 42 Q78 40 100 48 Q80 52 58 46 Z" fill="#2b2b2f" stroke="#fff" stroke-width="1.2"/>
+            <path d="M84 44.5 h3 M90 45.5 h3" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>
+            <ellipse cx="54" cy="42" rx="8" ry="6" fill="#2b2b2f" stroke="#fff" stroke-width="1.2"/>
+            <circle cx="44" cy="40" r="4.2" fill="#2b2b2f" stroke="#fff" stroke-width="1.2"/>
+            <path d="M41 41 L18 48" stroke="#1d1d1f" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M42 37 L32 30 M43 37 L36 28" stroke="#1d1d1f" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
         <div class="hero-in">
           <p class="eyebrow up"><span id="navWeather">날씨 확인 중</span><span class="src" id="weatherSourceBadge">실제 날씨</span></p>
           <div class="idx up">
@@ -168,6 +185,12 @@
             <div class="cond" id="outingConditions"></div>
           </div>
         </div>
+        <!-- 나들이 지수 바로 아래: 오늘 가기 좋은 공원 (사진 카드) -->
+        <div class="park-row rv">
+          <div class="park-head"><h3 id="parks">오늘 가기 좋은 공원</h3><p>나들이 지수와 동네 모기 자료로 골랐어요. 누르면 지도가 열려요.</p></div>
+          <div class="parks" id="parksGrid"><p class="dim">불러오는 중이에요.</p></div>
+          <p class="dim" id="parksNote"></p>
+        </div>
         <h3 class="sub-h rv">앞으로 5일</h3>
         <div class="days" id="daysList"><p class="dim">실제 날씨가 연결되면 5일 전망을 보여드려요.</p></div>
       </div>
@@ -200,11 +223,6 @@
             <h3>오늘 조심할 동네</h3>
             <ol class="ranking-list" id="rankingList"></ol>
             <p class="sr-only" id="ranking-section"></p>
-          </div>
-          <div class="park-col rv">
-            <h3 id="parks">오늘 가기 좋은 공원</h3>
-            <div class="parks" id="parksGrid"><p class="dim">불러오는 중이에요.</p></div>
-            <p class="dim" id="parksNote"></p>
           </div>
         </div>
       </div>

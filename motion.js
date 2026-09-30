@@ -24,6 +24,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     splitHeadingLines();
     setupLens();
+    setupMosquito();
     setupReveal();
     setupScrollEffects();
   });
@@ -148,11 +149,7 @@
     wrap.classList.add('lens-on');
     let px = null, py = null, x = 0.5, y = 0.5, start = performance.now();
     const hero = wrap.closest('.hero') || wrap;
-    hero.addEventListener('pointermove', (e) => {
-      const r = wrap.getBoundingClientRect();
-      px = (e.clientX - r.left) / r.width; py = (e.clientY - r.top) / r.height;
-    });
-    hero.addEventListener('pointerleave', () => { px = null; py = null; });
+    // 마우스는 날아다니는 모기가 따라가므로, 렌즈는 혼자 천천히 떠다닌다
     function tick(now) {
       if (clone.textContent !== num.textContent) clone.textContent = num.textContent;   // 카운트업 숫자를 그대로 따라 쓴다
       const t = (now - start) / 1000;
@@ -164,6 +161,43 @@
       wrap.style.setProperty('--lx', (x * 100).toFixed(2) + '%');
       wrap.style.setProperty('--ly', (y * 100).toFixed(2) + '%');
       wrap.style.setProperty('--r', Math.round(h * 0.46) + 'px');
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---------- 날아다니는 모기 ----------
+     첫 화면 사진 위를 모기 한 마리가 날아다닌다.
+       · 마우스를 올리면 커서를 따라오되, 바로 붙지 않고 늦게 따라오며 지그재그로 윙윙거린다
+       · 마우스가 없으면(휴대폰) 사진 위를 8자 모양으로 혼자 돌아다닌다. 화면을 누르면 그쪽으로 날아간다
+       · 날아가는 방향으로 몸을 돌리고, 날개는 빠르게 파닥인다 (날개는 CSS 애니메이션)
+     '움직임 줄이기'면 모기를 숨긴다. */
+  function setupMosquito() {
+    const fly = $('flyer');
+    const card = fly && fly.closest('.hero-card');
+    if (!fly || !card || reduceMotion) { if (fly) fly.hidden = true; return; }
+    let tx = null, ty = null, lastMove = 0;
+    let x = card.clientWidth * 0.7, y = card.clientHeight * 0.3, vx = 0, vy = 0, face = 1;
+    const aim = (e) => { const r = card.getBoundingClientRect(); tx = e.clientX - r.left; ty = e.clientY - r.top; lastMove = performance.now(); };
+    card.addEventListener('pointermove', aim);
+    card.addEventListener('pointerdown', aim);
+    card.addEventListener('pointerleave', () => { tx = null; ty = null; });
+    const t0 = performance.now();
+    function tick(now) {
+      const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
+      const idle = tx == null || now - lastMove > 4000;
+      // 목표 지점: 마우스(조금 옆) 또는 혼자 돌아다니는 8자 길
+      const gx = idle ? W * (0.55 + 0.33 * Math.sin(t * 0.42)) : tx + 40;
+      const gy = idle ? H * (0.32 + 0.16 * Math.sin(t * 0.84)) : ty - 30;
+      // 스프링처럼 끌려가고(가속·감속), 윙윙거리는 떨림을 더한다
+      vx += (gx - x) * 0.012; vy += (gy - y) * 0.012;
+      vx *= 0.9; vy *= 0.9;
+      x += vx + Math.sin(t * 23) * 1.4 + Math.sin(t * 7.3) * 0.9;
+      y += vy + Math.cos(t * 19) * 1.3 + Math.sin(t * 5.1) * 1.1;
+      x = Math.max(20, Math.min(W - 20, x)); y = Math.max(20, Math.min(H - 20, y));
+      if (Math.abs(vx) > 0.4) face = vx > 0 ? -1 : 1;           // 그림이 왼쪽을 보고 있으므로 오른쪽으로 갈 땐 뒤집는다
+      const tilt = Math.max(-25, Math.min(25, vy * 3));
+      fly.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scaleX(${face}) rotate(${(tilt * -face).toFixed(1)}deg)`;
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
