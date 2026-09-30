@@ -468,3 +468,57 @@ body .mz-chat-fab::before { display: none; }
   .n-wrap.lens-on > .n { -webkit-mask-image: none; mask-image: none; }
   .ln > span { transform: none; }
 }
+
+/* ---------- 18) 시민 기능: 사진 판별 · 제보 창 · 개인정보 문서 ---------- */
+.btn-main, .btn-sub { display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 24px; border: 0; border-radius: 16px; font: 700 17px var(--sans); cursor: pointer; transition: background .2s, transform .15s; }
+.btn-main { background: var(--blue); color: #fff; } .btn-main:hover { background: var(--blue-ink); }
+.btn-sub { background: var(--g100); color: var(--g800); } .btn-sub:hover { background: var(--g200); }
+.btn-main:active, .btn-sub:active { transform: scale(.97); }
+.photo-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.photo-frame { min-height: 460px; align-content: stretch; }
+.photo-frame .ph-work { display: none; }
+.photo-frame[data-state="loading"] .ph-idle, .photo-frame[data-state="done"] .ph-idle { display: none; }
+.photo-frame[data-state="loading"] .ph-work, .photo-frame[data-state="done"] .ph-work { display: grid; gap: 18px; align-content: start; }
+.ph-idle { display: grid; align-content: center; gap: 18px; }
+.ph-t { font-size: 20px; font-weight: 700; }
+.ph-tips { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; counter-reset: tip; }
+.ph-tips li { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: 16px; background: #fff; font-size: 17px; font-weight: 600; counter-increment: tip; }
+.ph-tips li::before { content: counter(tip); display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--blue-50); color: var(--blue-ink); font-size: 15px; font-weight: 700; }
+#photoPreview { width: 100%; max-height: 260px; object-fit: cover; border-radius: 20px; background: var(--g200); }
+.ph-loading { display: none; align-items: center; gap: 12px; font-size: 17px; font-weight: 600; color: var(--g700); }
+.photo-frame[data-state="loading"] .ph-loading { display: flex; }
+.photo-frame[data-state="loading"] .ph-again { display: none; }
+.spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--g300); border-top-color: var(--blue); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ph-result { display: grid; gap: 8px; }
+.pr-k { font-size: 14px; font-weight: 600; color: var(--g600); }
+.pr-name { font-size: 32px; line-height: 1.2; }
+.pr-name.tone-warn { color: #C2410C; } .pr-name.tone-info { color: var(--blue-ink); } .pr-name.tone-ok { color: #16753C; } .pr-name.tone-none { color: var(--g700); }
+.pr-conf { font-size: 16px; font-weight: 600; color: var(--g700); }
+.pr-what, .pr-todo { font-size: 17px; line-height: 1.6; color: var(--g800); }
+.pr-dz { font-size: 16px; font-weight: 700; color: #C2410C; }
+.pr-tip, .pr-err { font-size: 16px; color: var(--g700); }
+.pr-err { padding: 16px; border-radius: 14px; background: #fff; }
+.pr-why ul { margin: 8px 0 0; padding-left: 18px; font-size: 15px; color: var(--g700); }
+.ph-again { justify-self: start; }
+
+.sheet { width: min(480px, calc(100% - 32px)); padding: 28px; border: 0; border-radius: 24px; background: #fff; color: var(--g900); box-shadow: 0 24px 60px rgba(0, 0, 0, .25); }
+.sheet::backdrop { background: rgba(0, 0, 0, .45); }
+.sheet form { display: grid; gap: 16px; }
+.sheet h3 { font-size: 22px; }
+.sheet-select { min-height: 56px; padding: 0 16px; border: 1px solid var(--g300); border-radius: 14px; background: #fff; font: 600 17px var(--sans); color: var(--g900); }
+.sheet-agree { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; line-height: 1.55; color: var(--g700); }
+.sheet-agree input { width: 22px; height: 22px; margin-top: 1px; flex: none; accent-color: var(--blue); }
+.sheet-msg { min-height: 1.4em; font-size: 15px; font-weight: 600; color: #C2410C; }
+.sheet-btns { display: flex; justify-content: flex-end; gap: 10px; }
+@media (max-width: 620px) {
+  .sheet { margin: auto 0 0; width: 100%; max-width: none; border-radius: 24px 24px 0 0; }
+  .photo-btns .btn-main, .photo-btns .btn-sub { flex: 1; }
+  .photo-frame { min-height: 0; }
+}
+
+.doc { max-width: 760px; padding-top: 72px; padding-bottom: 40px; }
+.doc h1 { font-size: var(--t-h2); margin: 12px 0 20px; }
+.doc .lead { font-size: var(--t-lead); color: var(--g700); margin-bottom: 40px; }
+.doc h2 { font-size: 22px; margin: 36px 0 10px; }
+.doc p { font-size: 17px; line-height: 1.7; color: var(--g800); }

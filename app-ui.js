@@ -81,7 +81,7 @@
     if (window.WeatherBackground) window.WeatherBackground.apply({});   // 날씨를 모를 땐 시각만으로
     setupNavToggle();
     renderQuip();
-    setupReport();
+    // 제보 버튼은 citizen.js 가 맡는다 (시험판)
   });
 
   function setupNavToggle() {
@@ -91,6 +91,29 @@
       const open = document.body.classList.toggle('menu-open');
       button.setAttribute('aria-expanded', String(open));
     });
+  }
+
+  /* 상황에 맞는 한 마디 — 비·더위·밤·모기 많은 날엔 그날에 맞는 문구를 먼저 고른다 */
+  const QUIPS_BY = {
+    rain: ['비 오는 날에도 모기는 날아요. 빗방울보다 훨씬 가볍거든요.', '비 그친 다음 날이 진짜예요. 고인 물부터 비워 주세요.', '빗물받이 · 화분 받침에 물이 고였는지 오늘 한 번 봐 주세요.'],
+    hot: ['땀 냄새와 체온은 모기를 부르는 신호예요. 운동 뒤엔 씻고 나가요.', '너무 더우면 모기도 쉬어요. 한낮보다 해 질 무렵이 더 위험해요.'],
+    night: ['모기는 해 질 무렵부터 가장 바빠요. 지금이 그 시간이에요.', '방충망 구멍은 모기에게 문이에요. 자기 전에 한 번 확인해요.', '선풍기 바람 하나로도 모기가 잘 못 다가와요.'],
+    high: ['오늘은 모기가 많은 날이에요. 기피제는 드러난 피부에 발라요.', '밝은 긴 옷이 제일 싸고 확실한 기피제예요.'],
+    low: ['오늘은 모기가 적은 날이에요. 이럴 때 집 주변 물을 비워 두면 좋아요.'],
+  };
+  let lastQuipCtx = '';
+  function renderContextQuip(d) {
+    const el = $('quip');
+    if (!el || d.index == null) return;
+    const w = d.weatherData || {};
+    const h = new Date().getHours();
+    const ctx = w.currentRain || (w.weatherCode >= 51 && w.weatherCode <= 82) ? 'rain'
+      : (w.temperature >= 30 ? 'hot' : (h >= 18 || h < 5 ? 'night' : (d.index >= 61 ? 'high' : (d.index <= 20 ? 'low' : ''))));
+    if (!ctx || ctx === lastQuipCtx) return;
+    lastQuipCtx = ctx;
+    const list = QUIPS_BY[ctx];
+    const day = Math.floor(Date.now() / 864e5);
+    el.innerHTML = `${list[day % list.length]}<small>오늘의 한 마디 · 날씨에 맞춰 바뀌어요</small>`;
   }
 
   function renderQuip() {
@@ -148,6 +171,7 @@
       renderDailyOutlook(d);
       renderRank(d);
       renderParks(d);
+      renderContextQuip(d);
     } catch (error) {
       console.warn('화면 갱신 중 문제가 발생했습니다.', error);   // 한 군데가 실패해도 페이지는 살아 있어야 한다
     }

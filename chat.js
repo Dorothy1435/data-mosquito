@@ -449,7 +449,7 @@
             <span class="mz-avatar" aria-hidden="true">🦟</span>
             <div class="mz-head-text">
               <strong>모기제로 도우미</strong>
-              <span class="mz-chat-sub"><i class="mz-online" aria-hidden="true"></i> 실시간 안내 · AI 참고용</span>
+              <span class="mz-chat-sub"><i class="mz-online" aria-hidden="true"></i> 실시간 안내 · AI 참고용 · 이름·전화번호 같은 개인정보는 적지 마세요</span>
             </div>
           </div>
           <button class="mz-chat-close" type="button" aria-label="닫기">✕</button>

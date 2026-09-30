@@ -56,6 +56,7 @@
       </div>
       <p class="meta">
         <span>참고용 예상값이에요.</span>
+        <span>'현재 위치로'를 누르면 위치는 날씨 조회에만 쓰고 저장하지 않아요.</span>
         <span id="locationText">위치를 확인하는 중</span>
         <span id="updatedText">갱신 -</span>
         <span id="locationSourceBadge">지역 선택</span>
@@ -105,6 +106,35 @@
         <ul class="sr-only" id="actionTips"></ul>
         <p class="sr-only" id="repellentText"></p>
         <p class="sr-only" id="activeHoursText"></p>
+      </div>
+    </section>
+
+    <!-- 3-1. 사진으로 모기 알아보기: 휴대폰에서는 카메라가 바로 열린다 -->
+    <section class="s" id="photo" aria-labelledby="phT">
+      <div class="wrap split">
+        <div class="copy rv">
+          <h2 id="phT">모기를 찍으면<br>어떤 모기인지 알려드려요</h2>
+          <p>잡은 모기나 벽에 앉은 모기를 찍어 보세요. 우리 주변 모기 4종 중 무엇에 가까운지 AI가 알려드려요.</p>
+          <div class="photo-btns">
+            <button class="btn-main" type="button" data-open="photoCamera">카메라로 찍기</button>
+            <button class="btn-sub" type="button" data-open="photoPick">앨범에서 고르기</button>
+            <input id="photoCamera" type="file" accept="image/*" capture="environment" hidden>
+            <input id="photoPick" type="file" accept="image/*" hidden>
+          </div>
+          <p class="note">사진은 판별에만 쓰고 저장하지 않아요. 보내기 전에 사진 속 촬영 위치 정보를 지워요. AI가 본 참고용 결과이고, 의학적 판단이 아니에요.</p>
+        </div>
+        <div class="frame photo-frame rv" id="photoBox" data-state="idle" aria-live="polite">
+          <div class="ph-idle">
+            <p class="ph-t">이렇게 찍으면 잘 알아봐요</p>
+            <ol class="ph-tips"><li>모기가 화면에 크게 나오게</li><li>밝은 곳에서, 흔들리지 않게</li><li>날개와 다리가 보이게</li></ol>
+          </div>
+          <div class="ph-work">
+            <img id="photoPreview" alt="올린 모기 사진">
+            <div class="ph-loading"><span class="spin" aria-hidden="true"></span>사진을 살펴보고 있어요</div>
+            <div class="ph-result" id="photoResult"></div>
+            <button class="btn-sub ph-again" type="button" id="photoAgain">다른 사진 올리기</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -226,10 +256,21 @@
         <img src="assets/bg/gimhae-night.jpg" alt="" loading="lazy">
         <div class="in">
           <h2 id="rpT">여기 모기 있어요</h2>
-          <p>누르면 우리 동네 모기 지도에 표시하는 기능을 준비하고 있어요.</p>
-          <button class="btn-white" type="button" id="reportBtn">제보하기 (준비 중)</button>
+          <p>누르면 우리 동네 지도에 표시돼요. 지금은 시험판이라 저장되지 않아요.</p>
+          <button class="btn-white" type="button" id="reportBtn">여기 모기 있어요</button>
         </div>
       </div>
+      <!-- 제보 시험판 창: 동 단위만 고르고, 저장하지 않는다 -->
+      <dialog class="sheet" id="reportDialog" aria-labelledby="rdT">
+        <form id="reportForm" method="dialog">
+          <h3 id="rdT">어느 동네에 모기가 있나요?</h3>
+          <label class="sr-only" for="reportDistrict">동네</label>
+          <select id="reportDistrict" class="sheet-select"></select>
+          <label class="sheet-agree"><input type="checkbox" id="reportAgree"> 시험판이라 저장되지 않고, 동네 이름만 지도에 잠깐 표시된다는 것을 확인했어요.</label>
+          <p class="sheet-msg" id="reportMsg" role="alert"></p>
+          <div class="sheet-btns"><button class="btn-sub" type="button" id="reportCancel">닫기</button><button class="btn-main" type="submit">지도에 표시하기</button></div>
+        </form>
+      </dialog>
     </section>
 
   </main>
@@ -239,7 +280,7 @@
       <p class="foot-brand">모기제로</p>
       <p>모기지수와 나들이 지수는 참고용 예상값이며 의학적·방역적 판단을 대신하지 않습니다. 준비물은 날씨 값이 기준을 넘을 때 켜집니다. 공원 추천은 공원 유형과 동네 발생원 자료로 계산한 값이며 공원별 실측값이 아닙니다.</p>
       <p>날씨 Open-Meteo · 지도 OpenStreetMap · 발생원 김해시 데이터 · 사진 CDC/James Gathany(퍼블릭 도메인), 根川大橋·Kyu3a(CC BY-SA 4.0) · 배경 사진 발룡산에서 본 장유(Prime number, CC BY 4.0), 분성산 천문대에서 본 김해(Korea.net, CC BY-SA 2.0)</p>
-      <p><a href="mosquito-info.html">모기 도감 자세히</a> · <a href="gimhae.html">전문가용 화면</a> · <a href="about.html">사이트 소개</a></p>
+      <p><a href="mosquito-info.html">모기 도감 자세히</a> · <a href="gimhae.html">전문가용 화면</a> · <a href="about.html">사이트 소개</a> · <a href="privacy.html">개인정보 처리방침</a></p>
     </div>
   </footer>
   <div class="toast" id="toast" role="status"></div>
@@ -252,6 +293,7 @@
   <script src="app-ui.js"></script>
   <script src="motion.js"></script>
   <script src="script.js"></script>
+  <script src="citizen.js"></script>
   <script src="chat.js"></script>
 </body>
 </html>

@@ -200,8 +200,9 @@ async function loadJsonWithFallback(path, fallbackData) {
 
 function getWeatherUrl(lat, lng) {
   const params = new URLSearchParams({
-    latitude: String(lat),
-    longitude: String(lng),
+    // 개인 위치 보호: 정확한 GPS 좌표 대신 약 1km 단위로 반올림해서 보낸다 (날씨 값에는 차이가 없다)
+    latitude: Number(lat).toFixed(2),
+    longitude: Number(lng).toFixed(2),
     current_weather: 'true',
     hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,precipitation_probability,windspeed_10m,weathercode,uv_index',
     past_days: '14',
@@ -1530,8 +1531,8 @@ const airQualityCache = new Map();
 
 function getAirQualityUrl(lat, lng) {
   const params = new URLSearchParams({
-    latitude: Number(lat).toFixed(4),
-    longitude: Number(lng).toFixed(4),
+    latitude: Number(lat).toFixed(2),
+    longitude: Number(lng).toFixed(2),
     current: 'pm10,pm2_5',
     timezone: 'Asia/Seoul',
   });
