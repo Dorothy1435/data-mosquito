@@ -22,6 +22,8 @@
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
   document.addEventListener('DOMContentLoaded', () => {
+    splitHeadingLines();
+    setupLens();
     setupReveal();
     setupScrollEffects();
   });
@@ -122,5 +124,45 @@
       if (t < 1) requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+  }
+
+  /* ---------- 제목 줄 나누기 ----------
+     <br> 로 나뉜 제목을 줄마다 감싸, 줄이 차례로 아래에서 밀려 올라오게 한다 (토스 채용 페이지 기법). */
+  function splitHeadingLines() {
+    if (reduceMotion) return;
+    document.querySelectorAll('.head h2, .copy > h2, .copy > h1').forEach((h) => {
+      const lines = h.innerHTML.split(/<br\s*\/?>/i);
+      h.innerHTML = lines.map((l, i) => `<span class="ln" style="--li:${i}"><span>${l.trim()}</span></span>`).join('');
+    });
+  }
+
+  /* ---------- 유리 렌즈 ----------
+     큰 숫자 위를 유리 렌즈가 천천히 떠다니며 숫자를 확대한다. 마우스를 올리면 렌즈가 따라온다.
+     (토스 채용 페이지의 유리 폴더가 글자를 비추는 장면에서 가져온 기법. 영상 대신 CSS 로 만든다.) */
+  function setupLens() {
+    const wrap = $('lensWrap'), num = $('indexValue'), clone = $('lensClone');
+    if (!wrap || !num || !clone || reduceMotion) return;
+    wrap.classList.add('lens-on');
+    let px = null, py = null, x = 0.5, y = 0.5, start = performance.now();
+    const hero = wrap.closest('.hero') || wrap;
+    hero.addEventListener('pointermove', (e) => {
+      const r = wrap.getBoundingClientRect();
+      px = (e.clientX - r.left) / r.width; py = (e.clientY - r.top) / r.height;
+    });
+    hero.addEventListener('pointerleave', () => { px = null; py = null; });
+    function tick(now) {
+      if (clone.textContent !== num.textContent) clone.textContent = num.textContent;   // 카운트업 숫자를 그대로 따라 쓴다
+      const t = (now - start) / 1000;
+      // 손을 대지 않으면 8자 모양으로 천천히 떠다닌다
+      const tx = px == null ? 0.5 + 0.34 * Math.sin(t * 0.55) : px;
+      const ty = py == null ? 0.52 + 0.16 * Math.sin(t * 1.1) : py;
+      x += (tx - x) * 0.08; y += (ty - y) * 0.08;
+      const h = wrap.offsetHeight;
+      wrap.style.setProperty('--lx', (x * 100).toFixed(2) + '%');
+      wrap.style.setProperty('--ly', (y * 100).toFixed(2) + '%');
+      wrap.style.setProperty('--r', Math.round(h * 0.46) + 'px');
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
   }
 }());
