@@ -565,3 +565,82 @@ body .mz-chat-fab::before { display: none; }
 .fab-cam.show { opacity: 1; transform: none; pointer-events: auto; }
 /* '지금'과 '가장 많은 때'가 붙어 있으면 숫자가 겹치므로 가장 많은 때 숫자만 남긴다 */
 .rc.is-now:has(+ .rc.is-peak) b { display: none; }
+
+/* ---------- 20) 오늘 한눈에 (흐르는 띠를 대신한다, 2026-09-30) ----------
+   흐르는 글은 읽기 어려워서 멈춘 카드로 바꿨다. 칸마다 '이름 → 큰 숫자 → 설명 한 줄' 세 줄만.
+   움직임은 화면에 들어올 때 한 번만, 1초 남짓. '움직임 줄이기'면 모두 멈춘 채 보여 준다. */
+.ticker { display: none; }
+.glance { position: relative; z-index: 3; display: grid; grid-template-columns: repeat(6, 1fr); max-width: 1200px; margin: -72px auto 0; padding: 8px; border-radius: 28px; background: #fff; box-shadow: 0 20px 60px -20px rgba(0, 20, 60, .28), 0 0 0 1px rgba(0, 0, 0, .04); }
+.hero-in { padding-bottom: calc(clamp(32px, 5vw, 64px) + 72px); }
+.meta { margin-top: 20px; }
+.gl-cell { position: relative; display: grid; align-content: start; gap: 6px; min-width: 0; padding: 22px 22px 20px; border-radius: 22px; transition: background .25s; }
+.gl-cell + .gl-cell::before { content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 1px; background: var(--g100); }
+.gl-cell:hover { background: var(--g50); }
+.gl-k { font-size: 15px; font-weight: 600; color: var(--g600); }
+.gl-v { font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.03em; color: var(--g900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gl-v small { margin-left: 2px; font-size: 18px; font-weight: 700; color: var(--g700); letter-spacing: 0; }
+.gl-s { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; line-height: 1.45; color: var(--g700); }
+.gl-s .lvl rect.off { fill: var(--g200); }
+
+/* 움직임 ①: 숫자가 슬롯머신처럼 굴러 올라간다 */
+.odo-wrap { display: inline-flex; }
+.odo { display: inline-block; height: 1.15em; overflow: hidden; }
+.odo > span { display: block; line-height: 1.15em; transform: translateY(calc(var(--d) * -1.15em)); }
+.glance.is-in .odo > span { animation: roll 1.3s cubic-bezier(.16, 1, .3, 1) both; }
+.glance.is-in .odo:nth-child(2) > span { animation-delay: .12s; }
+@keyframes roll { from { transform: translateY(0); } }
+
+/* 움직임 ②: 24시간 선이 그려지고 가장 높은 점이 한 번 맥박친다 */
+.spark { width: 100%; height: 40px; overflow: visible; }
+.spark path { fill: none; stroke: var(--blue); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; }
+.spark circle { fill: var(--blue); stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; }
+.glance.is-in .spark path { animation: draw 1.4s .2s cubic-bezier(.45, 0, .2, 1) both; }
+.glance.is-in .spark circle { animation: pop .5s 1.4s both, pulse 1.6s 1.9s ease-out 2; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes pop { from { transform: scale(0); } }
+@keyframes pulse { 50% { transform: scale(1.8); opacity: .5; } }
+
+/* 움직임 ③: 원형 게이지가 차오른다 */
+.gl-ring { grid-template-columns: 1fr auto; align-items: center; }
+.ring { width: 52px; height: 52px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke: var(--g100); stroke-width: 6; }
+.ring .fill { stroke: var(--blue); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--p)); }
+.glance.is-in .ring .fill { animation: fillring 1.4s .3s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes fillring { from { stroke-dashoffset: 100; } }
+
+/* 움직임 ④: 점이 차례로 튀어나오고 우리 동네만 파랗다 */
+.gl-dots { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.gl-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--g200); }
+.gl-dots i.me { background: var(--blue); box-shadow: 0 0 0 3px var(--blue-50); }
+.glance.is-in .gl-dots i { animation: pop .4s calc(var(--i) * 45ms + .3s) cubic-bezier(.34, 1.56, .64, 1) both; }
+
+/* 움직임 ⑤: 챙길 것 아이콘이 하나씩 튀어 오른다 */
+.gl-icons { display: flex; gap: 6px; }
+.gl-ico { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--blue-50); color: var(--blue); }
+.gl-ico svg { width: 17px; height: 17px; }
+.glance.is-in .gl-ico { animation: hop .55s calc(var(--i) * 110ms + .4s) cubic-bezier(.34, 1.56, .64, 1) both; }
+@keyframes hop { from { transform: translateY(10px) scale(.6); opacity: 0; } }
+
+/* 카드 전체: 사진 아래쪽에 걸쳐 올라온다 (.rv 등장에 더해 칸마다 조금씩 늦게) */
+.glance.rv { transform: translateY(48px); }
+.glance.rv.is-in { transform: none; }
+.glance.is-in .gl-cell { animation: up .8s calc(var(--c, 0) * 70ms) var(--ease) both; }
+.gl-cell:nth-child(2) { --c: 1; } .gl-cell:nth-child(3) { --c: 2; } .gl-cell:nth-child(4) { --c: 3; } .gl-cell:nth-child(5) { --c: 4; } .gl-cell:nth-child(6) { --c: 5; }
+
+@media (max-width: 1100px) {
+  .glance { grid-template-columns: repeat(3, 1fr); margin-inline: 16px; }
+  .gl-cell:nth-child(4)::before { display: none; }
+}
+@media (max-width: 620px) {
+  .glance { grid-template-columns: repeat(2, 1fr); margin: -56px 8px 0; border-radius: 24px; }
+  .hero-in { padding-bottom: 88px; }
+  .gl-cell { padding: 18px 16px; }
+  .gl-cell::before { display: none; }
+  .gl-cell:nth-child(n+3) { border-top: 1px solid var(--g100); border-radius: 0; }
+  .gl-v { font-size: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glance.rv { transform: none; }
+  .glance * { animation: none !important; }
+}
+.hero > .glance { margin-top: -72px; } @media (max-width: 620px) { .hero > .glance { margin: -56px 0 0; } }

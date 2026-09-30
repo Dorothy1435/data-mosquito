@@ -101,26 +101,75 @@
     high: ['오늘은 모기가 많은 날이에요. 기피제는 드러난 피부에 발라요.', '밝은 긴 옷이 제일 싸고 확실한 기피제예요.'],
     low: ['오늘은 모기가 적은 날이에요. 이럴 때 집 주변 물을 비워 두면 좋아요.'],
   };
-  /* ---------- 오늘 요약 흐름 띠 ----------
-     핵심 숫자를 짧은 조각으로 이어 한 줄로 흘린다. 같은 내용을 두 번 이어 붙여 끊김 없이 돈다.
-     화면 읽기 프로그램에는 첫 번째 묶음만 읽히게 두 번째는 aria-hidden. */
-  function renderTicker(d) {
-    const track = $('tickerTrack');
-    if (!track || d.index == null) return;
+  /* ---------- 오늘 한눈에 ----------
+     여섯 칸에 핵심 숫자만 담는다. 칸마다 움직임이 다르다 (design.css 20번).
+       · 지금 모기지수: 자릿수가 슬롯머신처럼 굴러 올라간다 (odometer)
+       · 가장 많은 때: 24시간 선 그래프가 그려지고, 가장 높은 점이 맥박친다
+       · 비 올 확률: 원형 게이지가 차오른다
+       · 우리 동네: 점 17개가 차례로 튀어나오고 우리 동네만 파랗다
+       · 챙길 것: 켜진 준비물 아이콘이 하나씩 튀어 오른다 */
+  function odometer(value) {
+    return String(value).split('').map((ch) => /d/.test(ch)
+      ? `<span class="odo" style="--d:${ch}"><span>0<br>1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9</span></span>`
+      : `<span>${ch}</span>`).join('');
+  }
+
+  function renderGlance(d) {
+    const box = $('glance');
+    if (!box || d.index == null) return;
     const w = d.weatherData || {};
-    const series = d.series || [];
-    const peak = series.slice(0, 24).reduce((m, p) => (!m || p.index > m.index ? p : m), null);
-    const bits = [`<b>지금 ${d.index}점</b> ${stageOf(d.index).label}`];
-    if (peak) bits.push(`<b>가장 많은 때</b> ${timeWord(peak.hourOfDay)} ${peak.index}점`);
-    if (w.temperature != null) bits.push(`<b>기온</b> ${Math.round(w.temperature)}°`);
+    const series = (d.series || []).slice(0, 24);
+    const stage = stageOf(d.index);
+    const cells = [];
+
+    cells.push(`<div class="gl-cell"><p class="gl-k">지금 모기지수</p>
+      <p class="gl-v"><span class="odo-wrap" aria-label="${d.index}점">${odometer(d.index)}</span><small>점</small></p>
+      <p class="gl-s"><span class="lvl lvl-sm ${stage.className}">${faceSvg(stage.className)}</span>${stage.label}</p></div>`);
+
+    if (series.length) {
+      const max = Math.max(...series.map((p) => p.index)), min = Math.min(...series.map((p) => p.index));
+      const pi = series.findIndex((p) => p.index === max);
+      const X = (i) => (i / (series.length - 1)) * 100;
+      const Y = (v) => 34 - ((v - min) / Math.max(1, max - min)) * 28;
+      const path = series.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.index).toFixed(1)}`).join(' ');
+      cells.push(`<div class="gl-cell"><p class="gl-k">가장 많은 때</p>
+        <p class="gl-v">${timeWord(series[pi].hourOfDay)}</p>
+        <svg class="spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="${path}" pathLength="1"/><circle cx="${X(pi)}" cy="${Y(max)}" r="3.2"/></svg>
+        <p class="gl-s">${max}점 · 지금부터 24시간</p></div>`);
+    }
+
+    if (w.temperature != null) {
+      const feels = w.feelsLike ?? w.apparentTemperature;
+      cells.push(`<div class="gl-cell"><p class="gl-k">기온</p>
+        <p class="gl-v"><span class="odo-wrap" aria-label="${Math.round(w.temperature)}도">${odometer(Math.round(w.temperature))}</span><small>°</small></p>
+        <p class="gl-s">${feels != null ? `체감 ${Math.round(feels)}°` : (w.weatherText || '')}</p></div>`);
+    }
+
     const rain = w.dailyRainProbability ?? w.precipitationProbability;
-    if (rain != null) bits.push(`<b>비 올 확률</b> ${Math.round(rain)}%`);
-    const on = Array.from(document.querySelectorAll('#kitList li.on .nm')).map((el) => el.textContent);
-    bits.push(on.length ? `<b>챙길 것</b> ${on.join(' · ')}` : '<b>챙길 것</b> 없음');
+    if (rain != null) {
+      const r = Math.round(rain);
+      cells.push(`<div class="gl-cell gl-ring"><div><p class="gl-k">비 올 확률</p>
+        <p class="gl-v">${r}<small>%</small></p><p class="gl-s">${r >= 40 ? '우산 챙기세요' : '우산은 괜찮아요'}</p></div>
+        <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" pathLength="100"/><circle class="fill" cx="22" cy="22" r="18" pathLength="100" style="--p:${r}"/></svg></div>`);
+    }
+
     const rank = d.precision && d.precision.ranking;
-    if (rank) bits.push(`<b>우리 동네</b> ${rank.total_districts}곳 중 ${rank.rank}번째`);
-    const one = bits.map((b) => `<span>${b}</span>`).join('');
-    track.innerHTML = `<div class="tk">${one}</div><div class="tk" aria-hidden="true">${one}</div>`;
+    if (rank) {
+      const dots = Array.from({ length: rank.total_districts }, (_, i) => `<i class="${i + 1 === rank.rank ? 'me' : ''}" style="--i:${i}"></i>`).join('');
+      cells.push(`<div class="gl-cell"><p class="gl-k">우리 동네 순위</p>
+        <p class="gl-v">${rank.rank}<small>번째</small></p>
+        <p class="gl-dots" aria-hidden="true">${dots}</p>
+        <p class="gl-s">모기 많은 순 · ${rank.total_districts}곳 중</p></div>`);
+    }
+
+    const on = Array.from(document.querySelectorAll('#kitList li.on'));
+    const icons = on.map((li, i) => `<span class="gl-ico" style="--i:${i}" title="${li.querySelector('.nm').textContent}">${li.querySelector('.ico').innerHTML}</span>`).join('');
+    cells.push(`<div class="gl-cell"><p class="gl-k">챙길 것</p>
+      <p class="gl-v">${on.length}<small>개</small></p>
+      ${on.length ? `<p class="gl-icons">${icons}</p>` : ''}
+      <p class="gl-s">${on.length ? on.map((li) => li.querySelector('.nm').textContent).join(' · ') : '오늘은 없어요'}</p></div>`);
+
+    box.innerHTML = cells.join('');
   }
 
   let lastQuipCtx = '';
@@ -194,7 +243,7 @@
       renderRank(d);
       renderParks(d);
       renderContextQuip(d);
-      renderTicker(d);
+      renderGlance(d);
     } catch (error) {
       console.warn('화면 갱신 중 문제가 발생했습니다.', error);   // 한 군데가 실패해도 페이지는 살아 있어야 한다
     }

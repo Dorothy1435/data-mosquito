@@ -55,6 +55,10 @@
           <h1 id="heroTitle" class="up"><span id="heroLine2">확인 중.</span> <span id="heroLine3">잠시만요.</span></h1>
         </div>
       </div>
+      <!-- 1-1. 오늘 한눈에: 사진 아래쪽에 걸쳐 올라오는 요약 카드. 칸마다 다른 움직임으로 숫자를 보여 준다 -->
+      <section class="glance rv" id="glance" aria-label="오늘 한눈에">
+        <div class="gl-cell"><p class="gl-k">오늘 한눈에</p><p class="gl-v">불러오는 중이에요</p></div>
+      </section>
       <p class="meta">
         <span>참고용 예상값이에요.</span>
         <span>'현재 위치로'를 누르면 위치는 날씨 조회에만 쓰고 저장하지 않아요.</span>
@@ -72,10 +76,6 @@
       <span class="sr-only" id="precisionBadge" hidden></span>
     </section>
 
-    <!-- 1-1. 오늘 요약 흐름 띠: 핵심 숫자가 한 줄로 천천히 흐른다 (Robin Collective · The Tea Story 기법) -->
-    <div class="ticker" aria-label="오늘 요약">
-      <div class="ticker-track" id="tickerTrack"><span>오늘 모기지수를 불러오는 중이에요</span></div>
-    </div>
 
     <!-- 2. 지금부터 24시간: 왼쪽 글, 오른쪽 회색 액자 속 막대 (토스 기능 소개 방식) -->
     <section class="s" id="flow" aria-labelledby="flT">
