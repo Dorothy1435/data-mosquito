@@ -10,7 +10,8 @@
 
 const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
 const GEMINI_VISION_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
-const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || '';   // 비워 두면 api/_groq.js 가 이미지를 받는 모델을 골라 준다
+const groq = require('./_groq.js');
 
 const LABELS = ['흰줄숲모기', '얼룩날개모기', '집모기류', '모기 아님', '알 수 없음'];
 
@@ -92,13 +93,21 @@ module.exports = async function handler(req, res) {
     const chain = [];
     if (openaiKey) chain.push(() => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_VISION_MODEL, dataUrl));
     if (geminiKey) chain.push(() => callGemini(geminiKey, m[2], m[1]));
-    if (groqKey) chain.push(() => callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_VISION_MODEL, dataUrl));
+    if (groqKey) chain.push(async () => {
+      let err = '이미지 모델 없음';
+      for (const model of await groq.visionModels(groqKey, GROQ_VISION_MODEL)) {
+        try { return await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, model, dataUrl); }
+        catch (e) { err = `[${model}] ${String(e.message).slice(0, 120)}`; }
+      }
+      throw new Error(err);
+    });
 
+    const errors = [];
     for (const fn of chain) {
       try { const result = await fn(); res.status(200).json({ ok: true, ...result }); return; }
-      catch (e) { console.error('사진 판별 제공자 실패, 다음으로', String(e.message || e).slice(0, 200)); }   // 사진 내용은 기록하지 않는다
+      catch (e) { const m = String(e.message || e).slice(0, 200); errors.push(m); console.error('사진 판별 제공자 실패, 다음으로', m); }   // 사진 내용은 기록하지 않는다
     }
-    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.' });
+    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.', ...(String(body.debug || '') === '1' ? { errors } : {}) });
   } catch (e) {
     res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.' });
   }

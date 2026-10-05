@@ -6,6 +6,20 @@
   <title>모기제로 | 모기 도감</title>
   <meta name="description" content="우리 주변 감염병 매개모기 4종, 모기 한살이, 유충 모양, 집에서 바로 할 수 있는 예방법을 정리했습니다.">
   <link rel="icon" href="assets/brand/logo-icon.png">
+  <!-- 앱 설치(PWA) · 공유 미리보기(카카오톡·SNS) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#4A1566">
+  <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="모기제로">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="모기제로">
+  <meta property="og:title" content="모기제로 | 모기 도감">
+  <meta property="og:description" content="우리 주변 감염병 매개모기 4종, 모기 한살이, 유충 모양, 집에서 바로 할 수 있는 예방법을 정리했습니다.">
+  <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="design.css">
@@ -167,5 +181,6 @@
   <script src="nav.js"></script>
   <script src="motion.js"></script>
   <script src="chat.js"></script>
+  <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
 </html>

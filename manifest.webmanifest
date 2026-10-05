@@ -1,0 +1,15 @@
+{
+  "name": "모기제로 — 김해 모기 예보",
+  "short_name": "모기제로",
+  "description": "오늘 우리 동네 모기지수, 챙길 것, 사진으로 모기 알아보기",
+  "lang": "ko",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4A1566",
+  "icons": [
+    { "src": "/assets/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

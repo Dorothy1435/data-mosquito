@@ -9,7 +9,8 @@
 // 사이트로 답할 수 없는 질문(치즈케이크 등)은 정중히 거절한다.
 
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const GROQ_MODEL = process.env.GROQ_MODEL || '';   // 비워 두면 api/_groq.js 가 이 키로 쓸 수 있는 모델을 골라 준다
+const groq = require('./_groq.js');
 // Gemini는 계정마다 되는 모델이 달라, 여러 개를 순차 시도한다.
 const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
@@ -222,7 +223,15 @@ module.exports = async function handler(req, res) {
     // 이중화 체인: 무료(Groq)를 먼저 쓰고, 한도 초과 등 실패 시 OpenAI→Gemini로 자동 폴백.
     // → 평소엔 공짜, 폭주(429) 때만 유료 OpenAI가 받아준다. 설정된 키만 후보에 오른다.
     const chain = [];
-    if (groqKey) chain.push({ name: 'groq', fn: () => callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, GROQ_MODEL, systemPrompt, question, history) });
+    if (groqKey) chain.push({ name: 'groq', fn: async () => {
+      // 모델이 은퇴했거나 이 키로 못 쓰면 다음 모델로 넘어간다
+      let err = '모델 없음';
+      for (const model of await groq.textModels(groqKey, GROQ_MODEL)) {
+        try { return await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, model, systemPrompt, question, history); }
+        catch (e) { err = `[${model}] ${e.message}`; }
+      }
+      throw new Error(err);
+    } });
     if (openaiKey) chain.push({ name: 'openai', fn: () => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_MODEL, systemPrompt, question, history) });
     if (geminiKey) chain.push({ name: 'gemini', fn: () => callGemini(geminiKey, systemPrompt, question, history) });
 
