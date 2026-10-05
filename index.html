@@ -287,13 +287,19 @@
       <!-- 제보 창: 1단계 위치 동의 → GPS / 거부하면 동네 직접 고르기. 시험판이라 저장하지 않는다 -->
       <dialog class="sheet" id="reportDialog" aria-labelledby="rdT">
         <form id="reportForm" method="dialog">
-          <h3 id="rdT">지금 있는 곳에 모기가 있나요?</h3>
+          <h3 id="rdT">무엇을 알려 주실 건가요?</h3>
+          <fieldset class="kinds">
+            <legend class="sr-only">제보 종류</legend>
+            <label><input type="radio" name="reportKind" value="mosquito" checked><span><b>모기 봤어요</b><small>모기가 날아다녀요</small></span></label>
+            <label><input type="radio" name="reportKind" value="bite"><span><b>물렸어요</b><small>여기서 모기에 물렸어요</small></span></label>
+            <label><input type="radio" name="reportKind" value="breeding"><span><b>고인 물 발견</b><small>모기가 자랄 수 있는 물웅덩이·용기</small></span></label>
+          </fieldset>
           <div class="consent" id="reportConsent">
             <p class="consent-t">위치 정보 이용 안내</p>
             <dl>
               <dt>무엇을</dt><dd>지금 휴대폰의 위치(GPS) 1회</dd>
-              <dt>왜</dt><dd>모기가 있는 곳을 지도에 표시하려고</dd>
-              <dt>보관</dt><dd>시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요</dd>
+              <dt>왜</dt><dd>모기가 있는 곳을 보건소와 지도에 알리려고</dd>
+              <dt>보관</dt><dd id="reportKeep">시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요</dd>
             </dl>
             <label class="sheet-agree"><input type="checkbox" id="reportAgree"> 위의 위치 정보 이용에 동의해요</label>
             <p class="dim">동의하지 않아도 동네를 직접 골라 표시할 수 있어요.</p>

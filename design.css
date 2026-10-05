@@ -713,3 +713,11 @@ body .mz-chat-fab::before { display: none; }
 @keyframes dangle { to { transform: rotate(4deg); } }
 @media (max-width: 620px) { .flyer { width: 84px; height: 56px; } }
 @media (prefers-reduced-motion: reduce) { .flyer { display: none; } }
+/* 제보 종류 고르기 (모기 봤어요 · 물렸어요 · 고인 물 발견) */
+.kinds { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.kinds label { display: block; cursor: pointer; }
+.kinds input { position: absolute; opacity: 0; }
+.kinds span { display: grid; gap: 2px; padding: 14px 16px; border: 2px solid var(--g200); border-radius: 14px; transition: border-color .2s, background .2s; }
+.kinds b { font-size: 17px; } .kinds small { font-size: 14px; color: var(--g600); }
+.kinds input:checked + span { border-color: var(--blue); background: var(--blue-50); }
+.kinds input:focus-visible + span { outline: 3px solid var(--blue); outline-offset: 2px; }

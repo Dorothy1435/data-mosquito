@@ -198,6 +198,7 @@
     btn.addEventListener('click', () => {
       setMode('gps');
       $('reportAgree').checked = false;
+      checkStore();
       if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     });
     $('reportCancel').addEventListener('click', () => dlg.close());
@@ -208,7 +209,7 @@
       if (mode === 'pick') {
         if (!sel.value) { msg.textContent = '동네를 골라 주세요.'; sel.focus(); return; }
         const c = model.COORDS[sel.value];
-        mark(c[0], c[1], `${sel.value} (동네 선택)`);
+        mark(c[0], c[1], `${sel.value} (동네 선택)`, 'pick');
         dlg.close();
         return;
       }
@@ -224,7 +225,7 @@
           return;
         }
         const dong = model && model.nearestDistrict ? model.nearestDistrict(lat, lng) : '';
-        mark(lat, lng, `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m`);
+        mark(lat, lng, `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m`, 'gps');
         dlg.close();
       }, (err) => {
         submit.disabled = false;
@@ -236,18 +237,43 @@
     });
   }
 
-  function mark(lat, lng, label) {
+  /* 저장 스위치가 켜져 있는지 서버에 물어, 동의 안내의 '보관' 문구를 사실대로 바꾼다 */
+  let storeOn = false;
+  async function checkStore() {
+    try {
+      const r = await (await fetch('/api/report')).json();
+      storeOn = Boolean(r && r.stored);
+    } catch (_) { storeOn = false; }
+    const keep = $('reportKeep');
+    if (keep) keep.textContent = storeOn
+      ? '약 100m 단위로 줄여 저장하고 1년 뒤 지워요. 누가 보냈는지는 저장하지 않아요'
+      : '시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요';
+  }
+
+  const KIND_NAME = { mosquito: '모기 봤어요', bite: '물렸어요', breeding: '고인 물 발견' };
+  const KIND_COLOR = { mosquito: '#3182F6', bite: '#E5484D', breeding: '#0E9F6E' };
+
+  async function mark(lat, lng, label, source) {
+    const kindEl = document.querySelector('input[name="reportKind"]:checked');
+    const kind = kindEl ? kindEl.value : 'mosquito';
+    // 서버에 보낸다. 저장 스위치가 꺼져 있으면 서버가 저장하지 않고 stored:false 를 돌려준다.
+    let saved = null;
+    try {
+      const r = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, lat, lng, source }) });
+      saved = await r.json();
+    } catch (_) { saved = null; }
+    const stored = Boolean(saved && saved.stored);
     // script.js 의 전역 지도(map)와 Leaflet(L)을 쓴다. 없으면 조용히 건너뛴다.
-    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) return;
-    const mk = L.circleMarker([lat, lng], { radius: 11, color: '#fff', weight: 3, fillColor: '#3182F6', fillOpacity: 1 })
+    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) { toast(saved && saved.message ? saved.message : '제보를 받았어요.'); return; }
+    const mk = L.circleMarker([lat, lng], { radius: 11, color: '#fff', weight: 3, fillColor: KIND_COLOR[kind], fillOpacity: 1 })
       .addTo(map)
-      .bindPopup(`<b>여기 모기 있어요</b><br>${label}<br>방금 · 시험판(저장 안 됨)`);
+      .bindPopup(`<b>${KIND_NAME[kind]}</b><br>${label}<br>방금 · ${stored ? '저장됨, 보건소 확인 전' : '시험판(저장 안 됨)'}`);
     reportMarkers.push(mk);
     map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
     const el = document.getElementById('map');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setTimeout(() => mk.openPopup(), 500);
-    toast('지도에 표시했어요. 시험판이라 저장되지 않아요.');
+    toast(stored ? (saved.message || '제보했어요. 보건소가 확인할게요.') : '지도에 표시했어요. 시험판이라 저장되지 않아요.');
   }
 
   function toast(message) {

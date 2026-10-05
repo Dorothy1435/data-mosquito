@@ -118,3 +118,13 @@ vercel
 - 키는 서버리스 함수(`api/ask.js`)에서만 읽혀 **브라우저에 노출되지 않습니다.**
 - 구역 점수 등 숫자는 브라우저가 모델로 계산해 함께 보내므로 **AI가 수치를 지어내지 않습니다(환각 방지)**. 사이트 범위를 벗어난 질문은 정중히 거절합니다.
 - 무료 티어에는 하루 요청 한도가 있습니다. 한도를 넘으면 잠시 후 다시 안내 메시지가 나올 수 있습니다.
+## 시민 제보 저장 (Supabase) — 2026-10-05
+
+"여기 모기 있어요" 제보(모기 봤어요 · 물렸어요 · 고인 물 발견)를 Supabase 에 저장하는 서버 함수가 `api/report.js` 에 있습니다. **기본은 꺼져 있고, 켜기 전에는 아무것도 저장하지 않습니다.**
+
+1. Supabase 대시보드 → SQL Editor 에서 `supabase/schema.sql` 을 실행해 `reports` 표, 공개용 `reports_public` 보기, 오래된 제보 삭제 함수를 만듭니다.
+2. Vercel 환경변수에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 가 있는지 확인합니다 (Vercel–Supabase 연동 시 자동으로 들어갑니다). service role 키는 서버 함수에서만 쓰고 브라우저로 보내지 않습니다.
+3. **위치정보법 절차**(위치기반서비스사업 신고, 개인위치정보 이용약관·동의)와 `privacy.html` 의 빈칸(보관 기간·담당 부서)을 마친 뒤 `REPORT_STORE_ENABLED=1` 을 넣고 다시 배포합니다.
+4. Supabase → Database → Cron 에 `select public.purge_old_reports();` 를 매일 실행하도록 등록합니다 (기본 1년 보관).
+
+저장 원칙: 누가 보냈는지(IP·기기)는 저장하지 않고, 위치는 서버에서 약 100m 로 반올림해 저장하며, 공개 지도에는 동 단위 개수만 내보냅니다. 보건소는 `review` 칸에 확실(confirmed) · 아마도(probable) · 모르겠음(unsure) · 반려(rejected)를 적어 확인합니다 (Mosquito Alert 의 전문가 확인 방식 참고).
