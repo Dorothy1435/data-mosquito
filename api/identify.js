@@ -107,7 +107,7 @@ module.exports = async function handler(req, res) {
       try { const result = await fn(); res.status(200).json({ ok: true, ...result }); return; }
       catch (e) { const m = String(e.message || e).slice(0, 200); errors.push(m); console.error('사진 판별 제공자 실패, 다음으로', m); }   // 사진 내용은 기록하지 않는다
     }
-    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.', ...(String(body.debug || '') === '1' ? { errors } : {}) });
+    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.', ...(String(body.debug || '') === '1' ? { errors, groqModels: groqKey ? await groq.availableModels(groqKey) : null, keys: { openai: Boolean(openaiKey), gemini: Boolean(geminiKey), groq: Boolean(groqKey) } } : {}) });
   } catch (e) {
     res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.' });
   }

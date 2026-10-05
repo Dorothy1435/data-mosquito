@@ -227,7 +227,7 @@ module.exports = async function handler(req, res) {
       // 모델이 은퇴했거나 이 키로 못 쓰면 다음 모델로 넘어간다
       let err = '모델 없음';
       for (const model of await groq.textModels(groqKey, GROQ_MODEL)) {
-        try { return await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, model, systemPrompt, question, history); }
+        try { const out = await callOpenAICompatible('https://api.groq.com/openai/v1/chat/completions', groqKey, model, systemPrompt, question, history); out.model = model; return out; }
         catch (e) { err = `[${model}] ${e.message}`; }
       }
       throw new Error(err);
@@ -243,6 +243,7 @@ module.exports = async function handler(req, res) {
           answer: result.answer || '죄송해요, 답변을 만들지 못했어요. 다시 물어봐 주세요.',
           followups: result.followups || [],
           provider: p.name, ok: true,
+          ...(debug ? { model: result.model, models: groqKey ? await groq.availableModels(groqKey) : undefined } : {}),
         });
         return;
       } catch (err) {
