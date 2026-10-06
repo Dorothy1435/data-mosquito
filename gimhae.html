@@ -56,7 +56,7 @@
         <div class="copy up">
           <p class="kicker">전문가용 · 김해시 모기 위험 모델</p>
           <h1 id="gimhaeTitle">행정 데이터와 날씨로<br>보는 구역별 모기 위험</h1>
-          <p>발생원 시설 16종과 인구를 단위면적당 밀도로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. 예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</p>
+          <p id="modelLead">발생원 시설 16종과 인구를 단위면적당 밀도로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. 예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</p>
 
           <!-- 시민용 / 전문가용 보기 전환 (방역 담당자용 내용은 시민 보기에서 접힌다) -->
           <div class="seg" role="group" aria-label="보기 모드">
@@ -68,6 +68,7 @@
           <div class="pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="pill">실시간 날씨</span>
             <span id="districtBadge" class="pill">구역 선택</span>
+            <span id="modelBadge" class="pill pill-v5" hidden>실측 학습 모형 v5</span>
           </div>
           <p id="weatherStatus" class="note">김해시 실시간 날씨를 불러오는 중입니다.</p>
           <p id="weatherInputText" class="note strong">유효기온 · 습도 · 최근 7일 강수량 기준</p>
@@ -258,8 +259,20 @@
           <p>데이터, 계산 방식, 검증, 알려진 한계를 그대로 공개합니다.</p>
         </div>
         <div class="detail-stack">
+          <!-- v5: 실측 채집수로 학습한 모형. 서버(/api/model)가 살아 있을 때 화면 점수는 이 모형의 값이다 -->
+          <article class="detail-card rv" id="v5Card" hidden>
+            <h3>v5 — 실측 모기 채집수로 학습한 모형 <span class="pill pill-v5">지금 화면 점수</span></h3>
+            <p>2026시즌 MOSCOM 장비 실측 <strong>694개 지점-일(178개 지점, 152일)</strong>로 직접 학습했습니다. 날씨·<strong>낮 길이</strong> 등 22개 특성을 쓰는 부스팅 트리가 시간 효과를, 발생원·인구·하천으로 학습한 공간 모형이 구역 수준을 맡고, 아래 v4 밀도위험을 20% 섞습니다. 모기지수 = 100 × log(1+예상 채집수) / log(1+1200).</p>
+            <div class="verify-badges">
+              <span class="verify-badge"><b>실측 일치</b> 순위상관 0.22 → <strong>0.70</strong></span>
+              <span class="verify-badge"><b>일별 도시평균</b> 0.49 → <strong>0.91</strong></span>
+              <span class="verify-badge"><b>처음 보는 지점·기간</b> <strong>0.65~0.68</strong></span>
+            </div>
+            <p>6~7월 정점 뒤 8~9월 줄어드는 실제 계절 흐름을 맞춥니다(v4는 기온만 봐서 8월을 정점으로 봤습니다). 예상 범위는 교차검증 잔차로 만든 50% 예측구간입니다.</p>
+            <p class="note">한계: 장비 자료가 한 시즌뿐이고 10월 이후 장비 자료가 없습니다. 트랩이 대부분 공원이라 "공원형 트랩 기준" 값입니다. 서버가 응답하지 않으면 아래 v4 수식 모델로 자동 전환됩니다.</p>
+          </article>
           <article class="detail-card rv">
-            <h3>모델 검증 — 두 방향에서 실제와 대조</h3>
+            <h3>모델 검증 — 두 방향에서 실제와 대조 <span class="pill">v4 수식 모델</span></h3>
             <p>예측을 서로 다른 <strong>독립된 실측</strong> 두 가지와 비교했고, 둘 다 강하게 일치했습니다. 두 실측 모두 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않습니다.</p>
             <div class="verify-badges">
               <span class="verify-badge"><b>공간</b> 밀도위험 ↔ 실제 방역민원 <strong>+0.951</strong></span>
@@ -331,6 +344,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="mosquito-model.js"></script>
+  <script src="model-v5.js"></script>
   <script src="nav.js"></script>
   <script src="motion.js"></script>
   <script src="gimhae.js"></script>

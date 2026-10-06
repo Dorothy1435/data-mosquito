@@ -128,3 +128,18 @@ vercel
 4. Supabase → Database → Cron 에 `select public.purge_old_reports();` 를 매일 실행하도록 등록합니다 (기본 1년 보관).
 
 저장 원칙: 누가 보냈는지(IP·기기)는 저장하지 않고, 위치는 서버에서 약 100m 로 반올림해 저장하며, 공개 지도에는 동 단위 개수만 내보냅니다. 보건소는 `review` 칸에 확실(confirmed) · 아마도(probable) · 모르겠음(unsure) · 반려(rejected)를 적어 확인합니다 (Mosquito Alert 의 전문가 확인 방식 참고).
+
+## 모델 v5 서버 함수 — `api/model.py` (2026-10-06)
+
+저장소 주인이 만든 파이썬 모델 `mosquito_model_portable.py`(v5, 실측 채집수 학습 모형)를 Vercel 파이썬 서버 함수로 그대로 돌립니다.
+
+- 주소: `/api/model` (GET). 김해 17개 구역의 오늘 결과를 JSON 으로 돌려줍니다. 날씨는 모델이 Open-Meteo 에서 직접 받습니다(최근 31일 일별).
+- 에지 캐시 30분(`s-maxage=1800`)이라 방문자가 많아도 모델·날씨 호출은 30분에 한 번꼴입니다.
+- 브라우저의 `model-v5.js` 가 이 결과를 받아 화면이 쓰는 자바스크립트 모델(`mosquito-model.js`, v4)의 답을 v5 기준으로 바꿔 끼웁니다. '지금 조건' 계산은 v5 값을 그대로, 시간별·일별 예보는 v4 의 하루 안 흐름(모양)에 v5 수준을 맞춥니다.
+- 서버가 실패하거나 느리면 v4 로 계속 동작하고, v5 가 도착하면 화면을 한 번 더 그립니다. 전문가 화면에 "실측 학습 모형 v5" 배지가 보이면 v5 가 적용된 상태입니다.
+- 모델 파일을 갱신하면 그대로 반영됩니다. 로컬 시험: `py -3 api/model.py` (파이썬 3.9 이상, 표준 라이브러리만 사용).
+- 별도 설정 없음. Vercel 이 `api/*.py` 를 파이썬 함수로 자동 인식합니다.
+
+## 행정경계 자료 (2026-10-06)
+
+첫 화면 지도의 시·도시 경계와 김해 읍면동 경계는 통계청(KOSTAT) 2013 행정경계(southkorea/southkorea-maps 저장소, "Free to share or remix")를 단순화해 `data/city-boundaries.json`, `data/gimhae-boundary.json` 에 넣었습니다. 2013년 당시 장유면은 모델의 '장유'로, 삼안동은 활천동에 합쳤습니다. 화목동은 법정동이라 경계가 없고 점만 찍습니다. 만드는 스크립트는 작업 폴더(scratchpad)의 `build-boundaries.js` 입니다.

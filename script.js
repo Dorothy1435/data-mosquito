@@ -367,6 +367,7 @@ function gimhaeModelOptions(weatherData) {
     month: now.getMonth() + 1,
     hour: now.getHours(),
     weather_observed: weatherData && weatherData.isLive === true,
+    _current: true,   // '지금 조건' 계산 — model-v5.js 가 v5(실측 학습 모형) 결과로 바꿔 끼운다
   };
 
   // 실시간 날씨가 있으면 정밀 모델에 그대로 넘긴다(없으면 모델이 월평년값 사용).
@@ -2043,7 +2044,8 @@ async function toggleGimhaeHeatmap() {
 
 function populateSelect(regions) {
   if (!regionSelect) return;
-  regionSelect.innerHTML = regions.map((region) => `<option value="${region.name}">${region.name}</option>`).join('');
+  const ordered = regions.slice().sort((a, b) => (a.name === '김해' ? -1 : b.name === '김해' ? 1 : 0));   // 김해가 맨 위
+  regionSelect.innerHTML = ordered.map((region) => `<option value="${region.name}">${region.name}</option>`).join('');
 }
 
 function setupEvents() {
@@ -2230,6 +2232,10 @@ async function showInitialLocation() {
     statusText.textContent = `현재 위치를 사용할 수 없어 기본 지역(${fallbackRegion.name})으로 표시합니다. 상단 “현재 위치” 버튼으로 다시 시도할 수 있습니다.`;
   }
 }
+
+document.addEventListener('model:v5', () => {
+  if (currentRegion) renderRegion(currentRegion);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   init().catch((error) => {

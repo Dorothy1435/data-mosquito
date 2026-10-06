@@ -185,7 +185,7 @@ async function loadAllDistrictWeather() {
 // 한 구역의 날씨를 모델 옵션으로 만든다. (값이 없는 항목은 빼서 모델이 평년값을 쓰도록 한다)
 function buildModelOptions(district) {
   const weather = districtWeather[district] || { month: currentMonth, isLive: false };
-  const options = { month: weather.month || currentMonth };
+  const options = { month: weather.month || currentMonth, _current: true };   // _current: model-v5.js 가 v5 결과로 바꿔 끼운다
   // 실시간 날씨를 반영했는지(신뢰도 계산용). 평년값 모드면 false.
   options.weather_observed = weather.isLive === true;
   if (weather.temp_c != null) options.temp_c = weather.temp_c;
@@ -1276,6 +1276,18 @@ function renderDistrict(district) {
   renderGimhaeForecast(district).catch((error) => console.warn('예보 차트 실패', error));
 }
 
+// 전문가 화면에 'v5 실측 학습 모형' 표시 (model-v5.js 가 서버 결과를 받았을 때만)
+function markModelV5() {
+  const pill = document.getElementById('modelBadge');
+  if (pill) { pill.textContent = '실측 학습 모형 v5'; pill.hidden = false; }
+  const k = document.querySelector('.xp-first .kicker');
+  if (k) k.textContent = '전문가용 · 김해시 모기 위험 모델 v5';
+  const lead = document.getElementById('modelLead');
+  if (lead) lead.textContent = '2026시즌 장비 실측 채집수 694건으로 학습한 v5 모형이 구역별 모기지수를 냅니다. 발생원·인구로 구역 수준을, 날씨와 낮 길이로 시간 효과를 계산하며, 실측과의 순위 일치는 0.70(일별 도시평균 0.91)입니다.';
+  const card = document.getElementById('v5Card');
+  if (card) card.hidden = false;
+}
+
 // 구역 선택 드롭다운을 채운다.
 function populateDistricts() {
   const districts = GimhaeMosquitoModel.listDistricts();
@@ -1345,6 +1357,9 @@ async function init() {
   districtWeather = await loadAllDistrictWeather();
   const defaultDistrict = districtSelect.value || GimhaeMosquitoModel.listDistricts()[0];
   renderDistrict(defaultDistrict);
+  // v5(실측 학습 모형)가 도착하면 다시 그리고, 화면에 모델 버전을 표시한다
+  document.addEventListener('model:v5', () => { renderDistrict(districtSelect.value || defaultDistrict); markModelV5(); });
+  if (window.ModelV5 && window.ModelV5.state.ready) markModelV5();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
