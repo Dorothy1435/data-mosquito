@@ -836,3 +836,20 @@ body .mz-chat-fab::before { display: none; }
 /* 큰 숫자도 단계 색으로 (매우 양호 초록 → 매우 위험 빨강). 단계를 모르는 동안은 흰색 */
 .idx .n { color: var(--stage-c, #fff); transition: color .6s var(--ease); }
 .hero-card:not([data-stage]) .idx .n { color: #fff; }
+
+/* ---------- 29) 이스터 에그: 모기 100·500·1000마리 임명장 (2026-10-06) ---------- */
+.egg { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; padding: 24px; background: rgba(12, 16, 30, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: default; animation: eggin .5s var(--ease) both; }
+@keyframes eggin { from { opacity: 0; } }
+.egg-card { position: relative; z-index: 2; display: grid; gap: 6px; justify-items: center; width: min(440px, 100%); padding: 36px 32px 28px; border-radius: 28px; background: #fff; color: var(--g900); text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, .45); animation: eggcard .7s .15s cubic-bezier(.34, 1.56, .64, 1) both; }
+@keyframes eggcard { from { transform: scale(.6); opacity: 0; } }
+.egg-k { font-size: 14px; font-weight: 700; letter-spacing: .08em; color: var(--blue-ink); }
+.egg-n { font-size: 72px; font-weight: 700; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.egg-n small { font-size: 20px; margin-left: 4px; letter-spacing: 0; }
+.egg-t { font-size: 26px; font-weight: 700; }
+.egg-p { font-size: 16px; line-height: 1.6; color: var(--g700); }
+.egg-d { margin: 8px 0 14px; font-size: 13px; color: var(--g500); }
+.egg-rain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.egg-fly { position: absolute; top: -90px; width: 90px; height: 60px; filter: none; animation: eggfall 2.6s var(--d, 0s) ease-in both; }
+@keyframes eggfall { to { transform: translateY(120vh) rotate(var(--r, 360deg)); opacity: .2; } }
+@media (max-width: 620px) { .egg-card { padding: 28px 20px 22px; border-radius: 22px; } .egg-n { font-size: 56px; } .egg-t { font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) { .egg, .egg-card { animation: none; } .egg-fly { display: none; } }

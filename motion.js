@@ -161,7 +161,12 @@
     const FLEE = 230;                     // 모기약이 이 거리 안에 오면 도망간다
     const COUNT_BY_LEVEL = small ? [1, 1, 2, 3, 5] : [1, 2, 3, 5, 8];
     let cx = null, cy = null;             // 모기약(마우스) 위치
+    // 잡은 수는 이 브라우저에 저장해 다음에 와도 이어진다 (없거나 막혀 있으면 0부터)
+    const KILL_KEY = 'mz-kills';
     let kills = 0;
+    try { kills = Math.max(0, parseInt(localStorage.getItem(KILL_KEY) || '0', 10) || 0); } catch (e) { kills = 0; }
+    // 이스터 에그: 잡은 수가 여기에 닿으면 임명장이 뜬다
+    const MILESTONES = { 100: ['모기 박멸 요원', '100마리를 잡았어요. 김해 모기 박멸 요원으로 임명합니다.'], 500: ['모기 박멸 반장', '500마리! 반장으로 승진했어요. 동네 모기가 당신을 피해 다닙니다.'], 1000: ['모기 박멸 전설', '1,000마리. 전설입니다. 김해 모기들 사이에 소문이 났어요.'] };
     const flies = [];                     // 모기 하나하나의 상태
     card.classList.add('spray');
 
@@ -190,7 +195,7 @@
     function setCount(n) {
       while (flies.length < n) addFly(true);
       while (flies.length > n) { const f = flies.pop(); if (f.el !== proto) f.el.remove(); else f.el.hidden = true; }
-      if (hint) hint.textContent = n > 1 ? `모기 ${n}마리 · 눌러서 잡아 보세요` : '모기를 눌러서 잡아 보세요';
+      if (hint) hint.textContent = (n > 1 ? `모기 ${n}마리 · 눌러서 잡아 보세요` : '모기를 눌러서 잡아 보세요') + (kills ? ` · 지금까지 ${kills}마리` : '');
     }
     document.addEventListener('mosquito:updated', (e) => {
       const idx = e.detail && e.detail.index;
@@ -231,8 +236,23 @@
       setTimeout(() => p.remove(), 800);
     }
     const now0 = () => performance.now();
+    // 임명장: 화면을 덮는 카드 + 모기 떼가 떨어진다. 누르면 닫힌다
+    function easterEgg(n) {
+      const [title, text] = MILESTONES[n];
+      const egg = document.createElement('div');
+      egg.className = 'egg';
+      egg.setAttribute('role', 'dialog');
+      egg.innerHTML = `<div class="egg-rain" aria-hidden="true"></div><div class="egg-card"><p class="egg-k">모기제로 임명장</p><p class="egg-n">${n.toLocaleString('ko-KR')}<small>마리</small></p><p class="egg-t">${title}</p><p class="egg-p">${text}</p><p class="egg-d">${new Date().toLocaleDateString('ko-KR')} · 모기제로</p><button type="button" class="btn-main">계속 잡기</button></div>`;
+      const rain = egg.querySelector('.egg-rain');
+      if (!reduceMotion) for (let i = 0; i < 24; i++) { const m = proto.cloneNode(true); m.removeAttribute('id'); m.className = 'flyer egg-fly'; m.style.left = (Math.random() * 100) + '%'; m.style.setProperty('--d', (Math.random() * 1.8).toFixed(2) + 's'); m.style.setProperty('--r', (Math.random() * 720 - 360).toFixed(0) + 'deg'); rain.appendChild(m); }
+      egg.addEventListener('click', () => egg.remove());
+      card.appendChild(egg);
+      egg.querySelector('button').focus();
+    }
     function kill(f) {
       f.dead = performance.now(); kills += 1;
+      try { localStorage.setItem(KILL_KEY, String(kills)); } catch (e) { /* 저장 못 해도 게임은 된다 */ }
+      if (MILESTONES[kills]) setTimeout(() => easterEgg(kills), 700);
       const pop = document.createElement('span');
       pop.className = 'kill-pop';
       pop.textContent = kills === 1 ? '잡았다!' : `잡았다! ${kills}마리째`;
