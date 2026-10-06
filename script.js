@@ -2260,7 +2260,8 @@ let lastRenderAt = 0;
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 function refreshIfStale() {
   if (!currentRegion || document.visibilityState !== 'visible') return;
-  if (Date.now() - lastRenderAt < AUTO_REFRESH_MS) return;
+  const hourChanged = new Date(lastRenderAt).getHours() !== new Date().getHours();   // 정각이 지나면 '지금' 시점이 바뀌므로 바로 다시 계산
+  if (!hourChanged && Date.now() - lastRenderAt < AUTO_REFRESH_MS) return;
   renderRegion(currentRegion);
 }
 setInterval(refreshIfStale, 60 * 1000);

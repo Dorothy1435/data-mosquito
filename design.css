@@ -826,8 +826,12 @@ body .mz-chat-fab::before { display: none; }
 .pk-art[data-type="sports"] { background: linear-gradient(135deg, #3B3F8C 0%, #7C7FD6 100%); }
 .pk-art[data-type="history"] { background: linear-gradient(135deg, #6B4F2F 0%, #B08A5A 100%); }
 
-/* 넓은 화면: 첫 화면 카드·제보 띠를 상단 메뉴(1200px)와 같은 폭으로 가운데 모은다 (2026-10-06) */
-.hero, .report-s { max-width: 1232px; margin-left: auto; margin-right: auto; }
+/* 넓은 화면: 첫 화면 카드는 화면 가득 두고, 안의 글자·지도·안내만 상단 메뉴(1200px)와 같은 폭에 맞춘다 (2026-10-06, 토스 방식) */
+@media (min-width: 1500px) {
+  .hero-in { max-width: 1200px; margin-left: auto; margin-right: auto; }
+  .hero-map { right: calc(50% - 600px); width: 640px; height: 86%; top: 7%; }
+  .spray-hint { right: calc(50% - 600px + 8px); }
+}
 
 /* 큰 숫자도 단계 색으로 (매우 양호 초록 → 매우 위험 빨강). 단계를 모르는 동안은 흰색 */
 .idx .n { color: var(--stage-c, #fff); transition: color .6s var(--ease); }

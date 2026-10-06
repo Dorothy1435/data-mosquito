@@ -229,6 +229,9 @@
     if (lastDetail) renderKit(lastDetail);
   });
 
+  // 시계는 30초마다 따로 돌린다 (숫자 계산과 별개로 시간이 실시간으로 바뀌게)
+  setInterval(() => { if (lastDetail) renderNow(lastDetail); }, 30 * 1000);
+
   document.addEventListener('mosquito:updated', (event) => {
     const d = event.detail || {};
     lastDetail = d;
