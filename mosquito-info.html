@@ -46,15 +46,44 @@
 
   <main id="main">
 
-    <!-- 첫 화면: 왼쪽 큰 제목, 오른쪽 로고 액자 -->
-    <section class="s g-first" aria-labelledby="gTitle">
+    <!-- 첫 화면: 사진으로 모기 알아보기 (홈과 같은 부품, citizen.js 가 동작시킨다) -->
+    <section class="s g-first" id="photo" aria-labelledby="phT">
       <div class="wrap split">
         <div class="copy up">
           <p class="kicker">모기 도감</p>
-          <h1 id="gTitle">모기를 알면<br>물을 비우게 돼요</h1>
+          <h1 id="phT">모기를 찍으면<br>어떤 모기인지 알려드려요</h1>
+          <p>잡은 모기나 벽에 앉은 모기를 찍어 보세요. 우리 주변 모기 4종 중 무엇에 가까운지 AI가 알려드려요.</p>
+          <div class="photo-btns">
+            <button class="btn-main" type="button" data-open="photoCamera">카메라로 찍기</button>
+            <button class="btn-sub" type="button" data-open="photoPick">앨범에서 고르기</button>
+            <input id="photoCamera" type="file" accept="image/*" capture="environment" hidden>
+            <input id="photoPick" type="file" accept="image/*" hidden>
+          </div>
+          <p class="note">사진은 판별에만 쓰고 저장하지 않아요. 보내기 전에 사진 속 촬영 위치 정보를 지워요. AI가 본 참고용 결과이고, 의학적 판단이 아니에요.</p>
+        </div>
+        <div class="frame photo-frame up" id="photoBox" data-state="idle" aria-live="polite">
+          <div class="ph-idle">
+            <p class="ph-t">이렇게 찍으면 잘 알아봐요</p>
+            <ol class="ph-tips"><li>모기가 화면에 크게 나오게</li><li>밝은 곳에서, 흔들리지 않게</li><li>날개와 다리가 보이게</li></ol>
+          </div>
+          <div class="ph-work">
+            <img id="photoPreview" alt="올린 모기 사진">
+            <div class="ph-loading"><span class="spin" aria-hidden="true"></span>사진을 살펴보고 있어요</div>
+            <div class="ph-result" id="photoResult"></div>
+            <button class="btn-sub ph-again" type="button" id="photoAgain">다른 사진 올리기</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 둘째 화면: 왼쪽 큰 제목, 오른쪽 로고 액자 -->
+    <section class="s" aria-labelledby="gTitle">
+      <div class="wrap split">
+        <div class="copy rv">
+          <h2 id="gTitle">모기를 알면<br>물을 비우게 돼요</h2>
           <p>우리 주변에서 병을 옮기는 모기 4종과, 모기가 물에서 자라는 과정을 정리했어요.</p>
         </div>
-        <div class="frame logo-frame up">
+        <div class="frame logo-frame rv">
           <img src="assets/brand/logo-splat.png" alt="MOSQUITO ZERO 로고. 초록 선으로 그린 모기 위에 흰 글씨 ZERO와 빨간 얼룩.">
         </div>
       </div>
@@ -181,9 +210,25 @@
     </div>
   </footer>
 
+  <!-- 페이지 안 카메라 (citizen.js) -->
+  <dialog class="cam" id="camDialog" aria-label="모기 사진 찍기">
+    <video id="camVideo" playsinline muted autoplay></video>
+    <div class="cam-guide" aria-hidden="true"><span></span></div>
+    <p class="cam-tip">모기가 동그라미 안에 크게 오게 찍어 주세요</p>
+    <div class="cam-bar">
+      <button class="cam-close" type="button" id="camClose">닫기</button>
+      <button class="cam-shot" type="button" id="camShot" aria-label="사진 찍기"></button>
+      <span aria-hidden="true"></span>
+    </div>
+  </dialog>
+  <button class="fab-cam" type="button" data-open="photoCamera" aria-label="모기 사진 찍어서 알아보기">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>
+    <span>모기 찍기</span>
+  </button>
   <script src="mosquito-model.js"></script>
   <script src="nav.js"></script>
   <script src="motion.js"></script>
+  <script src="citizen.js"></script>
   <script src="chat.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
