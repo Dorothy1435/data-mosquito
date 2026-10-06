@@ -143,6 +143,8 @@
      parks JSON 에 photo 가 들어오면 그걸 먼저 쓴다. */
   function pictureOf(park, zoom) {
     if (park.photo) return { src: park.photo, isMap: false, fx: 50, fy: 50 };
+    // 자유 이용 사진이 없는 공원은 지도 조각 대신 유형별 그림 카드를 쓴다 (위키미디어 공용에 김해 공원 사진이 거의 없음, 2026-10-06 확인)
+    if (!zoom) return { src: null, isMap: false, art: park.type || '공원', fx: 50, fy: 50 };
 
     const z = zoom || 15;
     const n = 2 ** z;

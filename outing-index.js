@@ -40,7 +40,10 @@
     { when: (p, i) => i.rainProbability >= 70, limit: 52, why: '비 올 가능성 높음' },
     { when: (p) => p.temperature <= 0.3, limit: 42, why: '기온이 너무 덥거나 추움' },
     { when: (p) => p.uv <= 0.45, limit: 58, why: '자외선이 매우 강함' },
-    { when: (p) => p.mosquito <= 0.12, limit: 50, why: '모기가 매우 많음' },
+    // 모기 단계별 상한 — 날씨가 아무리 좋아도 모기가 '보통'이면 '매우 좋음'까지 가지 않게 (2026-10-06)
+    { when: (p) => p.mosquito <= 0.12, limit: 39, why: '모기가 매우 많음' },
+    { when: (p) => p.mosquito <= 0.30, limit: 59, why: '모기가 많음(위험)' },
+    { when: (p) => p.mosquito <= 0.56, limit: 79, why: '모기가 보통' },
     { when: (p) => p.wind <= 0.35, limit: 55, why: '바람이 매우 강함' },
   ];
 

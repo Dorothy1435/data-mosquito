@@ -100,6 +100,8 @@
     night: ['모기는 해 질 무렵부터 가장 바빠요. 지금이 그 시간이에요.', '방충망 구멍은 모기에게 문이에요. 자기 전에 한 번 확인해요.', '선풍기 바람 하나로도 모기가 잘 못 다가와요.'],
     high: ['오늘은 모기가 많은 날이에요. 기피제는 드러난 피부에 발라요.', '밝은 긴 옷이 제일 싸고 확실한 기피제예요.'],
     low: ['오늘은 모기가 적은 날이에요. 이럴 때 집 주변 물을 비워 두면 좋아요.'],
+    // 가을(9~11월): 밖은 선선해져도 모기가 밤에 따뜻한 실내로 들어온다
+    autumn: ['가을 모기는 밤에 따뜻한 집 안으로 들어와요. 방충망 틈과 현관문을 한 번 봐 주세요.', '날이 선선해도 실내 모기는 11월까지 가요. 자기 전 방충망 확인, 잊지 마세요.', '가을엔 밖보다 집 안에서 더 물려요. 화장실·베란다 배수구에 물이 고였는지 봐 주세요.'],
   };
   /* ---------- 오늘 한눈에 ----------
      여섯 칸에 핵심 숫자만 담는다. 칸마다 움직임이 다르다 (design.css 20번).
@@ -177,9 +179,10 @@
     const el = $('quip');
     if (!el || d.index == null) return;
     const w = d.weatherData || {};
-    const h = new Date().getHours();
+    const now = new Date(), h = now.getHours(), month = now.getMonth() + 1;
+    const autumn = month >= 9 && month <= 11;   // 가을 실내 모기 안내
     const ctx = w.currentRain || (w.weatherCode >= 51 && w.weatherCode <= 82) ? 'rain'
-      : (w.temperature >= 30 ? 'hot' : (h >= 18 || h < 5 ? 'night' : (d.index >= 61 ? 'high' : (d.index <= 20 ? 'low' : ''))));
+      : (w.temperature >= 30 ? 'hot' : (h >= 18 || h < 5 ? 'night' : (d.index >= 61 ? 'high' : (autumn ? 'autumn' : (d.index <= 20 ? 'low' : '')))));
     if (!ctx || ctx === lastQuipCtx) return;
     lastQuipCtx = ctx;
     const list = QUIPS_BY[ctx];
@@ -599,6 +602,23 @@
     return parkData;
   }
 
+  // 공원 유형 → 그림 종류. 사진이 없는 공원 카드의 바탕색·아이콘을 정한다.
+  function parkArtType(type) {
+    const t = String(type || '');
+    if (/수변|하천|강/.test(t)) return 'water';
+    if (/어린이|소공원/.test(t)) return 'kids';
+    if (/체육/.test(t)) return 'sports';
+    if (/역사|문화|고분|유적/.test(t)) return 'history';
+    return 'green';
+  }
+  const PARK_ART = {
+    green: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 50V30"/><path d="M20 30c-4-8 2-18 12-18s16 10 12 18c-3 6-21 6-24 0Z"/><path d="M12 52h40"/></svg>',
+    water: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 40c6-6 10-6 16 0s10 6 16 0 10-6 12 0"/><path d="M10 50c6-6 10-6 16 0s10 6 16 0 10-6 12 0"/><path d="M22 28V16M22 16c6 0 8 4 8 8-6 0-8-4-8-8Z"/></svg>',
+    kids: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 52 32 14l20 38"/><path d="M22 36h20M18 44h28"/><circle cx="32" cy="28" r="3"/></svg>',
+    sports: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="18"/><path d="M14 32h36M32 14c-8 10-8 26 0 36M32 14c8 10 8 26 0 36"/></svg>',
+    history: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 50h40M16 44h32M20 26v18M32 26v18M44 26v18M12 26h40L32 14Z"/></svg>',
+  };
+
   function renderParks(d) {
     const grid = $('parksGrid'), note = $('parksNote');
     if (!grid || !window.ParkPicks) return;
@@ -607,16 +627,17 @@
       const picks = window.ParkPicks.pick(parks, lastOutingScore, { from: { lat: d.lat, lng: d.lng }, limit: 3 });
       if (!picks.length) { grid.innerHTML = '<p class="dim">공원 정보를 불러오지 못했습니다.</p>'; return; }
       grid.innerHTML = picks.map((s, i) => {
-        const q = encodeURIComponent(`${s.park.name} 김해`);
-        // 자유 이용 사진이 있으면 사진, 없으면 그 공원 자리의 지도 조각을 보여 준다 (park-picks.js pictureOf)
+        const q = encodeURIComponent(`김해 ${s.park.name}`);
+        // 자유 이용 사진이 있으면 사진, 없으면 공원 유형 그림 카드를 보여 준다 (park-picks.js pictureOf)
         const pic = s.picture || {};
         const img = pic.src
-          ? `<span class="pk-img${pic.isMap ? ' is-map' : ''}"><img src="${pic.src}" alt="${pic.isMap ? `${s.park.name} 위치 지도` : `${s.park.name} 사진`}" loading="lazy" style="object-position:${pic.fx}% ${pic.fy}%">${pic.isMap ? '<i class="pk-pin" aria-hidden="true"></i>' : ''}${s.park.credit ? `<small class="pk-credit">${s.park.credit}</small>` : ''}</span>`
-          : '';
-        return `<a href="https://www.openstreetmap.org/?mlat=${s.park.lat}&mlon=${s.park.lon}#map=17/${s.park.lat}/${s.park.lon}" target="_blank" rel="noopener" aria-label="${s.park.name} 지도 열기 (새 창)">
+          ? `<span class="pk-img"><img src="${pic.src}" alt="${s.park.name} 사진" loading="lazy" style="object-position:${pic.fx}% ${pic.fy}%">${s.park.credit ? `<small class="pk-credit">${s.park.credit}</small>` : ''}</span>`
+          : `<span class="pk-img pk-art" data-type="${parkArtType(pic.art)}" aria-hidden="true">${PARK_ART[parkArtType(pic.art)]}</span>`;
+        // 누르면 네이버 지도에서 그 공원을 검색한 화면이 열린다 (휴대폰은 네이버 지도 앱이 있으면 앱으로)
+        return `<a href="https://map.naver.com/p/search/${q}" target="_blank" rel="noopener" aria-label="${s.park.name} 네이버 지도에서 보기 (새 창)">
           ${img}<span class="pk-txt"><span class="r">${i + 1}위 · ${s.park.district}</span><span class="nm">${s.park.name}</span><span class="m">${s.reason}</span></span></a>`;
       }).join('');
-      if (note) note.textContent = '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다. 공원을 누르면 지도가 열립니다.';
+      if (note) note.textContent = '공원별 모기 실측값은 없으며, 공원 유형과 동네 자료로 계산한 참고값입니다. 공원을 누르면 네이버 지도가 열립니다.';
     });
   }
 }());

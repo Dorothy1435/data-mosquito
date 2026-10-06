@@ -815,3 +815,12 @@ body .mz-chat-fab::before { display: none; }
 .hero-card .flyer .wing ellipse { fill: rgba(255, 255, 255, .5); stroke: rgba(255, 255, 255, .95); }
 .hm-city { stroke: rgba(255, 255, 255, .4); fill: rgba(255, 255, 255, .04); }
 @media (max-width: 620px) { .hero-card .flyer { width: 100px; height: 66px; } }
+
+/* ---------- 28) 공원 카드: 사진 없는 공원은 유형 그림, 누르면 네이버 지도 (2026-10-06) ---------- */
+.pk-art { display: grid; place-items: center; color: #fff; }
+.pk-art svg { width: 40%; height: 40%; opacity: .85; }
+.pk-art[data-type="green"] { background: linear-gradient(135deg, #2F6B4F 0%, #5FA67F 100%); }
+.pk-art[data-type="water"] { background: linear-gradient(135deg, #1F4E79 0%, #4A8DC8 100%); }
+.pk-art[data-type="kids"] { background: linear-gradient(135deg, #B4552B 0%, #F0A35A 100%); }
+.pk-art[data-type="sports"] { background: linear-gradient(135deg, #3B3F8C 0%, #7C7FD6 100%); }
+.pk-art[data-type="history"] { background: linear-gradient(135deg, #6B4F2F 0%, #B08A5A 100%); }
