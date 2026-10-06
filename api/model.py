@@ -39,26 +39,25 @@ def payload():
         return 200, {'ok': False, 'model': 'v5', 'error': str(e)[:200]}
 
 
-try:
-    from http.server import BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler
 
-    class handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            status, body = payload()
-            data = json.dumps(body, ensure_ascii=False).encode('utf-8')
-            self.send_response(status)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
-            # 에지 캐시 30분, 그 뒤 1시간은 옛 값을 주면서 뒤에서 갱신
-            self.send_header('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600'
-                             if body.get('ok') else 'no-store')
-            self.send_header('Content-Length', str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
 
-        def log_message(self, *args):  # 접속 기록에 아무것도 남기지 않는다
-            pass
-except Exception:
-    pass
+class handler(BaseHTTPRequestHandler):
+    # Vercel 이 이 클래스 이름(handler)을 보고 파이썬 함수로 인식한다 — 들여쓰기 없이 최상위에 둔다
+    def do_GET(self):
+        status, body = payload()
+        data = json.dumps(body, ensure_ascii=False).encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        # 에지 캐시 30분, 그 뒤 1시간은 옛 값을 주면서 뒤에서 갱신
+        self.send_header('Cache-Control', 'public, s-maxage=1800, stale-while-revalidate=3600'
+                         if body.get('ok') else 'no-store')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *args):  # 접속 기록에 아무것도 남기지 않는다
+        pass
 
 
 if __name__ == '__main__':
