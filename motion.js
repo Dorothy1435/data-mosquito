@@ -23,7 +23,6 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     splitHeadingLines();
-    setupLens();
     setupMosquito();
     setupReveal();
     setupScrollEffects();
@@ -137,64 +136,107 @@
     document.querySelectorAll('.head h2, .copy > h2, .copy > h1').forEach((h) => {
       const lines = h.innerHTML.split(/<br\s*\/?>/i);
       h.innerHTML = lines.map((l, i) => `<span class="ln" style="--li:${i}"><span>${l.trim()}</span></span>`).join('');
+      // 스크롤 등장(.rv) 안에 없는 제목은 바로 보여 준다 (안 그러면 줄이 숨은 채로 남는다)
+      if (!h.closest('.rv')) requestAnimationFrame(() => requestAnimationFrame(() => h.classList.add('is-in')));
     });
   }
 
   /* ---------- 유리 렌즈 ----------
      큰 숫자 위를 유리 렌즈가 천천히 떠다니며 숫자를 확대한다. 마우스를 올리면 렌즈가 따라온다.
      (토스 채용 페이지의 유리 폴더가 글자를 비추는 장면에서 가져온 기법. 영상 대신 CSS 로 만든다.) */
-  function setupLens() {
-    const wrap = $('lensWrap'), num = $('indexValue'), clone = $('lensClone');
-    if (!wrap || !num || !clone || reduceMotion) return;
-    wrap.classList.add('lens-on');
-    let px = null, py = null, x = 0.5, y = 0.5, start = performance.now();
-    const hero = wrap.closest('.hero') || wrap;
-    // 마우스는 날아다니는 모기가 따라가므로, 렌즈는 혼자 천천히 떠다닌다
-    function tick(now) {
-      if (clone.textContent !== num.textContent) clone.textContent = num.textContent;   // 카운트업 숫자를 그대로 따라 쓴다
-      const t = (now - start) / 1000;
-      // 손을 대지 않으면 8자 모양으로 천천히 떠다닌다
-      const tx = px == null ? 0.5 + 0.34 * Math.sin(t * 0.55) : px;
-      const ty = py == null ? 0.52 + 0.16 * Math.sin(t * 1.1) : py;
-      x += (tx - x) * 0.08; y += (ty - y) * 0.08;
-      const h = wrap.offsetHeight;
-      wrap.style.setProperty('--lx', (x * 100).toFixed(2) + '%');
-      wrap.style.setProperty('--ly', (y * 100).toFixed(2) + '%');
-      wrap.style.setProperty('--r', Math.round(h * 0.46) + 'px');
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  /* ---------- 날아다니는 모기 ----------
-     첫 화면 사진 위를 모기 한 마리가 날아다닌다.
-       · 마우스를 올리면 커서를 따라오되, 바로 붙지 않고 늦게 따라오며 지그재그로 윙윙거린다
-       · 마우스가 없으면(휴대폰) 사진 위를 8자 모양으로 혼자 돌아다닌다. 화면을 누르면 그쪽으로 날아간다
-       · 날아가는 방향으로 몸을 돌리고, 날개는 빠르게 파닥인다 (날개는 CSS 애니메이션)
-     '움직임 줄이기'면 모기를 숨긴다. */
+  /* ---------- 날아다니는 모기 + 모기약 ----------
+     첫 화면 사진 위를 모기 한 마리가 혼자 날아다닌다.
+       · 2~3초마다 새 목적지를 골라 스프링처럼 끌려가고, 지그재그로 윙윙거린다
+       · 마우스(모기약)가 가까이 오면 조금 도망간다
+       · 사진을 누르면 그 자리에 약이 퍼지고(.puff), 모기가 가까이 있으면 잡힌다 — 빙글 돌며 떨어진 뒤 새 모기가 나온다
+     '움직임 줄이기'면 모기를 숨기고 게임도 끈다. */
   function setupMosquito() {
     const fly = $('flyer');
     const card = fly && fly.closest('.hero-card');
     if (!fly || !card || reduceMotion) { if (fly) fly.hidden = true; return; }
-    let tx = null, ty = null, lastMove = 0;
+    const hint = $('sprayHint');
+    const HIT = 80;                       // 이 거리 안이면 잡힌 것
     let x = card.clientWidth * 0.7, y = card.clientHeight * 0.3, vx = 0, vy = 0, face = 1;
-    const aim = (e) => { const r = card.getBoundingClientRect(); tx = e.clientX - r.left; ty = e.clientY - r.top; lastMove = performance.now(); };
-    card.addEventListener('pointermove', aim);
-    card.addEventListener('pointerdown', aim);
-    card.addEventListener('pointerleave', () => { tx = null; ty = null; });
+    let gx = x, gy = y, nextPick = 0;     // 목적지와 다음 목적지를 고를 시각
+    let cx = null, cy = null;             // 모기약(마우스) 위치
+    let dead = 0, spin = 0, alpha = 1, kills = 0, entering = false;   // entering: 가장자리 밖에서 들어오는 중
+    card.classList.add('spray');
+
+    function pick(now) {
+      const W = card.clientWidth, H = card.clientHeight;
+      gx = W * (0.12 + Math.random() * 0.76); gy = H * (0.1 + Math.random() * 0.55);
+      nextPick = now + 1800 + Math.random() * 1400;
+    }
+    card.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); cx = e.clientX - r.left; cy = e.clientY - r.top; });
+    card.addEventListener('pointerleave', () => { cx = null; cy = null; });
+    card.addEventListener('pointerdown', (e) => {
+      const r = card.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      puff(px, py);
+      if (dead) return;
+      if (Math.hypot(px - x, py - y) <= HIT) kill(px, py);
+    });
+
+    // 약이 퍼지는 모양: 작은 흰 방울 7개가 사방으로 번진다
+    function puff(px, py) {
+      const p = document.createElement('div');
+      p.className = 'puff';
+      p.style.left = px + 'px'; p.style.top = py + 'px';
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + Math.random() * 0.6, d = 26 + Math.random() * 30;
+        const b = document.createElement('i');
+        b.style.setProperty('--dx', (Math.cos(a) * d).toFixed(0) + 'px');
+        b.style.setProperty('--dy', (Math.sin(a) * d).toFixed(0) + 'px');
+        p.appendChild(b);
+      }
+      card.appendChild(p);
+      setTimeout(() => p.remove(), 800);
+    }
+    function kill(px, py) {
+      dead = performance.now(); kills += 1;
+      const pop = document.createElement('span');
+      pop.className = 'kill-pop';
+      pop.textContent = kills === 1 ? '잡았다!' : `잡았다! ${kills}마리째`;
+      pop.style.left = x + 'px'; pop.style.top = (y - 30) + 'px';
+      card.appendChild(pop);
+      setTimeout(() => pop.remove(), 1200);
+      if (hint) hint.hidden = true;
+    }
+    // 새 모기: 사진 가장자리에서 날아 들어온다
+    function respawn(now) {
+      const W = card.clientWidth, H = card.clientHeight;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      x = side < 0 ? -40 : W + 40; y = H * (0.15 + Math.random() * 0.4);
+      vx = 0; vy = 0; alpha = 1; spin = 0; dead = 0; entering = true;
+      pick(now);
+    }
+
     const t0 = performance.now();
+    pick(t0);
     function tick(now) {
       const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
-      const idle = tx == null || now - lastMove > 4000;
-      // 목표 지점: 마우스(조금 옆) 또는 혼자 돌아다니는 8자 길
-      const gx = idle ? W * (0.55 + 0.33 * Math.sin(t * 0.42)) : tx + 40;
-      const gy = idle ? H * (0.32 + 0.16 * Math.sin(t * 0.84)) : ty - 30;
-      // 스프링처럼 끌려가고(가속·감속), 윙윙거리는 떨림을 더한다
-      vx += (gx - x) * 0.012; vy += (gy - y) * 0.012;
+      if (dead) {
+        // 잡힌 모기: 빙글 돌며 떨어지고 흐려진다. 1초 뒤 새 모기.
+        const k = (now - dead) / 1000;
+        vy += 0.9; x += vx * 0.3; y += vy; spin += 28; alpha = Math.max(0, 1 - k * 1.1);
+        fly.style.opacity = alpha.toFixed(2);
+        fly.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) rotate(${spin}deg)`;
+        if (k > 1.1) { respawn(now); fly.style.opacity = '1'; }
+        requestAnimationFrame(tick);
+        return;
+      }
+      if (now > nextPick) pick(now);
+      // 모기약이 가까우면 반대쪽으로 도망간다
+      if (cx != null) {
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < 150 && d > 1) { vx += ((x - cx) / d) * 0.9; vy += ((y - cy) / d) * 0.9; }
+      }
+      vx += (gx - x) * 0.01; vy += (gy - y) * 0.01;
       vx *= 0.9; vy *= 0.9;
       x += vx + Math.sin(t * 23) * 1.4 + Math.sin(t * 7.3) * 0.9;
       y += vy + Math.cos(t * 19) * 1.3 + Math.sin(t * 5.1) * 1.1;
-      x = Math.max(20, Math.min(W - 20, x)); y = Math.max(20, Math.min(H - 20, y));
+      if (entering && x > 20 && x < W - 20) entering = false;
+      if (!entering) { x = Math.max(20, Math.min(W - 20, x)); y = Math.max(20, Math.min(H - 20, y)); }
       if (Math.abs(vx) > 0.4) face = vx > 0 ? -1 : 1;           // 그림이 왼쪽을 보고 있으므로 오른쪽으로 갈 땐 뒤집는다
       const tilt = Math.max(-25, Math.min(25, vy * 3));
       fly.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scaleX(${face}) rotate(${(tilt * -face).toFixed(1)}deg)`;

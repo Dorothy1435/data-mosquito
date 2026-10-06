@@ -288,6 +288,8 @@
 
     const face = $('stageFace');
     if (face) { face.className = `lvl lvl-lg ${stage.className}`; face.innerHTML = faceSvg(stage.className); }
+    const card = document.querySelector('.hero-card');
+    if (card) card.dataset.stage = stage.className;   // 첫 화면 바탕색이 단계를 따라간다
 
     const badge = $('stageBadge');
     if (badge) { badge.className = `stage ${stage.className}`; badge.innerHTML = `<i></i>${stage.label}`; }

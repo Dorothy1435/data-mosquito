@@ -721,3 +721,97 @@ body .mz-chat-fab::before { display: none; }
 .kinds b { font-size: 17px; } .kinds small { font-size: 14px; color: var(--g600); }
 .kinds input:checked + span { border-color: var(--blue); background: var(--blue-50); }
 .kinds input:focus-visible + span { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+/* ---------- 25) 전문가용 버튼 · 모기 잡기 (2026-10-06) ----------
+   · 상단 메뉴 맨 끝 '전문가용'은 알약 모양 버튼 (모든 화면 공통)
+   · 첫 화면 렌즈(물방울)는 뺐다. 대신 마우스가 모기약이 되고, 누르면 약이 퍼진다. 모기가 가까우면 잡힌다. */
+.lk .lk-pro { padding: 8px 14px; border-radius: 999px; background: var(--g100); color: var(--g800); font-weight: 600; }
+.lk .lk-pro:hover, .lk .lk-pro[aria-current="page"] { background: var(--g900); color: #fff; }
+.lk .lk-pro:hover svg, .lk .lk-pro[aria-current="page"] svg { color: #fff; }
+.lk a[aria-current="page"]:not(.lk-pro) { color: var(--g900); font-weight: 700; }
+@media (max-width: 1100px) { .lk { gap: 18px; } }
+@media (max-width: 900px) { .lk .lk-pro { align-self: flex-start; margin-top: 8px; padding: 10px 16px; border-bottom: 0; } }
+
+.hero-card.spray { cursor: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2236%22%20height%3D%2236%22%20viewBox%3D%220%200%2036%2036%22%3E%3Ccircle%20cx%3D%225%22%20cy%3D%225%22%20r%3D%221.4%22%20fill%3D%22%23fff%22%2F%3E%3Ccircle%20cx%3D%222.6%22%20cy%3D%229%22%20r%3D%221.2%22%20fill%3D%22%23fff%22%2F%3E%3Ccircle%20cx%3D%226%22%20cy%3D%2211%22%20r%3D%221%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%2213%22%20y%3D%223%22%20width%3D%228%22%20height%3D%225%22%20rx%3D%221.5%22%20fill%3D%22%231d1d1f%22%2F%3E%3Crect%20x%3D%229%22%20y%3D%225%22%20width%3D%225%22%20height%3D%222.4%22%20rx%3D%221%22%20fill%3D%22%231d1d1f%22%2F%3E%3Crect%20x%3D%2212%22%20y%3D%228%22%20width%3D%2210%22%20height%3D%224%22%20fill%3D%22%236B7684%22%2F%3E%3Crect%20x%3D%2210%22%20y%3D%2212%22%20width%3D%2214%22%20height%3D%2221%22%20rx%3D%223%22%20fill%3D%22%233182F6%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.5%22%2F%3E%3Crect%20x%3D%2213%22%20y%3D%2218%22%20width%3D%228%22%20height%3D%228%22%20rx%3D%221%22%20fill%3D%22%23fff%22%20opacity%3D%22.9%22%2F%3E%3C%2Fsvg%3E") 4 6, crosshair; -webkit-user-select: none; user-select: none; }
+.puff { position: absolute; z-index: 3; width: 0; height: 0; pointer-events: none; }
+.puff i { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: rgba(255, 255, 255, .9); box-shadow: 0 0 10px rgba(255, 255, 255, .6); animation: puff .7s ease-out forwards; }
+@keyframes puff { to { transform: translate(var(--dx), var(--dy)) scale(2.4); opacity: 0; } }
+.kill-pop { position: absolute; z-index: 4; padding: 6px 14px; border-radius: 999px; background: #fff; color: var(--g900); font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none; transform: translate(-50%, -50%); animation: killpop 1.2s ease-out forwards; }
+@keyframes killpop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.7); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } 100% { opacity: 0; transform: translate(-50%, -170%); } }
+.spray-hint { position: absolute; right: 20px; top: 20px; z-index: 3; padding: 8px 14px; border-radius: 999px; background: rgba(0, 0, 0, .45); color: #fff; font-size: 14px; font-weight: 600; pointer-events: none; backdrop-filter: blur(6px); }
+@media (max-width: 620px) { .spray-hint { right: 12px; top: 12px; font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) { .hero-card.spray { cursor: auto; } .spray-hint, .puff, .kill-pop { display: none; } }
+
+/* ---------- 26) 첫 화면 A안: 사진 없이 흰 바탕 + 단계 색 번짐 (2026-10-06, 토스 방식) ----------
+   사진은 뺐다. 큰 숫자와 한 줄 결론만 남기고, 오늘 단계 색이 오른쪽 위에서 부드럽게 번진다.
+   단계 글자색은 흰 바탕에서 4.5:1 이상 나오는 진한 색을 따로 둔다. */
+.hero-card { background: #fff; color: var(--g900); --stage-c: var(--g300); --stage-t: var(--g700); }
+.hero-card[data-stage="stage-safe"] { --stage-c: var(--s1); --stage-t: #1B7F4B; }
+.hero-card[data-stage="stage-good"] { --stage-c: var(--s2); --stage-t: #5F8F1A; }
+.hero-card[data-stage="stage-normal"] { --stage-c: var(--s3); --stage-t: #9A6B00; }
+.hero-card[data-stage="stage-risk"] { --stage-c: var(--s4); --stage-t: #B4480F; }
+.hero-card[data-stage="stage-danger"] { --stage-c: var(--s5); --stage-t: #B42318; }
+.hero-img, .hero-shade { display: none; }
+.blob { position: absolute; width: 900px; height: 900px; border-radius: 50%; background: var(--stage-c); filter: blur(110px); pointer-events: none; transition: background 1.2s var(--ease); }
+.blob.b1 { right: -220px; top: -340px; opacity: .55; }
+.blob.b2 { left: 28%; bottom: -640px; opacity: .22; }
+.hero-in { color: var(--g900); }
+.eyebrow { color: var(--g700); } .eyebrow .src { color: var(--g500); }
+.idx-label { color: var(--g700); }
+.stage { color: var(--stage-t); }
+.hero .lvl rect.off { fill: var(--g200); }
+.hero h1 { color: var(--g900); }
+.spray-hint { background: var(--g900); backdrop-filter: none; }
+.kill-pop { background: var(--g900); color: #fff; }
+.puff i { background: rgba(49, 130, 246, .35); box-shadow: none; }
+.flyer { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .16)); }
+.glance { box-shadow: 0 20px 60px -24px rgba(0, 20, 60, .22), 0 0 0 1px var(--g100); }
+@media (max-width: 620px) {
+  .blob { width: 560px; height: 560px; filter: blur(80px); }
+  .blob.b1 { right: -200px; top: -240px; } .blob.b2 { left: 10%; bottom: -420px; }
+}
+@media (prefers-reduced-motion: reduce) { .blob { transition: none; } }
+
+/* ---------- 27) 첫 화면 C안: 검정 바탕 + 김해 지도 선 + 동네 원 (2026-10-06, 애플 검정 판 방식) ----------
+   A안(흰 바탕 번짐)은 '밋밋하다'로 바뀜. 지도는 hero-map.js 가 그린다. */
+.hero-card { background: #0E0F12; color: #fff; }
+.blob { display: none; }
+.hero-in { color: #fff; }
+.eyebrow { color: rgba(255, 255, 255, .8); } .eyebrow .src { color: rgba(255, 255, 255, .55); }
+.idx-label { color: rgba(255, 255, 255, .85); }
+.stage { color: var(--stage-c); }
+.hero-card[data-stage="stage-safe"] { --stage-c: var(--s1); } .hero-card[data-stage="stage-good"] { --stage-c: var(--s2); }
+.hero-card[data-stage="stage-normal"] { --stage-c: var(--s3); } .hero-card[data-stage="stage-risk"] { --stage-c: var(--s4); } .hero-card[data-stage="stage-danger"] { --stage-c: var(--s5); }
+.hero .lvl rect.off { fill: rgba(255, 255, 255, .22); }
+.hero h1 { color: #fff; }
+.hero-map { position: absolute; right: 2%; top: 4%; width: 58%; height: 90%; opacity: 0; transition: opacity 1.2s var(--ease); }
+.hero-map.is-on { opacity: 1; }
+.hm-city { fill: rgba(255, 255, 255, .03); stroke: rgba(255, 255, 255, .34); stroke-width: 1.6; stroke-linejoin: round; }
+.hm-d { fill: none; stroke: rgba(255, 255, 255, .13); stroke-width: 1; stroke-linejoin: round; }
+.hm-link { stroke: rgba(255, 255, 255, .13); stroke-width: 1; stroke-dasharray: 3 6; }
+.hm-glow { filter: url(#hmGlow); opacity: .45; }
+.hm-dot { opacity: .92; transform-box: fill-box; transform-origin: center; animation: hmpop .7s calc(var(--i, 0) * 45ms + .2s) cubic-bezier(.34, 1.56, .64, 1) both; }
+.hm-me { fill: none; stroke: #fff; stroke-width: 2.5; transform-box: fill-box; transform-origin: center; animation: hmring 2.4s 1s ease-out infinite; }
+.hm-name { fill: rgba(255, 255, 255, .62); font: 600 15px var(--sans); letter-spacing: -.01em; }
+.hm-name.me { fill: #fff; font-weight: 700; font-size: 16px; }
+.hm-pill { fill: rgba(255, 255, 255, .14); stroke: rgba(255, 255, 255, .25); }
+@keyframes hmpop { from { transform: scale(0); opacity: 0; } }
+@keyframes hmring { 0% { transform: scale(1); opacity: 1; } 70% { transform: scale(1.35); opacity: 0; } 100% { transform: scale(1.35); opacity: 0; } }
+/* 검정 바탕에서 모기·모기약·잡힘 표시 */
+.hero-card .flyer .wing ellipse { fill: rgba(255, 255, 255, .35); stroke: rgba(255, 255, 255, .85); }
+.hero-card .flyer { filter: drop-shadow(0 0 10px rgba(255, 255, 255, .25)); }
+.spray-hint { background: rgba(255, 255, 255, .14); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.kill-pop { background: #fff; color: var(--g900); }
+.puff i { background: rgba(255, 255, 255, .85); box-shadow: 0 0 10px rgba(255, 255, 255, .6); }
+.glance { box-shadow: 0 24px 70px -24px rgba(0, 0, 0, .45), 0 0 0 1px var(--g100); }
+@media (max-width: 1100px) { .hero-map { width: 54%; right: 0; } }
+@media (max-width: 900px) { .hero-map { right: 0; left: 0; top: 2%; width: 100%; height: 50%; } .hm-name { display: none; } .hm-name.me { display: block; font-size: 30px; } .hm-pill { display: none; } }
+@media (max-width: 620px) { .hero-map { height: 46%; top: 3%; } }
+@media (prefers-reduced-motion: reduce) { .hm-dot, .hm-me { animation: none; } .hero-map { transition: none; } }
+
+/* 모기가 검정 바탕에서 안 보여서: 모기는 원래 모습 그대로 두고, 바탕을 중간 톤 남색으로 밝힌다 (왼쪽 아래로 갈수록 짙어짐) */
+.hero-card { background: radial-gradient(130% 100% at 78% 12%, #4A5B7E 0%, #2C3A58 42%, #1C2538 100%); }
+.hero-card .flyer { width: 140px; height: 94px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
+.hero-card .flyer .wing ellipse { fill: rgba(255, 255, 255, .5); stroke: rgba(255, 255, 255, .95); }
+.hm-city { stroke: rgba(255, 255, 255, .4); fill: rgba(255, 255, 255, .04); }
+@media (max-width: 620px) { .hero-card .flyer { width: 100px; height: 66px; } }

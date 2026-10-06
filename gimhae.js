@@ -331,7 +331,7 @@ function renderGimhaeMap(activeDistrict) {
 
     const marker = L.circleMarker(point, {
       radius,
-      color: isActive ? '#0f6b57' : '#ffffff',
+      color: isActive ? '#3182F6' : '#ffffff',
       weight: isActive ? 4 : 1.5,
       fillColor: fill,
       fillOpacity: isActive ? 0.85 : 0.6,
@@ -471,21 +471,21 @@ function renderLarvaChart() {
     data: {
       labels,
       datasets: [
-        { label: '모델 예측(활동곡선)', data: pred, borderColor: '#0f6b57',
-          backgroundColor: 'rgba(15,107,87,0.08)', borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 2 },
-        { label: '실측 유충(정규화)', data: actual, borderColor: '#d9822d',
+        { label: '모델 예측(활동곡선)', data: pred, borderColor: '#3182F6',
+          backgroundColor: 'rgba(49,130,246,0.10)', borderWidth: 2.5, tension: 0.35, fill: true, pointRadius: 2 },
+        { label: '실측 유충(정규화)', data: actual, borderColor: '#F08A3E',
           borderWidth: 2.5, borderDash: [5, 4], tension: 0.35, fill: false, pointRadius: 2 },
       ],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { ticks: { color: '#56706b' }, grid: { color: 'rgba(22,48,45,0.06)' } },
-        y: { min: 0, max: 1, title: { display: true, text: '상대 강도 (0~1)', color: '#56706b' },
-          ticks: { color: '#56706b' }, grid: { color: 'rgba(22,48,45,0.08)' } },
+        x: { ticks: { color: '#6B7684' }, grid: { display: false } },
+        y: { min: 0, max: 1, title: { display: true, text: '상대 강도 (0~1)', color: '#6B7684' },
+          ticks: { color: '#6B7684' }, grid: { color: '#F2F4F6' } },
       },
       plugins: {
-        legend: { labels: { color: '#28413c', usePointStyle: true, boxWidth: 8 } },
+        legend: { labels: { color: '#4E5968', usePointStyle: true, boxWidth: 8 } },
         tooltip: { callbacks: { label: (ctx) => {
           const m = larvaMonthly[ctx.dataIndex];
           return ctx.datasetIndex === 0
@@ -566,12 +566,12 @@ function renderVerifyChart() {
       datasets: [
         {
           type: 'line', label: '추세', data: trend,
-          borderColor: 'rgba(217, 130, 45, 0.9)', borderWidth: 2, borderDash: [6, 4],
+          borderColor: '#B0B8C1', borderWidth: 2, borderDash: [6, 4],
           pointRadius: 0, fill: false, order: 2,
         },
         {
           label: '구역', data: points,
-          backgroundColor: points.map((p) => (p.district === '회현동' ? '#ef4444' : 'rgba(15, 107, 87, 0.75)')),
+          backgroundColor: points.map((p) => (p.district === '회현동' ? '#E5484D' : 'rgba(49, 130, 246, 0.8)')),
           pointRadius: points.map((p) => (p.district === '회현동' ? 8 : 6)),
           pointHoverRadius: 9, order: 1,
         },
@@ -580,10 +580,10 @@ function renderVerifyChart() {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: '밀도위험 (발생원밀도+인구밀도, 0~1)', color: '#56706b' },
-          min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
-        y: { title: { display: true, text: '실제 방역민원 밀도 (건/㎢, 2025)', color: '#56706b' },
-          min: 0, ticks: { color: '#56706b' }, grid: { color: 'rgba(22, 48, 45, 0.08)' } },
+        x: { title: { display: true, text: '밀도위험 (발생원밀도+인구밀도, 0~1)', color: '#6B7684' },
+          min: 0, ticks: { color: '#6B7684' }, grid: { color: '#F2F4F6' } },
+        y: { title: { display: true, text: '실제 방역민원 밀도 (건/㎢, 2025)', color: '#6B7684' },
+          min: 0, ticks: { color: '#6B7684' }, grid: { color: '#F2F4F6' } },
       },
       plugins: {
         legend: { display: false },
@@ -700,9 +700,9 @@ async function renderGimhaeForecast(district) {
       labels,
       datasets: [{
         label: '모기지수', data: values,
-        borderColor: '#0f6b57', borderWidth: 2, fill: true,
-        backgroundColor: 'rgba(15, 107, 87, 0.12)', tension: 0.35,
-        pointRadius: 3, pointHoverRadius: 6,
+        borderColor: '#3182F6', borderWidth: 2.5, fill: true,
+        backgroundColor: 'rgba(49, 130, 246, 0.10)', tension: 0.35,
+        pointRadius: 4, pointHoverRadius: 7,
         pointBackgroundColor: colors, pointBorderColor: '#ffffff', pointBorderWidth: 1.5,
       }],
     },
@@ -710,10 +710,10 @@ async function renderGimhaeForecast(district) {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       scales: {
-        y: { min: 0, max: 100, ticks: { stepSize: 20, color: '#56706b' },
-          grid: { color: 'rgba(22, 48, 45, 0.08)' },
-          title: { display: true, text: '모기지수(점)', color: '#56706b' } },
-        x: { ticks: { color: '#56706b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+        y: { min: 0, max: 100, ticks: { stepSize: 20, color: '#6B7684' },
+          grid: { color: '#F2F4F6' },
+          title: { display: false } },
+        x: { ticks: { color: '#6B7684', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
           grid: { display: false } },
       },
       plugins: { legend: { display: false } },
@@ -730,10 +730,10 @@ function scoreBar(score) {
 // 상단 게이지와 요약을 갱신한다.
 function renderGauge(result) {
   const deg = result.mosquito_index * 3.6;
-  gimhaeGauge.style.background = `conic-gradient(${result.color} ${deg}deg, rgba(22, 48, 45, 0.1) ${deg}deg)`;
+  gimhaeGauge.style.background = `conic-gradient(${result.color} ${deg}deg, #E5E8EB ${deg}deg)`;
   indexValue.textContent = result.mosquito_index;
   gradeText.textContent = `${result.level}단계 ${result.grade}`;
-  gradeText.style.background = result.color;
+  gradeText.style.setProperty('--c', result.color);
   summaryText.textContent = result.summary;
 
   // (D) 신뢰도 등급 + 예상 범위(신뢰구간)를 함께 보여 단일 점수의 '거짓 정밀도'를 막는다.
@@ -741,8 +741,7 @@ function renderGauge(result) {
   const range = result.index_range;
   confidenceBadge.textContent = `신뢰도 ${conf.level}`;
   // 신뢰도 등급별로 배지 색을 달리한다(높음=초록, 보통=주황, 낮음=빨강).
-  const confColor = conf.level === '높음' ? '#22c55e' : (conf.level === '보통' ? '#f59e0b' : '#ef4444');
-  confidenceBadge.style.background = confColor;
+  confidenceBadge.dataset.level = conf.level;   // CSS 가 높음·보통·낮음 색을 정한다
   rangeText.textContent = `예상 범위 ${range.low}~${range.high}점`;
   confidenceReason.textContent =
     `날씨 ${conf.reasons.weather} · 민원자료 ${conf.reasons.complaint_data} · 인구 ${conf.reasons.population} (불확실성 ±${conf.uncertainty_pct}%)`;
@@ -1184,9 +1183,9 @@ function buildCitizenAdvice(result) {
   const out = [];
 
   // 1) 시간대·복장·기피제 (등급별)
-  if (lv >= 3) {
+  if (lv >= 4) {
     out.push('해질녘(19~22시)·새벽(04~06시)엔 야외활동을 줄이고, 긴팔·긴바지에 DEET(10~20%)·이카리딘 기피제를 사용하세요.');
-  } else if (lv === 2) {
+  } else if (lv >= 2) {
     out.push('야간 외출 시 노출 부위에 기피제(이카리딘·시트로넬라 등)를 바르고, 밝은 색 옷을 입으세요.');
   } else {
     out.push('현재 위험은 낮지만, 해질녘·새벽에 물가·풀숲을 지날 때는 가벼운 기피제를 권장합니다.');
@@ -1229,7 +1228,7 @@ function renderDistrictRanking(activeDistrict) {
         <span class="district-rank-name">${item.district}</span>
         <span class="district-rank-bar"><span class="district-rank-fill" style="width:${item.mosquito_index}%;background:${item.color}"></span></span>
         <span class="district-rank-score">${item.mosquito_index}점</span>
-        <span class="district-rank-grade" style="background:${item.color}">${item.grade}</span>
+        <span class="district-rank-grade" style="--c:${item.color}">${item.grade}</span>
       </button>
     </li>
   `).join('');

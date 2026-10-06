@@ -6,9 +6,9 @@
    · 사진·위치는 이 파일이 다루지 않는다
    버전을 바꾸면 옛 저장분을 지운다.
    ============================================================= */
-const VERSION = 'mz-2026-10-05';
-const SHELL = ['/', '/index.html', '/mosquito-info.html', '/privacy.html', '/design.css', '/chat.css',
-  '/script.js', '/app-ui.js', '/motion.js', '/citizen.js', '/chat.js', '/mosquito-model.js', '/outing-index.js',
+const VERSION = 'mz-2026-10-06';
+const SHELL = ['/', '/index.html', '/mosquito-info.html', '/privacy.html', '/gimhae.html', '/design.css', '/expert.css', '/chat.css', '/gimhae.js',
+  '/script.js', '/app-ui.js', '/hero-map.js', '/data/gimhae-boundary.json', '/motion.js', '/citizen.js', '/chat.js', '/mosquito-model.js', '/outing-index.js',
   '/park-picks.js', '/weather-bg.js', '/nav.js', '/assets/brand/logo-icon.png', '/assets/brand/icon-192.png'];
 
 self.addEventListener('install', (e) => {

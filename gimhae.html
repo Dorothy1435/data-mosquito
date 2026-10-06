@@ -3,58 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>모기제로 | 김해시 모기 위험 모델</title>
+  <title>모기제로 | 전문가용 · 김해시 모기 위험 모델</title>
   <meta name="description" content="김해시 행정 데이터(발생원 시설·방역민원)와 실시간 날씨를 결합해 읍·면·동별 모기 발생 위험도와 방제 우선순위를 보여주는 모델입니다.">
+  <link rel="icon" href="assets/brand/logo-icon.png">
+  <!-- 앱 설치(PWA) · 공유 미리보기(카카오톡·SNS) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#4A1566">
+  <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="모기제로">
+  <meta property="og:title" content="모기제로 | 전문가용 · 김해시 모기 위험 모델">
+  <meta property="og:description" content="김해시 17개 구역의 발생원 위험·방제 우선순위·7일 예보를 보여주는 보건소용 화면입니다.">
+  <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="design.css">
+  <link rel="stylesheet" href="expert.css">
   <link rel="stylesheet" href="chat.css">
 </head>
-<body>
-  <div class="page-shell" id="top">
-    <header class="topbar">
-      <div class="topbar-main">
-        <div class="brand-block">
-          <p class="brand-kicker">정밀 모기 모델</p>
-          <h1>모기제로</h1>
-        </div>
-        <div class="topbar-actions">
-          <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
-          <select id="districtSelect" class="region-select" aria-label="김해시 구역 선택"></select>
-          <div class="audience-switch" role="group" aria-label="보기 모드">
-            <button type="button" class="audience-btn is-active" data-audience-mode="citizen" aria-pressed="true">시민용</button>
-            <button type="button" class="audience-btn" data-audience-mode="expert" aria-pressed="false">전문가용</button>
-          </div>
-          <a class="secondary-button button-link" href="index.html">메인으로</a>
-          <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
-        </div>
-      </div>
+<body class="xp" id="top">
+  <a class="skip-link" href="#main">본문 바로가기</a>
 
-      <nav id="primaryNav" class="primary-nav" aria-label="주요 메뉴">
-        <a href="index.html">홈</a>
-        <a href="index.html#outing">나들이·예보</a>
-        <a href="index.html#guide">모기 도감</a>
-        <a href="gimhae.html" aria-current="page">전문가용 화면</a>
+  <!-- 상단 바: 홈과 같은 메뉴 + 구역 선택 -->
+  <header class="nav">
+    <div class="nav-in">
+      <a class="brand" href="index.html" aria-label="모기제로 홈"><img src="assets/brand/logo-icon.png" alt=""><span>모기제로</span></a>
+      <nav class="lk" id="primaryNav" aria-label="주요 메뉴">
+        <a href="index.html#flow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>오늘 하루</a>
+        <a href="index.html#kit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg>챙길 것</a>
+        <a href="index.html#photo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>사진으로 알아보기</a>
+        <a href="index.html#town"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>우리 동네</a>
+        <a href="mosquito-info.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg>모기 도감</a>
+        <a href="gimhae.html" class="lk-pro" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>전문가용</a>
       </nav>
-    </header>
+      <div class="where">
+        <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
+        <select id="districtSelect" class="place-select" aria-label="김해시 구역 선택"></select>
+      </div>
+      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+    </div>
+  </header>
 
-    <p id="audienceNote" class="audience-note">지금은 <strong>시민용 보기</strong>입니다. 방제 약품·발생원 시설 통계 등 방역 담당자용 화면은 접혀 있습니다.</p>
+  <main id="main">
 
-    <main class="content-grid">
-      <!-- 모델 소개 + 실시간 날씨 입력 상태 -->
-      <section class="hero-card span-2" aria-labelledby="gimhaeTitle">
-        <div class="hero-copy">
-          <p class="section-label">김해시 모기 발생 위험도 모델</p>
-          <h2 id="gimhaeTitle">행정 데이터 + 실시간 날씨로 보는 구역별 모기 위험</h2>
-          <p class="hero-description">발생원 시설(16종)·인구를 <strong>단위면적당 밀도</strong>로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. <strong>예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</strong></p>
-          <div class="data-pills" aria-label="데이터 상태">
-            <span id="weatherSourceBadge" class="data-pill">실시간 날씨</span>
-            <span id="districtBadge" class="data-pill">구역 선택</span>
+    <!-- 첫 화면: 왼쪽 제목·보기 전환·날씨 상태, 오른쪽 액자에 게이지 -->
+    <section class="s g-first xp-first" aria-labelledby="gimhaeTitle">
+      <div class="wrap split">
+        <div class="copy up">
+          <p class="kicker">전문가용 · 김해시 모기 위험 모델</p>
+          <h1 id="gimhaeTitle">행정 데이터와 날씨로<br>보는 구역별 모기 위험</h1>
+          <p>발생원 시설 16종과 인구를 단위면적당 밀도로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. 예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</p>
+
+          <!-- 시민용 / 전문가용 보기 전환 (방역 담당자용 내용은 시민 보기에서 접힌다) -->
+          <div class="seg" role="group" aria-label="보기 모드">
+            <button type="button" class="seg-btn is-active" data-audience-mode="citizen" aria-pressed="true">시민용 보기</button>
+            <button type="button" class="seg-btn" data-audience-mode="expert" aria-pressed="false">전문가용 보기</button>
           </div>
-          <p id="weatherStatus" class="status-text">김해시 실시간 날씨를 불러오는 중입니다.</p>
-          <p id="weatherInputText" class="location-text">유효기온 · 습도 · 최근 7일 강수량 기준</p>
-          <p id="updatedText" class="updated-text">최종 갱신: -</p>
+          <p id="audienceNote" class="note">지금은 <strong>시민용 보기</strong>입니다. 방제 약품·발생원 시설 통계 등 방역 담당자용 내용은 접혀 있습니다.</p>
+
+          <div class="pills" aria-label="데이터 상태">
+            <span id="weatherSourceBadge" class="pill">실시간 날씨</span>
+            <span id="districtBadge" class="pill">구역 선택</span>
+          </div>
+          <p id="weatherStatus" class="note">김해시 실시간 날씨를 불러오는 중입니다.</p>
+          <p id="weatherInputText" class="note strong">유효기온 · 습도 · 최근 7일 강수량 기준</p>
+          <p id="updatedText" class="note">최종 갱신: -</p>
         </div>
-        <div class="gauge-wrap">
+
+        <div class="frame xp-gauge up">
           <div id="gimhaeGauge" class="gauge" role="img" aria-label="김해 구역 모기지수 게이지">
             <div class="gauge-inner">
               <span class="gauge-value" id="indexValue">--</span>
@@ -69,176 +88,176 @@
             <p id="confidenceReason" class="confidence-reason">-</p>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (지자체용 핵심) -->
-      <section class="panel-card diagnosis-card span-2" data-audience="expert" aria-labelledby="diagnosisTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">이 구역 핵심 진단</p>
-            <h3 id="diagnosisTitle">발생원 원인과 권장 방역 조치</h3>
+    <!-- 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (방역 담당자용) -->
+    <section class="s" data-audience="expert" aria-labelledby="diagnosisTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="diagnosisTitle">발생원 원인과<br>권장 방역 조치</h2>
+          <p>발생원·유충 데이터로 본 이 구역의 원인과 방역 우선 조치입니다.</p>
+        </div>
+        <div id="diagnosisBody" class="frame diag rv"></div>
+      </div>
+    </section>
+
+    <!-- 김해 17개 구역 발생원 지도 -->
+    <section class="s" aria-labelledby="gimhaeMapTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="gimhaeMapTitle">김해 17개 구역<br>발생원 위험 지도</h2>
+          <p>원이 크고 진할수록 발생원 위험이 높습니다. 원을 누르면 그 구역으로 이동합니다.</p>
+        </div>
+        <div class="map-tools rv">
+          <div class="seg" role="group" aria-label="지도 표시 모드">
+            <button type="button" class="seg-btn mode-btn is-active" data-mode="risk" aria-pressed="true">발생원 위험</button>
+            <button type="button" class="seg-btn mode-btn" data-mode="coverage" aria-pressed="false">채집 커버리지</button>
           </div>
-          <p class="helper-text">발생원·유충 데이터로 본 이 구역의 원인과 방역 우선 조치입니다.</p>
+          <button id="parksToggle" type="button" class="chip-toggle" aria-pressed="false">도시공원 245곳 표시</button>
+          <button id="larvaToggle" type="button" class="chip-toggle" aria-pressed="false">유충 실측 지점 표시</button>
         </div>
-        <div id="diagnosisBody" class="diagnosis-body"></div>
-      </section>
-
-      <!-- 김해 17개 구역 발생원 지도 -->
-      <section class="panel-card map-card span-2" aria-labelledby="gimhaeMapTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">발생원 지도</p>
-            <h3 id="gimhaeMapTitle">김해 17개 구역 발생원 위험</h3>
+        <div class="map-wrap rv">
+          <div id="gimhaeMap" class="map" aria-label="김해 구역별 발생원 위험 지도"></div>
+        </div>
+        <div class="xp-legends">
+          <div id="riskLegend" class="legend" aria-label="발생원 위험 범례">
+            <span class="legend-title">발생원 위험</span>
+            <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
+            <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
+            <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
+            <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
+            <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
           </div>
-          <p class="helper-text">원이 크고 진할수록 발생원 위험이 높습니다. 원을 누르면 해당 구역으로 이동합니다.</p>
-        </div>
-        <p id="sourceTotals" class="source-totals">-</p>
-        <div class="map-modes" role="group" aria-label="지도 표시 모드">
-          <button type="button" class="mode-btn is-active" data-mode="risk" aria-pressed="true">발생원 위험</button>
-          <button type="button" class="mode-btn" data-mode="coverage" aria-pressed="false">채집 커버리지</button>
-        </div>
-        <div class="map-toolbar">
-          <button id="parksToggle" type="button" class="chip-toggle" aria-pressed="false">🏞️ 도시공원 245곳 표시</button>
-          <button id="larvaToggle" type="button" class="chip-toggle" aria-pressed="false">🔬 유충 실측 지점 표시</button>
-        </div>
-        <div id="gimhaeMap" class="map-area" aria-label="김해 구역별 발생원 위험 지도"></div>
-        <div id="riskLegend" class="legend heatmap-legend" aria-label="발생원 위험 범례">
-          <span class="legend-title">발생원 위험</span>
-          <span><i class="legend-dot" style="background:#86efac"></i> 낮음</span>
-          <span><i class="legend-dot" style="background:#facc15"></i> 다소</span>
-          <span><i class="legend-dot" style="background:#f59e0b"></i> 보통</span>
-          <span><i class="legend-dot" style="background:#ef4444"></i> 높음</span>
-          <span><i class="legend-dot" style="background:#b91c1c"></i> 매우 높음</span>
-        </div>
-        <div id="coverageLegend" class="legend heatmap-legend" aria-label="채집 커버리지 범례" hidden>
-          <span class="legend-title">채집 커버리지</span>
-          <span><i class="legend-dot" style="background:#b91c1c"></i> 사각지대(0)</span>
-          <span><i class="legend-dot" style="background:#ef4444"></i> 매우 희소</span>
-          <span><i class="legend-dot" style="background:#f59e0b"></i> 희소</span>
-          <span><i class="legend-dot" style="background:#86efac"></i> 보통</span>
-          <span><i class="legend-dot" style="background:#2f9e64"></i> 촘촘</span>
-        </div>
-        <div class="shape-legend" aria-label="지도 기호 범례">
-          <span class="legend-title">기호</span>
-          <span><i class="lg-circle"></i> 구역 위험(큰 원)</span>
-          <span><i class="lg-square"></i> 도시공원(네모)</span>
-          <span><i class="lg-tri"></i> 유충 실측(세모)</span>
-        </div>
-      </section>
-
-      <!-- 기상 분석: 기온·습도·강수 적합도 분해 -->
-      <section class="panel-card" aria-labelledby="weatherAnalysisTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">기상 분석</p>
-            <h3 id="weatherAnalysisTitle">날씨가 모기 활동에 주는 영향</h3>
+          <div id="coverageLegend" class="legend" aria-label="채집 커버리지 범례" hidden>
+            <span class="legend-title">채집 커버리지</span>
+            <span><i class="legend-dot" style="background:#b91c1c"></i> 사각지대(0)</span>
+            <span><i class="legend-dot" style="background:#ef4444"></i> 매우 희소</span>
+            <span><i class="legend-dot" style="background:#f59e0b"></i> 희소</span>
+            <span><i class="legend-dot" style="background:#86efac"></i> 보통</span>
+            <span><i class="legend-dot" style="background:#2f9e64"></i> 촘촘</span>
           </div>
-          <p class="helper-text">각 요소의 적합도(0~1)가 높을수록 모기 활동에 유리합니다.</p>
-        </div>
-        <div id="weatherComponents" class="metric-grid metric-grid-3"></div>
-        <p id="weatherComment" class="helper-text forecast-source">데이터를 불러오는 중입니다.</p>
-      </section>
-
-      <!-- 선택한 구역의 24시간 모기지수 예보 -->
-      <section class="panel-card" aria-labelledby="forecastTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">주간 예보</p>
-            <h3 id="forecastTitle">이 구역 향후 7일 모기지수</h3>
-          </div>
-          <p class="helper-text" id="gimhaeForecastPeak">-</p>
-        </div>
-        <div class="chart-area">
-          <canvas id="gimhaeForecastChart" role="img" aria-label="선택한 구역의 향후 7일 모기지수 예보"></canvas>
-        </div>
-        <p id="gimhaeForecastNote" class="helper-text forecast-source">주간 예보를 불러오는 중입니다.</p>
-        <p class="diurnal-note">💡 이 모델은 <strong>유효기온(최근 7일 평균)·7일 누적강수</strong>로 하루 단위 위험을 계산합니다. 하루 중에서는 해질녘·새벽에 실제 활동이 더 많으니 그 시간대를 특히 조심하세요.</p>
-      </section>
-
-      <!-- 발생원 분석: 시설 유형별 위험 기여율 -->
-      <section class="panel-card" data-audience="expert" aria-labelledby="sourceTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">발생원 분석</p>
-            <h3 id="sourceTitle">이 구역의 모기 발생원</h3>
-          </div>
-          <p class="helper-text" id="areaTypeText">-</p>
-        </div>
-        <!-- v3 핵심: 발생 잠재력 × 인구 노출 = 지역위험 (새 모델이 눈에 보이는 부분) -->
-        <div id="geoBreakdown" class="geo-breakdown" aria-label="밀도위험 결합 (발생원밀도 + 인구밀도)"></div>
-        <!-- (item 2) 구역 환경 — 면적·하천 수면비율·공원 면적 -->
-        <div id="districtEnv" class="district-env" aria-label="구역 환경 지표"></div>
-        <ul id="sourceList" class="source-list" aria-label="발생원 유형별 시설 수"></ul>
-        <p class="source-legend">막대 길이 = 시설 수 · % = 시내 위험 기여도(밀도·곤충학 가중치 반영)</p>
-        <div id="larvaBox" class="larva-box">
-          <span class="larva-label">유충 실태조사</span>
-          <span id="larvaText" class="larva-text">-</span>
-          <span id="larvaBar" class="larva-bar"><span id="larvaFill" class="larva-fill"></span></span>
-        </div>
-        <p id="sourceComment" class="helper-text forecast-source">-</p>
-      </section>
-
-      <!-- 지역 순위 + 민원 요약 -->
-      <section class="panel-card span-2" aria-labelledby="rankTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">시내 위치</p>
-            <h3 id="rankTitle">김해시 안에서의 순위</h3>
+          <div class="legend" aria-label="지도 기호 범례">
+            <span class="legend-title">기호</span>
+            <span><i class="lg-circle"></i> 구역 위험(큰 원)</span>
+            <span><i class="lg-square"></i> 도시공원(네모)</span>
+            <span><i class="lg-tri"></i> 유충 실측(세모)</span>
           </div>
         </div>
-        <div id="rankSummary" class="metric-grid metric-grid-4"></div>
-      </section>
+        <p id="sourceTotals" class="note xp-totals">-</p>
+      </div>
+    </section>
 
-      <!-- 행동요령: 시민 / 방제당국 -->
-      <section class="panel-card span-2" aria-labelledby="adviceTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">행동요령</p>
-            <h3 id="adviceTitle">지금 무엇을 하면 좋을까요</h3>
+    <!-- 기상 분석: 요소별 적합도 -->
+    <section class="s" aria-labelledby="weatherAnalysisTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="weatherAnalysisTitle">날씨가 모기 활동에<br>주는 영향</h2>
+          <p>각 요소의 적합도(0~1)가 높을수록 모기 활동에 유리합니다.</p>
+        </div>
+        <div id="weatherComponents" class="metric-grid xp-metrics rv"></div>
+        <p id="weatherComment" class="note">데이터를 불러오는 중입니다.</p>
+      </div>
+    </section>
+
+    <!-- 주간 예보 -->
+    <section class="s" aria-labelledby="forecastTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="forecastTitle">이 구역<br>향후 7일 모기지수</h2>
+          <p id="gimhaeForecastPeak">-</p>
+        </div>
+        <div class="frame xp-chart rv">
+          <div class="chart-area">
+            <canvas id="gimhaeForecastChart" role="img" aria-label="선택한 구역의 향후 7일 모기지수 예보"></canvas>
           </div>
-          <p class="helper-text" id="extraInfoText">-</p>
+          <p id="gimhaeForecastNote" class="note">주간 예보를 불러오는 중입니다.</p>
+          <p class="note">이 모델은 <strong>유효기온(최근 7일 평균)·7일 누적강수</strong>로 하루 단위 위험을 계산합니다. 하루 중에서는 해질녘·새벽에 실제 활동이 더 많으니 그 시간대를 특히 조심하세요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 발생원 분석 (방역 담당자용) -->
+    <section class="s" data-audience="expert" aria-labelledby="sourceTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="sourceTitle">이 구역의<br>모기 발생원</h2>
+          <p id="areaTypeText">-</p>
+        </div>
+        <!-- 발생원 밀도 + 인구 밀도 = 밀도위험 -->
+        <div id="geoBreakdown" class="geo-breakdown rv" aria-label="밀도위험 결합 (발생원밀도 + 인구밀도)"></div>
+        <div id="districtEnv" class="district-env rv" aria-label="구역 환경 지표"></div>
+        <div class="frame xp-sources rv">
+          <ul id="sourceList" class="source-list" aria-label="발생원 유형별 시설 수"></ul>
+          <p class="note">막대 길이 = 시설 수 · % = 시내 위험 기여도(밀도·곤충학 가중치 반영)</p>
+          <div id="larvaBox" class="larva-box">
+            <span class="larva-label">유충 실태조사</span>
+            <span id="larvaText" class="larva-text">-</span>
+            <span id="larvaBar" class="larva-bar"><span id="larvaFill" class="larva-fill"></span></span>
+          </div>
+          <p id="sourceComment" class="note">-</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 시내 위치 -->
+    <section class="s" aria-labelledby="rankTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="rankTitle">김해시 안에서의 순위</h2>
+          <p>같은 날씨에서 발생원 위험이 큰 구역일수록 지수가 높습니다.</p>
+        </div>
+        <div id="rankSummary" class="facts xp-stats rv"></div>
+      </div>
+    </section>
+
+    <!-- 행동요령: 시민 / 방제당국 -->
+    <section class="s" aria-labelledby="adviceTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="adviceTitle">지금 무엇을<br>하면 좋을까요</h2>
+          <p id="extraInfoText">-</p>
         </div>
         <div class="advice-grid">
-          <article class="detail-card">
+          <article class="xp-card rv">
             <h3>시민 행동요령</h3>
             <ul id="citizenAdvice" class="detail-list"></ul>
           </article>
-          <article class="detail-card warning-card" data-audience="expert">
+          <article class="xp-card warn rv" data-audience="expert">
             <h3>방제당국 행동요령</h3>
             <ul id="authorityAdvice" class="detail-list"></ul>
           </article>
         </div>
-        <div class="place-note" aria-label="이 구역에서 조심할 장소">
+        <div class="place-note rv" aria-label="이 구역에서 조심할 장소">
           <span class="place-note-label">이 구역 조심할 장소</span>
           <span id="placeChips" class="place-chips"></span>
         </div>
-        <p class="place-caution">※ 이 구역의 <strong>주요 발생원</strong>을 반영한 장소입니다. 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요.</p>
-        <div id="safeAreas" class="safe-areas">-</div>
-        <p class="place-caution">※ <strong>쾌적 점수</strong>는 그 장소가 속한 구역의 오늘 모기지수에 <strong>장소 특성(실내 여부·물가·수풀)</strong>을 반영해 추정한 값입니다. 개별 장소의 실측 모기 관측값은 아닙니다. 장소 위치는 OpenStreetMap 공개 좌표를 사용했습니다.</p>
-      </section>
+        <p class="note">이 구역의 <strong>주요 발생원</strong>을 반영한 장소입니다. 고인 물이 있는 곳은 해질녘·새벽에 특히 조심하세요.</p>
+        <div id="safeAreas" class="safe-areas rv">-</div>
+        <p class="note"><strong>쾌적 점수</strong>는 그 장소가 속한 구역의 오늘 모기지수에 <strong>장소 특성(실내 여부·물가·수풀)</strong>을 반영해 추정한 값입니다. 개별 장소의 실측 모기 관측값은 아닙니다. 장소 위치는 OpenStreetMap 공개 좌표를 사용했습니다.</p>
+      </div>
+    </section>
 
-      <!-- 김해시 17개 구역 오늘의 모기지수 순위 -->
-      <section class="panel-card" aria-labelledby="districtRankTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">전 구역 비교</p>
-            <h3 id="districtRankTitle">오늘 김해시 구역별 모기지수</h3>
-          </div>
-          <p class="helper-text">같은 날씨에서 발생원 위험이 큰 구역일수록 지수가 높습니다. 항목을 누르면 해당 구역으로 이동합니다.</p>
+    <!-- 전 구역 비교 -->
+    <section class="s" aria-labelledby="districtRankTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="districtRankTitle">오늘 김해시<br>구역별 모기지수</h2>
+          <p>항목을 누르면 그 구역으로 이동합니다.</p>
         </div>
-        <ol id="districtRankList" class="district-rank-list" aria-label="김해시 구역별 모기지수 순위"></ol>
-      </section>
+        <ol id="districtRankList" class="district-rank-list rv" aria-label="김해시 구역별 모기지수 순위"></ol>
+      </div>
+    </section>
 
-      <!-- 모델 설명 / 한계 -->
-      <section class="panel-card" data-audience="expert" aria-labelledby="modelNoteTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="section-label">모델 안내</p>
-            <h3 id="modelNoteTitle">이 모델은 이렇게 만들어졌습니다</h3>
-          </div>
+    <!-- 모델 안내 (방역 담당자용, 회색 판) -->
+    <section class="s gray" data-audience="expert" aria-labelledby="modelNoteTitle">
+      <div class="wrap">
+        <div class="head rv">
+          <h2 id="modelNoteTitle">이 모델은<br>이렇게 만들어졌습니다</h2>
+          <p>데이터, 계산 방식, 검증, 알려진 한계를 그대로 공개합니다.</p>
         </div>
         <div class="detail-stack">
-          <article class="detail-card verify-card">
+          <article class="detail-card rv">
             <h3>모델 검증 — 두 방향에서 실제와 대조</h3>
             <p>예측을 서로 다른 <strong>독립된 실측</strong> 두 가지와 비교했고, 둘 다 강하게 일치했습니다. 두 실측 모두 <strong>검증에만</strong> 쓰고 점수 계산에는 넣지 않습니다.</p>
             <div class="verify-badges">
@@ -246,36 +265,40 @@
               <span class="verify-badge"><b>시간</b> 예측 활동 ↔ 실측 유충 <strong>+0.996</strong></span>
             </div>
 
-            <p class="verify-sub"><b>① 공간 검증</b> — 어느 구역이 위험한가</p>
-            <p class="helper-text">예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교하니 순위 상관 <strong>+0.951</strong>. 개수 기반 이전 버전은 <strong>−0.258</strong>로 방향이 반대였는데 밀도로 바로잡았습니다.</p>
+            <p class="verify-sub">① 공간 검증 — 어느 구역이 위험한가</p>
+            <p>예측한 <strong>밀도위험</strong>을 <strong>실제 2025년 방역민원 밀도</strong>와 비교하니 순위 상관 <strong>+0.951</strong>. 개수 기반 이전 버전은 <strong>−0.258</strong>로 방향이 반대였는데 밀도로 바로잡았습니다.</p>
             <div class="chart-area verify-chart-area">
               <canvas id="verifyChart" role="img" aria-label="밀도위험과 실제 방역민원 밀도 비교 산점도"></canvas>
             </div>
-            <p class="helper-text">각 점은 구역 하나, <strong style="color:#c0392f">빨간 점은 회현동</strong>(모두 최상위). 우상향할수록 예측과 실제가 일치합니다. (민원 보유 13개 구역)</p>
+            <p class="note">각 점은 구역 하나, <strong style="color:#E5484D">빨간 점은 회현동</strong>(모두 최상위). 우상향할수록 예측과 실제가 일치합니다. (민원 보유 13개 구역)</p>
 
-            <p class="verify-sub"><b>② 시간 검증</b> — 언제 위험한가</p>
-            <p class="helper-text">모델의 날씨 활동곡선(Brière)이 <strong>실제 유충 발생</strong>과 맞는지 봤습니다. 유충 실측 <strong>1,086개 지점·2년(2024–2026)·5.4만 건</strong>을 월별로 모아 예측과 겹쳐보니 상관 <strong>+0.996</strong>으로 거의 포개집니다.</p>
+            <p class="verify-sub">② 시간 검증 — 언제 위험한가</p>
+            <p>모델의 날씨 활동곡선(Brière)이 <strong>실제 유충 발생</strong>과 맞는지 봤습니다. 유충 실측 <strong>1,086개 지점·2년(2024–2026)·5.4만 건</strong>을 월별로 모아 예측과 겹쳐보니 상관 <strong>+0.996</strong>으로 거의 포개집니다.</p>
             <div class="chart-area verify-chart-area">
               <canvas id="larvaChart" role="img" aria-label="모델 예측 활동과 월별 실측 유충 발생 비교 선그래프"></canvas>
             </div>
-            <p class="helper-text">두 선(모델 예측 · 실측 유충)을 0~1로 맞춰 겹쳤습니다. 7~8월 정점, 겨울 0 — 모델이 실제 계절 흐름을 그대로 재현합니다.</p>
+            <p class="note">두 선(모델 예측 · 실측 유충)을 0~1로 맞춰 겹쳤습니다. 7~8월 정점, 겨울 0 — 모델이 실제 계절 흐름을 그대로 재현합니다.</p>
           </article>
-          <article class="detail-card">
-            <h3><span class="card-icon" aria-hidden="true">🎯</span> 모니터링 커버리지 — 어디를 더 채집해야 하나</h3>
+
+          <article class="detail-card rv">
+            <h3>모니터링 커버리지 — 어디를 더 채집해야 하나</h3>
             <p>성충·유충 <strong>실측의 가중치를 높이려면</strong>, 채집이 특정 지역이 아니라 <strong>동네별로 촘촘</strong>해야 합니다. 현재 실측 채집 지점의 분포를 진단했습니다.</p>
             <div id="coverage">-</div>
           </article>
-          <article class="detail-card">
+
+          <article class="detail-card rv">
             <h3>데이터</h3>
             <p>김해시 방역현황보고 시스템(sodamap)에서 발생원 시설 16종(정화조·개인하수/오수처리·축산·저수지·타이어·폐기물·고물상·수경시설·공중화장실·공원 등) 약 1.5만 개소를 좌표로 읍·면·동에 배정하고, 행정동 경계 폴리곤으로 <strong>면적</strong>을, 주민등록·100m 격자로 <strong>인구</strong>를 확보했습니다. 2025년 방역민원 383건은 <strong>검증 전용</strong>으로만 썼습니다(점수 계산에 미포함).</p>
           </article>
-          <article class="detail-card">
+
+          <article class="detail-card rv">
             <h3>계산 방식</h3>
             <p>발생원 시설(16종)을 곤충학적 가중치로 합산해 <strong>면적으로 나눈 '발생원 밀도'</strong>와 <strong>'인구 밀도'</strong>를 로그 정규화·평균해 밀도위험(0~1)을 만들고, 여기에 실시간 날씨 활동지수를 곱해 모기지수를 냅니다. 활동지수는 <strong>유효기온(당일 29% + 최근 7일 71%)</strong>을 Brière 곡선(30℃ 정점)으로 평가하고, 습도·최근 7일 강수·풍속으로 보정합니다. 유충 검출률은 민원과 음의 상관이라 위험 계산에서 빼고 '시설 관리상태' 참고지표로만 씁니다.</p>
           </article>
-          <article class="detail-card warning-card">
+
+          <article class="detail-card warn rv">
             <h3>알려진 한계 (투명 공개)</h3>
-            <ul class="detail-list">
+            <ul class="detail-list plain">
               <li><strong>성충 포집 이력 99.6%가 합성 샘플</strong>이라 구역별 밀도 학습에 쓰지 않았습니다. 기온 반응곡선의 '형태'를 잡는 데만 쓰고 실측 장비 427건으로 방향만 교차확인했습니다.</li>
               <li><strong>유충 조사 이력도 구역별 검출률이 94~96%로 균일</strong>해 신호가 없어 미사용(관리상태 지표로만).</li>
               <li><strong>정화조(청소대상)은 '청소 이력' 데이터</strong>라, 같은 정화조의 반복 청소를 <strong>고유 시설로 보정</strong>했습니다(총 6,000→4,123, 구역 순위·검증에는 영향 없음). 청소 직후 2~4주는 유충이 제거돼 일시적으로 위험이 낮아지지만, 이 시점 효과는 아직 실시간 반영하지 못합니다.</li>
@@ -284,32 +307,33 @@
               <li>화목동은 법정동이라 100m 격자로 인구를 <strong>추정</strong>했고, 기온 상한(40℃)은 실측이 아닌 <strong>문헌값</strong>입니다.</li>
             </ul>
           </article>
-          <article class="detail-card warning-card">
+
+          <article class="detail-card warn rv">
             <h3>주의할 점</h3>
             <p>구역 단위가 17개로 작아 예측형보다 위험 스크리닝·방제 우선순위 모델로 활용하는 것이 적합합니다. 날씨는 구역 대표 좌표 기준이며, 결과는 참고용 예상값입니다.</p>
           </article>
         </div>
-      </section>
-    </main>
-
-    <footer class="footer-note">
-      <div class="disclaimer-card">
-        <p class="disclaimer-title">ℹ️ 이용 안내 · 데이터 출처</p>
-        <ul class="disclaimer-list">
-          <li><strong>참고용 예상값입니다.</strong> 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요.</li>
-          <li><strong>데이터 기준</strong> — 발생원 시설·유충 실태조사(김해시 보건소), 방역민원(2025년), 주민등록 인구(2026. 6. 기준, 외국인 제외).</li>
-          <li><strong>서부 등 일부 구역</strong>(한림·진영·진례·장유)은 현장 유충조사·민원 자료가 없어 인구·발생원으로 <strong>추정</strong>한 값이며, 신뢰도를 '낮음'으로 표기합니다.</li>
-          <li>날씨 <strong>Open-Meteo</strong>(무료 공개 API) · 지도 <strong>OpenStreetMap</strong>. 실시간 날씨 연결 실패 시 이번 달 평년값으로 자동 대체됩니다.</li>
-        </ul>
       </div>
-    </footer>
-  </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p class="foot-brand">모기제로</p>
+      <p><strong>참고용 예상값입니다.</strong> 실제 모기 발생·감염병 위험에 대한 의학적·방역적 판단이 아니며, 방역 의사결정의 유일한 근거로 사용하지 마세요.</p>
+      <p><strong>데이터 기준</strong> — 발생원 시설·유충 실태조사(김해시 보건소), 방역민원(2025년), 주민등록 인구(2026. 6. 기준, 외국인 제외). 한림·진영·진례·장유는 현장 유충조사·민원 자료가 없어 인구·발생원으로 <strong>추정</strong>한 값이며 신뢰도를 '낮음'으로 표기합니다.</p>
+      <p>날씨 Open-Meteo(무료 공개 API) · 지도 OpenStreetMap. 실시간 날씨 연결 실패 시 이번 달 평년값으로 자동 대체됩니다.</p>
+      <p><a href="index.html">오늘의 모기지수 보기</a> · <a href="mosquito-info.html">모기 도감</a> · <a href="about.html">사이트 소개</a> · <a href="privacy.html">개인정보 처리방침</a></p>
+    </div>
+  </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="mosquito-model.js"></script>
   <script src="nav.js"></script>
+  <script src="motion.js"></script>
   <script src="gimhae.js"></script>
   <script src="chat.js"></script>
+  <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
 </html>

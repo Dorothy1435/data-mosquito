@@ -1,0 +1,234 @@
+/* =============================================================
+   모기제로 전문가용 화면 (gimhae.html) — 홈 v20 체계 위에 얹는 전용 스타일
+   -------------------------------------------------------------
+   design.css 의 토큰(회색 단계·파랑·글자 크기)과 상단 바·섹션·액자·범례를 그대로 쓰고,
+   이 파일에는 전문가 화면에만 있는 부품(게이지·진단·발생원 막대·순위 목록·검증 카드)만 둔다.
+   내용(gimhae.js 가 만드는 마크업)은 바꾸지 않았다.
+
+   차례
+     1) 상단 바 전문가용 버튼   2) 화면 간격   3) 첫 화면 게이지   4) 보기 전환 · 칩
+     5) 진단   6) 지도 도구·범례   7) 날씨 적합도   8) 예보 차트   9) 발생원 분석
+     10) 순위 타일   11) 행동요령 · 장소   12) 전 구역 순위   13) 모델 안내 카드   14) 반응형
+   ============================================================= */
+
+/* ---------- 1) 상단 바: 전문가용 버튼은 design.css 25) 에 있다 (모든 화면 공통) ---------- */
+
+/* ---------- 2) 화면 간격: 자료가 많은 화면이라 홈보다 촘촘하게 ---------- */
+.xp section.s { padding-top: 112px; }
+.xp section.s.gray { margin-top: 112px; padding: 104px 0; }
+.xp .head { margin-bottom: 40px; }
+.xp .head p { max-width: 52ch; }
+.xp .note { font-size: 15px; line-height: 1.6; color: var(--g600); }
+.xp .note.strong { font-weight: 600; color: var(--g800); }
+.xp .note + .note { margin-top: 6px; }
+.xp .frame { min-height: 0; }
+/* 시민용 보기에서는 방역 담당자용 내용을 접는다 (삭제가 아니라 숨김) */
+body.citizen-mode [data-audience="expert"] { display: none !important; }
+
+/* ---------- 3) 첫 화면: 게이지 액자 ---------- */
+.xp-first .copy { gap: 18px; }
+.xp-first h1 { font-size: clamp(36px, 3.8vw, 54px); }
+.xp-first .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; background: var(--g100); color: var(--g700); font-size: 14px; font-weight: 600; }
+.xp-gauge { justify-items: center; text-align: center; gap: 20px; padding: 48px 40px; }
+.gauge { display: grid; place-items: center; width: 240px; height: 240px; border-radius: 50%; background: conic-gradient(var(--g200) 0deg, var(--g200) 360deg); }
+.gauge-inner { display: grid; justify-items: center; align-content: center; gap: 2px; width: 200px; height: 200px; border-radius: 50%; background: #fff; }
+.gauge-value { font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.gauge-unit { font-size: 16px; font-weight: 600; color: var(--g600); }
+.gauge-stage { margin-top: 8px; padding: 6px 14px; border-radius: 999px; background: color-mix(in srgb, var(--c, var(--g300)) 30%, #fff); color: var(--g900); font-size: 15px; font-weight: 700; }
+.advice-text { max-width: 36ch; font-size: 17px; line-height: 1.6; color: var(--g800); }
+.confidence-box { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 12px; }
+.confidence-badge { padding: 6px 12px; border-radius: 999px; background: var(--g200); color: var(--g800); font-size: 14px; font-weight: 700; }
+.confidence-badge[data-level="높음"] { background: #E3F6EA; color: #16753C; }
+.confidence-badge[data-level="보통"] { background: #FFF1D6; color: #8A5A00; }
+.confidence-badge[data-level="낮음"] { background: #FDE4E4; color: #B42318; }
+.confidence-range { font-size: 16px; font-weight: 700; color: var(--g900); }
+.confidence-reason { width: 100%; font-size: 14px; line-height: 1.5; color: var(--g600); }
+
+/* ---------- 4) 보기 전환(토글) · 칩 버튼 ---------- */
+.seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--g100); }
+.seg-btn { min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: transparent; color: var(--g600); font: 600 16px var(--sans); cursor: pointer; transition: background .2s, color .2s; }
+.seg-btn:hover { color: var(--g900); }
+.seg-btn.is-active { background: #fff; color: var(--g900); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.chip-toggle { min-height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--g100); color: var(--g800); font: 600 15px var(--sans); cursor: pointer; transition: background .2s, color .2s; }
+.chip-toggle:hover { background: var(--g200); }
+.chip-toggle[aria-pressed="true"] { background: var(--blue-50); color: var(--blue-ink); }
+
+/* ---------- 5) 핵심 진단: 원인 → 권장 조치 → 유충 ---------- */
+.diag { gap: 0; padding: 16px 40px; }
+.diag-row { display: grid; grid-template-columns: 112px 1fr; align-items: start; gap: 16px; padding: 22px 0; border-top: 1px solid var(--g200); }
+.diag-row:first-child { border-top: 0; }
+.diag-tag { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.diag-tag-cause { background: #FFF1D6; color: #8A5A00; }
+.diag-tag-action { background: var(--blue-50); color: var(--blue-ink); }
+.diag-tag-larva { background: var(--g200); color: var(--g700); }
+.diag-value { font-size: 19px; line-height: 1.5; font-weight: 600; color: var(--g900); }
+.diag-foot { padding: 18px 0 8px; border-top: 1px solid var(--g200); font-size: 15px; color: var(--g600); }
+.diag-foot strong { color: var(--g900); }
+
+/* ---------- 6) 지도 도구 · 범례 ---------- */
+.map-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+.xp-legends { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.xp-legends .legend { max-width: none; box-shadow: none; background: var(--g50); }
+.legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; }
+.lg-circle { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: rgba(240, 138, 62, .7); border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--g300); }
+.lg-square { display: inline-block; width: 11px; height: 11px; background: #2f9e64; border: 1.5px solid #fff; box-shadow: 0 0 0 1px var(--g300); }
+.lg-tri { display: inline-block; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 12px solid #F08A3E; }
+.xp-totals { margin-top: 14px; }
+.totals-label { font-weight: 700; color: var(--g800); margin-right: 6px; }
+/* 지도 위 구역 이름표 */
+.district-label { padding: 2px 8px !important; border: 0 !important; border-radius: 999px !important; background: rgba(255, 255, 255, .92) !important; color: var(--g900) !important; font: 600 13px var(--sans) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, .15) !important; }
+.district-label-active { background: var(--blue) !important; color: #fff !important; }
+.district-label::before { display: none !important; }
+.shape-marker { background: none; border: 0; }
+/* 지도 위 도시공원(네모)·유충 실측(세모) 표시 — 색은 gimhae.js 가 인라인으로 준다 */
+.pk-square { display: block; width: 9px; height: 9px; border-radius: 1px; border: 1px solid #fff; box-shadow: 0 0 1px rgba(0, 0, 0, .5); }
+.lv-tri { display: block; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid; }
+/* hidden 속성은 display 규칙보다 우선해야 한다 (범례 전환) */
+.xp [hidden] { display: none !important; }
+
+/* ---------- 7) 날씨 적합도 카드 ---------- */
+.xp-metrics { grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.xp-metrics .metric-card { background: var(--g100); }
+.xp-metrics .metric-card:last-child .metric-value { font-size: clamp(28px, 2.8vw, 36px); }
+.metric-input { margin-left: 6px; font-size: 15px; font-weight: 700; color: var(--g900); }
+.score-bar { display: block; height: 8px; margin: 2px 0 12px; border-radius: 999px; background: var(--g200); overflow: hidden; }
+.score-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--blue); transition: width .8s var(--ease); }
+
+/* ---------- 8) 예보 차트 ---------- */
+.xp-chart { gap: 14px; }
+.chart-area { position: relative; height: 320px; }
+.verify-chart-area { height: 300px; margin: 16px 0; }
+
+/* ---------- 9) 발생원 분석: 밀도 결합 · 환경 · 유형별 막대 ---------- */
+.geo-breakdown { display: grid; grid-template-columns: 1fr auto 1fr auto 1.1fr; align-items: center; gap: 12px; margin-bottom: 16px; }
+.geo-item { display: grid; gap: 6px; padding: 28px 24px; border-radius: 24px; background: var(--g100); }
+.geo-label { font-size: 15px; color: var(--g600); }
+.geo-value { font-size: clamp(32px, 3vw, 40px); font-weight: 700; line-height: 1.1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.geo-unit { margin-left: 4px; font-size: 16px; font-weight: 600; color: var(--g600); letter-spacing: 0; }
+.geo-note { font-size: 14px; color: var(--g600); }
+.geo-op { font-size: 28px; font-weight: 700; color: var(--g400); }
+.geo-result { background: var(--blue-50); }
+.geo-result .geo-value { color: var(--blue-ink); }
+.district-env { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.env-item { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--g100); font-size: 15px; color: var(--g900); font-variant-numeric: tabular-nums; }
+.env-item b { font-weight: 600; color: var(--g600); }
+.xp-sources { gap: 14px; }
+.source-list { margin: 0; padding: 0; list-style: none; }
+.source-item { display: grid; grid-template-columns: 150px 1fr 76px 56px; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--g200); }
+.source-item:first-child { border-top: 0; }
+.source-name { font-size: 16px; font-weight: 600; }
+.source-bar { display: block; height: 10px; border-radius: 999px; background: var(--g200); overflow: hidden; }
+.source-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--blue); }
+.source-count { font-size: 16px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.source-pct { font-size: 14px; color: var(--g600); text-align: right; font-variant-numeric: tabular-nums; }
+.source-empty { padding: 12px 0; color: var(--g600); }
+.larva-box { display: grid; gap: 8px; padding: 18px 20px; border-radius: 18px; background: #fff; }
+.larva-label { font-size: 14px; font-weight: 700; color: var(--g600); }
+.larva-text { font-size: 15px; color: var(--g800); }
+.larva-bar { display: block; height: 8px; border-radius: 999px; background: var(--g200); overflow: hidden; }
+.larva-fill { display: block; height: 100%; border-radius: 999px; background: #F08A3E; }
+
+/* ---------- 10) 시내 순위 타일 (도감의 숫자 타일과 같은 모양) ---------- */
+.xp-stats { grid-template-columns: repeat(4, 1fr); }
+.stat-tile { padding: 32px 28px; border-radius: 28px; background: var(--g100); }
+.stat-name { font-size: 15px; font-weight: 600; color: var(--g600); }
+.stat-value { margin-top: 10px; font-size: clamp(30px, 3vw, 40px); font-weight: 700; line-height: 1.1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.stat-note { margin-top: 12px; font-size: 14px; line-height: 1.5; color: var(--g600); }
+
+/* ---------- 11) 행동요령 · 조심할 장소 · 추천 장소 ---------- */
+.advice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+.xp-card { padding: 32px; border-radius: 28px; background: var(--g100); }
+.xp-card.warn { background: #FFF7EA; }
+.xp-card h3 { margin-bottom: 16px; }
+.detail-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: dl; }
+.detail-list li { position: relative; padding-left: 38px; font-size: 16px; line-height: 1.6; color: var(--g800); counter-increment: dl; }
+.detail-list li::before { content: counter(dl); position: absolute; left: 0; top: 1px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--g900); color: #fff; font-size: 14px; font-weight: 700; }
+.xp-card.warn .detail-list li::before { background: #C2410C; }
+.detail-list.plain li { padding-left: 18px; }
+.detail-list.plain li::before { content: ""; top: 11px; width: 6px; height: 6px; background: var(--g500); }
+.place-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.place-note-label { font-size: 16px; font-weight: 700; margin-right: 4px; }
+.place-chips { display: contents; }
+.place-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--blue-50); color: var(--blue-ink); font-size: 15px; font-weight: 600; }
+.safe-areas { display: grid; gap: 12px; margin: 24px 0 10px; padding: 24px 28px; border-radius: 24px; background: var(--g100); }
+.safe-line { display: flex; align-items: flex-start; gap: 12px; font-size: 17px; line-height: 1.6; color: var(--g800); }
+.safe-line > span:last-child { display: inline; }
+.safe-line b, .safe-line strong { color: var(--g900); }
+.safe-ico { flex: none; font-size: 22px; line-height: 1.3; }
+.safe-line.safe-sub { display: block; padding-top: 12px; border-top: 1px solid var(--g200); font-size: 15px; color: var(--g700); }
+.comfort-badge { display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: var(--g900); color: #fff; font-size: 14px; font-weight: 700; vertical-align: middle; }
+.trip-note { display: block; margin-top: 2px; font-size: 15px; color: var(--g600); }
+.trip-chip { display: inline-flex; align-items: center; gap: 4px; margin: 4px 6px 0 0; padding: 4px 12px; border-radius: 999px; background: #fff; font-size: 15px; }
+.trip-chip b { color: var(--blue-ink); }
+.trip-alts { display: block; font-size: 15px; color: var(--g600); }
+.pk-type, .pk-dist { margin-left: 4px; font-size: 14px; font-weight: 500; color: var(--g600); }
+
+/* ---------- 12) 전 구역 순위 목록 (홈의 동네 순위와 같은 문법) ---------- */
+.district-rank-list { margin: 0; padding: 0; list-style: none; max-width: 760px; }
+.district-rank-list li + li { border-top: 1px solid var(--g100); }
+.district-rank-item { display: grid; grid-template-columns: 32px 108px 1fr 68px 92px; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 10px 12px; border: 0; border-radius: 16px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .2s; }
+.district-rank-item:hover { background: var(--g50); }
+.district-rank-item.is-active { background: var(--blue-50); }
+.district-rank-num { font-size: 16px; font-weight: 700; color: var(--g500); font-variant-numeric: tabular-nums; }
+.district-rank-name { font-size: 17px; font-weight: 600; }
+.district-rank-bar { display: block; height: 10px; border-radius: 999px; background: var(--g100); overflow: hidden; }
+.district-rank-item.is-active .district-rank-bar { background: #fff; }
+.district-rank-fill { display: block; height: 100%; border-radius: 999px; }
+.district-rank-score { font-size: 17px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.district-rank-grade { justify-self: end; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--c, var(--g300)) 30%, #fff); color: var(--g900); font-size: 14px; font-weight: 700; white-space: nowrap; }
+
+/* ---------- 13) 모델 안내 카드 (회색 판 위 흰 카드) ---------- */
+.detail-stack { display: grid; gap: 16px; }
+.detail-card { padding: 36px 40px; border-radius: 28px; background: #fff; }
+.detail-card h3 { margin-bottom: 12px; }
+.detail-card p { font-size: 17px; line-height: 1.65; color: var(--g700); }
+.detail-card p + p { margin-top: 10px; }
+.detail-card strong { color: var(--g900); }
+.detail-card.warn { background: #FFF7EA; }
+.verify-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+.verify-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 999px; background: var(--g100); font-size: 15px; color: var(--g700); }
+.verify-badge b { color: var(--g900); } .verify-badge strong { color: var(--blue-ink); font-size: 17px; }
+.verify-sub { margin-top: 28px; font-size: 18px; font-weight: 700; color: var(--g900) !important; }
+.cov-tiles { margin: 16px 0; }
+.cov-blind-label { margin-top: 8px; font-size: 16px; font-weight: 700; color: var(--g900) !important; }
+.cov-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.cov-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; background: var(--g100); font-size: 15px; }
+.cov-chip b { color: var(--g900); font-variant-numeric: tabular-nums; }
+.cov-chip.cov-zero { background: #FDE4E4; color: #B42318; } .cov-chip.cov-zero b { color: #B42318; }
+.detail-card .place-caution { font-size: 15px; color: var(--g600); }
+
+/* ---------- 14) 반응형 ---------- */
+@media (max-width: 1100px) {
+  .xp-metrics, .xp-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .xp section.s { padding-top: 80px; }
+  .xp section.s.gray { margin-top: 80px; padding: 72px 0; }
+  .xp-first .split { grid-template-columns: 1fr; }
+  .geo-breakdown { grid-template-columns: 1fr; }
+  .geo-op { text-align: center; }
+  .advice-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .xp section.s { padding-top: 64px; }
+  .xp section.s.gray { margin-top: 64px; padding: 56px 0; }
+  .xp .head { margin-bottom: 28px; }
+  .xp-gauge { padding: 32px 20px; }
+  .gauge { width: 200px; height: 200px; } .gauge-inner { width: 164px; height: 164px; } .gauge-value { font-size: 52px; }
+  .seg { display: flex; } .seg-btn { flex: 1; padding: 0 10px; font-size: 15px; }
+  .diag { padding: 8px 20px; } .diag-row { grid-template-columns: 1fr; gap: 8px; padding: 16px 0; } .diag-value { font-size: 17px; }
+  .xp-metrics { gap: 8px; } .xp-metrics .metric-card { padding: 20px; border-radius: 20px; }
+  .chart-area { height: 240px; } .verify-chart-area { height: 240px; }
+  .geo-item { padding: 20px; border-radius: 20px; }
+  .source-item { grid-template-columns: 1fr 70px 50px; grid-template-areas: "name count pct" "bar bar bar"; gap: 6px 10px; }
+  .source-name { grid-area: name; } .source-bar { grid-area: bar; } .source-count { grid-area: count; } .source-pct { grid-area: pct; }
+  .xp-stats { grid-template-columns: 1fr 1fr; gap: 8px; } .stat-tile { padding: 20px; border-radius: 20px; } .stat-value { font-size: 28px; }
+  .xp-card { padding: 24px 20px; border-radius: 22px; }
+  .safe-areas { padding: 20px; border-radius: 20px; } .safe-line { font-size: 16px; }
+  .district-rank-item { grid-template-columns: 26px 1fr auto auto; grid-template-areas: "num name score grade" "num bar bar bar"; gap: 6px 10px; padding: 12px 8px; }
+  .district-rank-num { grid-area: num; } .district-rank-name { grid-area: name; } .district-rank-bar { grid-area: bar; height: 8px; } .district-rank-score { grid-area: score; } .district-rank-grade { grid-area: grade; }
+  .detail-card { padding: 24px 20px; border-radius: 22px; }
+  .detail-card p { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .score-bar-fill { transition: none; } }

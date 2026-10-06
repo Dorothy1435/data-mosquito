@@ -1077,21 +1077,24 @@ function renderAnalysis(region, weatherData, index, precision) {
 }
 
 // === 오늘의 행동요령 ===
-// 일반(비김해) 지역용 행동요령 — 정밀 모델과 동일한 4단계 기준으로 만든다.
+// 일반(비김해) 지역용 행동요령 — 정밀 모델과 동일한 5단계 기준(0~20·21~40·41~60·61~80·81~100)으로 만든다.
 function generalActionGuide(index) {
-  const level = index < 25 ? 1 : (index < 50 ? 2 : (index < 75 ? 3 : 4));
+  const n = Math.round(index);
+  const level = n <= 20 ? 1 : (n <= 40 ? 2 : (n <= 60 ? 3 : (n <= 80 ? 4 : 5)));
   const repellent = {
     1: '불필요',
     2: '가벼운 기피제(시트로넬라 등)',
-    3: 'DEET 10~20% 또는 이카리딘 + 긴팔 권장',
-    4: 'DEET 20%+ 또는 이카리딘 고농도, 노출 최소화',
+    3: '기피제(이카리딘·DEET 10%) 권장',
+    4: 'DEET 10~20% 또는 이카리딘 + 긴팔 권장',
+    5: 'DEET 20%+ 또는 이카리딘 고농도, 노출 최소화',
   }[level];
   const activeHours = level >= 2 ? '일몰 직후(19~22시)와 새벽(04~06시)에 가장 활발' : '활동 미약';
   const tips = {
     1: ['특별한 조치가 필요 없습니다.'],
     2: ['야간 외출 시 가벼운 기피제를 사용하세요.', '집 주변 화분받침·빈 용기의 고인물을 비우세요.'],
-    3: ['방충망·기피제를 사용하고 야간 활동을 줄이세요.', '집 주변 정화조·하수구 뚜껑 주변을 점검하세요.', '고인물 용기를 뒤집어 두세요.'],
-    4: ['야외활동을 자제하고 긴팔·긴바지를 착용하세요.', '농도 높은 기피제(DEET·이카리딘)를 사용하세요.', '집 안팎 모든 고인물을 즉시 제거하세요.'],
+    3: ['방충망·기피제를 사용하고 해질녘 야외 활동을 줄이세요.', '집 주변 정화조·하수구 뚜껑 주변을 점검하세요.', '고인물 용기를 뒤집어 두세요.'],
+    4: ['해질녘·새벽 야외활동을 줄이고 긴팔·긴바지를 착용하세요.', 'DEET 10~20% 또는 이카리딘 기피제를 사용하세요.', '집 안팎 고인물을 즉시 제거하세요.'],
+    5: ['야외활동을 자제하고 긴팔·긴바지를 착용하세요.', '농도 높은 기피제(DEET 20%+·이카리딘)를 사용하세요.', '집 안팎 모든 고인물을 즉시 제거하세요.'],
   }[level];
   return { repellent, activeHours, tips };
 }
@@ -2180,30 +2183,32 @@ async function showInitialLocation() {
     || regionData.find((region) => region.name === '서울')
     || regionData[0];
 
-  // 위치 기능이 없으면 바로 서울로.
-  if (!navigator.geolocation) {
-    regionSelect.value = fallbackRegion.name;
-    await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
-    return;
-  }
+  // 숫자가 바로 보이도록 기본 지역(김해)을 먼저 그린다. 위치 확인은 그와 '동시에' 시작해 둔다.
+  regionSelect.value = fallbackRegion.name;
+  const positionPromise = navigator.geolocation
+    ? new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 6000,
+          maximumAge: 60000,
+        });
+      })
+    : null;
+  if (positionPromise) positionPromise.catch(() => {});   // 아래에서 다시 기다리므로 여기서는 조용히 넘긴다
+  await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
+
+  // 위치 기능이 없으면 기본 지역으로 끝.
+  if (!positionPromise) return;
 
   statusText.textContent = '현재 위치를 확인하는 중입니다… (권한을 허용하면 내 주변으로 표시됩니다)';
 
   try {
-    const position = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 6000,
-        maximumAge: 60000,
-      });
-    });
+    const position = await positionPromise;
 
     const { latitude, longitude, accuracy } = position.coords;
 
-    // 현재 위치가 대한민국 밖이면 기본 지역(김해)으로 대체한다.
+    // 현재 위치가 대한민국 밖이면 이미 그린 기본 지역(김해)을 그대로 둔다.
     if (!isInKorea(latitude, longitude)) {
-      regionSelect.value = fallbackRegion.name;
-      await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
       statusText.textContent = `현재 위치가 대한민국 밖이라 기본 지역(${fallbackRegion.name})으로 표시합니다.`;
       return;
     }
@@ -2220,10 +2225,8 @@ async function showInitialLocation() {
     });
     maybeWarnLowAccuracy(accuracy);   // PC 등 오차가 크면 안내
   } catch (error) {
-    // 권한 거부·시간초과·기타 오류 → 기본 지역(김해)으로 표시
+    // 권한 거부·시간초과·기타 오류 → 이미 그린 기본 지역(김해)을 그대로 둔다
     console.warn('현재 위치를 가져오지 못해 기본 지역으로 표시합니다.', error);
-    regionSelect.value = fallbackRegion.name;
-    await loadAndRenderRegion(fallbackRegion, { isGps: false, preserveZoom: false });
     statusText.textContent = `현재 위치를 사용할 수 없어 기본 지역(${fallbackRegion.name})으로 표시합니다. 상단 “현재 위치” 버튼으로 다시 시도할 수 있습니다.`;
   }
 }
