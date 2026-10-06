@@ -852,3 +852,6 @@ body .mz-chat-fab::before { display: none; }
 @keyframes eggfall { to { transform: translateY(120vh) rotate(var(--r, 360deg)); opacity: .2; } }
 @media (max-width: 620px) { .egg-card { padding: 28px 20px 22px; border-radius: 22px; } .egg-n { font-size: 56px; } .egg-t { font-size: 22px; } }
 @media (prefers-reduced-motion: reduce) { .egg, .egg-card { animation: none; } .egg-fly { display: none; } }
+
+/* 꾹 눌러 연사할 때 길게 누르기 메뉴·선택이 뜨지 않게 */
+.hero-card.spray { -webkit-touch-callout: none; }

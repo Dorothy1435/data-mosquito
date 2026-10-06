@@ -207,9 +207,8 @@
 
     card.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); cx = e.clientX - r.left; cy = e.clientY - r.top; });
     card.addEventListener('pointerleave', () => { cx = null; cy = null; });
-    card.addEventListener('pointerdown', (e) => {
-      const r = card.getBoundingClientRect();
-      const px = e.clientX - r.left, py = e.clientY - r.top;
+    // 한 번 뿌리기: 약이 퍼지고, 가까운 모기는 잡히고, 근처 모기는 흩어진다
+    function spray(px, py) {
       puff(px, py);
       flies.forEach((f) => {
         if (f.dead) return;
@@ -218,7 +217,20 @@
         // 빗나간 약: 근처 모기는 놀라서 반대쪽으로 확 튄다
         if (d < 200) { const k = (1 - d / 200) * 14; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; f.jink = now0() + 500; }
       });
+    }
+    // 누르면 한 번, 꾹 누르고 있으면 0.12초마다 연사. 손가락·마우스를 움직이면 그 자리를 따라간다
+    let sprayTimer = null;
+    const stopSpray = () => { if (sprayTimer) { clearInterval(sprayTimer); sprayTimer = null; } };
+    card.addEventListener('pointerdown', (e) => {
+      const r = card.getBoundingClientRect();
+      cx = e.clientX - r.left; cy = e.clientY - r.top;
+      spray(cx, cy);
+      stopSpray();
+      sprayTimer = setInterval(() => { if (cx != null) spray(cx, cy); }, 120);
     });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => card.addEventListener(ev, stopSpray));
+    window.addEventListener('blur', stopSpray);
+    card.addEventListener('contextmenu', (e) => e.preventDefault());   // 꾹 누를 때 메뉴가 뜨지 않게
 
     // 약이 퍼지는 모양: 작은 방울 7개가 사방으로 번진다
     function puff(px, py) {
