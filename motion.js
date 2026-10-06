@@ -222,6 +222,7 @@
     const stopSpray = () => { if (sprayTimer) { clearInterval(sprayTimer); sprayTimer = null; } };
     let downAt = 0;
     card.addEventListener('pointerdown', (e) => {
+      if (e.target.closest && e.target.closest('.egg')) return;   // 임명장이 떠 있을 땐 스프레이·포인터 캡처를 하지 않는다 (닫기가 먹게)
       const r = card.getBoundingClientRect();
       cx = e.clientX - r.left; cy = e.clientY - r.top;
       downAt = performance.now();
@@ -267,7 +268,7 @@
       egg.innerHTML = `<div class="egg-rain" aria-hidden="true"></div><div class="egg-card"><p class="egg-k">모기제로 임명장</p><p class="egg-n">${n.toLocaleString('ko-KR')}<small>마리</small></p><p class="egg-t">${title}</p><p class="egg-p">${text}</p><p class="egg-d">${new Date().toLocaleDateString('ko-KR')} · 모기제로</p><button type="button" class="btn-main">계속 잡기</button></div>`;
       const rain = egg.querySelector('.egg-rain');
       if (!reduceMotion) for (let i = 0; i < 24; i++) { const m = proto.cloneNode(true); m.removeAttribute('id'); m.className = 'flyer egg-fly'; m.style.left = (Math.random() * 100) + '%'; m.style.setProperty('--d', (Math.random() * 1.8).toFixed(2) + 's'); m.style.setProperty('--r', (Math.random() * 720 - 360).toFixed(0) + 'deg'); rain.appendChild(m); }
-      egg.addEventListener('click', () => egg.remove());
+      egg.addEventListener('pointerdown', (e) => { e.stopPropagation(); egg.remove(); });   // 누르는 즉시 닫힌다
       card.appendChild(egg);
       egg.querySelector('button').focus();
     }
