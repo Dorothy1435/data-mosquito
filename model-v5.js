@@ -22,6 +22,9 @@
   const v5 = {};            // district → v5 결과
   const ratio = {};         // district → v5 오늘 / v4 오늘
   const state = { ready: false, date: null, live: null, error: null };
+  // 첫 응답(성공이든 실패든)을 기다릴 수 있게 한다 — 화면이 v4로 먼저 그려졌다가 v5로 바뀌어 숫자가 널뛰는 것을 막는다
+  let settle;
+  const firstAnswer = new Promise((r) => { settle = r; });
 
   // 홈 화면과 같은 5단계 (반올림 정수 판정)
   function grade(index) {
@@ -40,7 +43,8 @@
     const cur = v5[district];
     if (!cur) return base;
     if (options && options._current) {
-      ratio[district] = cur.mosquito_index / Math.max(base.mosquito_index, 1);
+      // 비율(v5 오늘 / v4 오늘)은 실제 날씨로 계산한 호출에서 정한다. 평년값 호출(지도 마커 등)은 비율이 없을 때만 임시로 쓴다
+      if (options.weather_observed || ratio[district] == null) ratio[district] = cur.mosquito_index / Math.max(base.mosquito_index, 1);
       // v5 결과를 그대로 쓰되, 화면이 기대하는 필드(예: source_risk.larva)가 빠졌으면 v4 것으로 채운다
       const merged = Object.assign({}, base, cur, { v4_index: base.mosquito_index });
       ['source_risk', 'weather', 'confidence', 'ranking', 'area', 'advice', 'larva_survey'].forEach((k) => {
@@ -72,17 +76,23 @@
       .then((data) => {
         if (!data || !data.ok || !Array.isArray(data.districts) || !data.districts.length) {
           state.error = (data && data.error) || '응답 없음';
+          settle(false);
           return false;
         }
         data.districts.forEach((row) => { v5[row.district] = row; });
         state.ready = true; state.date = data.date; state.live = data.live_weather;
         document.documentElement.dataset.model = 'v5';
+        settle(true);
         document.dispatchEvent(new CustomEvent('model:v5', { detail: { date: data.date, live: data.live_weather } }));
         return true;
       })
-      .catch((e) => { state.error = String(e && e.message || e); return false; });
+      .catch((e) => { state.error = String(e && e.message || e); settle(false); return false; });
   }
 
-  window.ModelV5 = { state, get: (d) => v5[d] || null, reload: load };
+  // ready(ms): 첫 응답이 올 때까지(최대 ms) 기다린다. 이미 답이 있으면 바로 끝난다.
+  const ready = (ms) => Promise.race([firstAnswer, new Promise((r) => setTimeout(() => r(state.ready), ms || 4000))]);
+  window.ModelV5 = { state, get: (d) => v5[d] || null, reload: load, ready };
   load();
+  // 30분마다 서버 결과를 다시 받는다 (서버 캐시 주기와 같다). 받으면 'model:v5' 로 화면이 다시 그려진다
+  setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30 * 60 * 1000);
 })();

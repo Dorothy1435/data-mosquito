@@ -1355,6 +1355,7 @@ async function init() {
 
   // 먼저 17개 구역의 실시간 날씨를 한 번에 불러온 뒤, 기본 구역(활천동)을 보여준다.
   districtWeather = await loadAllDistrictWeather();
+  if (window.ModelV5 && !window.ModelV5.state.ready && !window.ModelV5.state.error) await window.ModelV5.ready(4000);   // v5 를 잠깐 기다려 첫 화면부터 v5 로
   const defaultDistrict = districtSelect.value || GimhaeMosquitoModel.listDistricts()[0];
   renderDistrict(defaultDistrict);
   // v5(실측 학습 모형)가 도착하면 다시 그리고, 화면에 모델 버전을 표시한다

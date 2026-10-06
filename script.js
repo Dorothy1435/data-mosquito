@@ -750,8 +750,11 @@ function normalizeWeatherData(apiData, fallbackRegion) {
 async function loadWeatherData(lat, lng, fallbackRegion) {
   const cacheKey = `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`;
 
-  if (weatherCache.has(cacheKey)) {
-    return weatherCache.get(cacheKey);
+  // 같은 좌표라도 10분이 지나면 다시 받는다 (새로고침 없이도 시간·기온·지수가 따라가게)
+  const WEATHER_TTL_MS = 10 * 60 * 1000;
+  const cached = weatherCache.get(cacheKey);
+  if (cached && Date.now() - (cached.fetchedAt || 0) < WEATHER_TTL_MS) {
+    return cached;
   }
 
   try {
@@ -762,11 +765,13 @@ async function loadWeatherData(lat, lng, fallbackRegion) {
 
     const apiData = await response.json();
     const normalized = normalizeWeatherData(apiData, fallbackRegion);
+    normalized.fetchedAt = Date.now();
     weatherCache.set(cacheKey, normalized);
     return normalized;
   } catch (error) {
     console.warn('실제 날씨를 불러오지 못해 샘플 데이터를 사용합니다.', error);
     const fallback = createFallbackWeather(fallbackRegion);
+    fallback.fetchedAt = Date.now();
     weatherCache.set(cacheKey, fallback);
     return fallback;
   }
@@ -1698,7 +1703,10 @@ async function renderOutingIndices(lat, lng, weatherData) {
 }
 
 // 한 지역(또는 좌표)의 날씨를 불러와 게이지·카드·예보·분석·지도까지 한 번에 갱신하는 핵심 함수
+let renderSeq = 0;            // 늦게 끝난 옛 계산이 새 화면을 덮어쓰지 않게 하는 순번
+let lastRenderUsedV5 = false;  // 마지막 화면이 v5 값으로 그려졌는지
 async function loadAndRenderRegion(region, options = {}) {
+  const mySeq = ++renderSeq;
   currentRegion = region;
   lastRenderContext = { region, options };   // 재시도 시 같은 지역·좌표로 다시 부른다
   clearOutOfRangeNotice();   // 정상 지점을 그리기 시작하면 '측정 불가' 표시 제거
@@ -1713,6 +1721,9 @@ async function loadAndRenderRegion(region, options = {}) {
   if (statusText) statusText.textContent = isGps ? 'GPS 위치로 실제 날씨를 불러오는 중입니다.' : `${region.name}의 실제 날씨를 불러오는 중입니다.`;
 
   const weatherData = await loadWeatherData(lat, lng, region);
+  // v5 서버 결과가 아직 안 왔으면 잠깐(최대 4초) 기다린다. 그래야 첫 화면부터 v5 숫자가 나온다.
+  if (window.ModelV5 && !window.ModelV5.state.ready && !window.ModelV5.state.error) await window.ModelV5.ready(4000);
+  if (mySeq !== renderSeq) return;   // 그사이 다른 지역·새 계산이 시작됐으면 이 결과는 버린다
   activeWeatherData = weatherData;
 
   // 실제 날씨를 못 불러와 샘플로 대체된 경우에만 '다시 시도' 버튼을 보여준다.
@@ -1731,6 +1742,11 @@ async function loadAndRenderRegion(region, options = {}) {
   let precision = null;
   let index;
   if (gimhaeDistrict) {
+    // '지금' 시점(series[0])의 입력으로 한 번 먼저 계산한다 — model-v5.js 가 이 호출에서 v5/v4 비율을 잡아
+    // 시간별 예보의 크기를 맞춘다. 그래서 첫 화면의 '지금' 숫자가 전문가 화면의 v5 값과 같아진다
+    if (series.length) {
+      GimhaeMosquitoModel.mosquitoIndex(gimhaeDistrict, Object.assign(gimhaeForecastPointOptions(series[0], weatherData), { _current: true, weather_observed: weatherData.isLive === true }));
+    }
     series = buildGimhaeForecastSeries(series, gimhaeDistrict, weatherData);
     // 게이지는 '지금'에 해당하는 첫 시점(series[0])과 동일한 입력으로 계산한다.
     precision = series.length
@@ -1818,6 +1834,8 @@ async function loadAndRenderRegion(region, options = {}) {
     }
   }
 
+  lastRenderAt = Date.now();
+  lastRenderUsedV5 = Boolean(window.ModelV5 && window.ModelV5.state.ready);
   // 계산이 끝났다고 알린다. 새 디자인의 나들이 지수·배경·눈금이 이 값을 받아 쓴다.
   document.dispatchEvent(new CustomEvent('mosquito:updated', {
     detail: { region, index, stage, series, weatherData, precision, lat, lng, isGps, district: gimhaeDistrict, dailyOutlook },
@@ -2234,8 +2252,19 @@ async function showInitialLocation() {
 }
 
 document.addEventListener('model:v5', () => {
-  if (currentRegion) renderRegion(currentRegion);
+  if (currentRegion && !lastRenderUsedV5) renderRegion(currentRegion);   // v4로 그려진 화면만 다시 그린다
 });
+
+// 새로고침 없이도 따라가게: 10분마다, 그리고 다른 탭에 있다가 돌아왔을 때 10분이 지났으면 다시 계산한다.
+let lastRenderAt = 0;
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
+function refreshIfStale() {
+  if (!currentRegion || document.visibilityState !== 'visible') return;
+  if (Date.now() - lastRenderAt < AUTO_REFRESH_MS) return;
+  renderRegion(currentRegion);
+}
+setInterval(refreshIfStale, 60 * 1000);
+document.addEventListener('visibilitychange', refreshIfStale);
 
 document.addEventListener('DOMContentLoaded', () => {
   init().catch((error) => {

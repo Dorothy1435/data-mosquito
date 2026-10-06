@@ -145,39 +145,77 @@
      큰 숫자 위를 유리 렌즈가 천천히 떠다니며 숫자를 확대한다. 마우스를 올리면 렌즈가 따라온다.
      (토스 채용 페이지의 유리 폴더가 글자를 비추는 장면에서 가져온 기법. 영상 대신 CSS 로 만든다.) */
   /* ---------- 날아다니는 모기 + 모기약 ----------
-     첫 화면 사진 위를 모기 한 마리가 혼자 날아다닌다.
-       · 2~3초마다 새 목적지를 골라 스프링처럼 끌려가고, 지그재그로 윙윙거린다
+     첫 화면 위를 모기가 날아다닌다. 마릿수는 오늘 모기지수 단계를 따른다:
+       매우 양호 1 · 양호 2 · 보통 3 · 위험 5 · 매우 위험 8 (휴대폰은 조금 적게)
+       · 마리마다 2~3초마다 새 목적지를 골라 스프링처럼 끌려가고, 지그재그로 윙윙거린다
        · 마우스(모기약)가 가까이 오면 조금 도망간다
-       · 사진을 누르면 그 자리에 약이 퍼지고(.puff), 모기가 가까이 있으면 잡힌다 — 빙글 돌며 떨어진 뒤 새 모기가 나온다
+       · 화면을 누르면 그 자리에 약이 퍼지고(.puff), 가까이 있던 모기는 잡힌다 — 빙글 돌며 떨어진 뒤 새 모기가 들어온다
      '움직임 줄이기'면 모기를 숨기고 게임도 끈다. */
   function setupMosquito() {
-    const fly = $('flyer');
-    const card = fly && fly.closest('.hero-card');
-    if (!fly || !card || reduceMotion) { if (fly) fly.hidden = true; return; }
+    const proto = $('flyer');
+    const card = proto && proto.closest('.hero-card');
+    if (!proto || !card || reduceMotion) { if (proto) proto.hidden = true; return; }
     const hint = $('sprayHint');
-    const HIT = 80;                       // 이 거리 안이면 잡힌 것
-    let x = card.clientWidth * 0.7, y = card.clientHeight * 0.3, vx = 0, vy = 0, face = 1;
-    let gx = x, gy = y, nextPick = 0;     // 목적지와 다음 목적지를 고를 시각
+    const small = window.matchMedia('(max-width: 620px)').matches;
+    const HIT = small ? 70 : 56;          // 이 거리 안이면 잡힌 것 (손가락은 정확하지 않아 휴대폰은 조금 넓게)
+    const FLEE = 230;                     // 모기약이 이 거리 안에 오면 도망간다
+    const COUNT_BY_LEVEL = small ? [1, 1, 2, 3, 5] : [1, 2, 3, 5, 8];
     let cx = null, cy = null;             // 모기약(마우스) 위치
-    let dead = 0, spin = 0, alpha = 1, kills = 0, entering = false;   // entering: 가장자리 밖에서 들어오는 중
+    let kills = 0;
+    const flies = [];                     // 모기 하나하나의 상태
     card.classList.add('spray');
 
-    function pick(now) {
+    function pick(f, now) {
       const W = card.clientWidth, H = card.clientHeight;
-      gx = W * (0.12 + Math.random() * 0.76); gy = H * (0.1 + Math.random() * 0.55);
-      nextPick = now + 1800 + Math.random() * 1400;
+      f.gx = W * (0.12 + Math.random() * 0.76); f.gy = H * (0.1 + Math.random() * 0.55);
+      f.nextPick = now + 1800 + Math.random() * 1400;
     }
+    // 새 모기: 가장자리 밖에서 날아 들어온다
+    function spawn(f, now, fromEdge) {
+      const W = card.clientWidth, H = card.clientHeight;
+      if (fromEdge) { f.x = Math.random() < 0.5 ? -40 : W + 40; f.y = H * (0.15 + Math.random() * 0.4); f.entering = true; }
+      else { f.x = W * (0.3 + Math.random() * 0.5); f.y = H * (0.15 + Math.random() * 0.4); f.entering = false; }
+      f.vx = 0; f.vy = 0; f.alpha = 1; f.spin = 0; f.dead = 0; f.face = 1;
+      f.el.style.opacity = '1';
+      pick(f, now);
+    }
+    function addFly(fromEdge) {
+      const el = flies.length ? proto.cloneNode(true) : proto;
+      if (el !== proto) { el.removeAttribute('id'); card.appendChild(el); }
+      const f = { el, phase: Math.random() * 10, x: 0, y: 0, vx: 0, vy: 0, gx: 0, gy: 0, nextPick: 0, dead: 0, spin: 0, alpha: 1, face: 1, entering: false };
+      spawn(f, performance.now(), fromEdge);
+      flies.push(f);
+    }
+    // 오늘 단계에 맞춰 마릿수를 맞춘다 (늘면 가장자리에서 들어오고, 줄면 뒤에서부터 사라진다)
+    function setCount(n) {
+      while (flies.length < n) addFly(true);
+      while (flies.length > n) { const f = flies.pop(); if (f.el !== proto) f.el.remove(); else f.el.hidden = true; }
+      if (hint) hint.textContent = n > 1 ? `모기 ${n}마리 · 눌러서 잡아 보세요` : '모기를 눌러서 잡아 보세요';
+    }
+    document.addEventListener('mosquito:updated', (e) => {
+      const idx = e.detail && e.detail.index;
+      if (idx == null) return;
+      const n = Math.round(idx);
+      const level = n <= 20 ? 0 : n <= 40 ? 1 : n <= 60 ? 2 : n <= 80 ? 3 : 4;
+      setCount(COUNT_BY_LEVEL[level]);
+    });
+
     card.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); cx = e.clientX - r.left; cy = e.clientY - r.top; });
     card.addEventListener('pointerleave', () => { cx = null; cy = null; });
     card.addEventListener('pointerdown', (e) => {
       const r = card.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
       puff(px, py);
-      if (dead) return;
-      if (Math.hypot(px - x, py - y) <= HIT) kill(px, py);
+      flies.forEach((f) => {
+        if (f.dead) return;
+        const d = Math.hypot(px - f.x, py - f.y);
+        if (d <= HIT) { kill(f); return; }
+        // 빗나간 약: 근처 모기는 놀라서 반대쪽으로 확 튄다
+        if (d < 200) { const k = (1 - d / 200) * 14; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; f.jink = now0() + 500; }
+      });
     });
 
-    // 약이 퍼지는 모양: 작은 흰 방울 7개가 사방으로 번진다
+    // 약이 퍼지는 모양: 작은 방울 7개가 사방으로 번진다
     function puff(px, py) {
       const p = document.createElement('div');
       p.className = 'puff';
@@ -192,56 +230,67 @@
       card.appendChild(p);
       setTimeout(() => p.remove(), 800);
     }
-    function kill(px, py) {
-      dead = performance.now(); kills += 1;
+    const now0 = () => performance.now();
+    function kill(f) {
+      f.dead = performance.now(); kills += 1;
       const pop = document.createElement('span');
       pop.className = 'kill-pop';
       pop.textContent = kills === 1 ? '잡았다!' : `잡았다! ${kills}마리째`;
-      pop.style.left = x + 'px'; pop.style.top = (y - 30) + 'px';
+      pop.style.left = f.x + 'px'; pop.style.top = (f.y - 30) + 'px';
       card.appendChild(pop);
       setTimeout(() => pop.remove(), 1200);
       if (hint) hint.hidden = true;
     }
-    // 새 모기: 사진 가장자리에서 날아 들어온다
-    function respawn(now) {
-      const W = card.clientWidth, H = card.clientHeight;
-      const side = Math.random() < 0.5 ? -1 : 1;
-      x = side < 0 ? -40 : W + 40; y = H * (0.15 + Math.random() * 0.4);
-      vx = 0; vy = 0; alpha = 1; spin = 0; dead = 0; entering = true;
-      pick(now);
-    }
 
     const t0 = performance.now();
-    pick(t0);
+    addFly(false);   // 지수를 알기 전엔 한 마리
     function tick(now) {
       const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
-      if (dead) {
-        // 잡힌 모기: 빙글 돌며 떨어지고 흐려진다. 1초 뒤 새 모기.
-        const k = (now - dead) / 1000;
-        vy += 0.9; x += vx * 0.3; y += vy; spin += 28; alpha = Math.max(0, 1 - k * 1.1);
-        fly.style.opacity = alpha.toFixed(2);
-        fly.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) rotate(${spin}deg)`;
-        if (k > 1.1) { respawn(now); fly.style.opacity = '1'; }
-        requestAnimationFrame(tick);
-        return;
-      }
-      if (now > nextPick) pick(now);
-      // 모기약이 가까우면 반대쪽으로 도망간다
-      if (cx != null) {
-        const d = Math.hypot(x - cx, y - cy);
-        if (d < 150 && d > 1) { vx += ((x - cx) / d) * 0.9; vy += ((y - cy) / d) * 0.9; }
-      }
-      vx += (gx - x) * 0.01; vy += (gy - y) * 0.01;
-      vx *= 0.9; vy *= 0.9;
-      x += vx + Math.sin(t * 23) * 1.4 + Math.sin(t * 7.3) * 0.9;
-      y += vy + Math.cos(t * 19) * 1.3 + Math.sin(t * 5.1) * 1.1;
-      if (entering && x > 20 && x < W - 20) entering = false;
-      if (!entering) { x = Math.max(20, Math.min(W - 20, x)); y = Math.max(20, Math.min(H - 20, y)); }
-      if (Math.abs(vx) > 0.4) face = vx > 0 ? -1 : 1;           // 그림이 왼쪽을 보고 있으므로 오른쪽으로 갈 땐 뒤집는다
-      const tilt = Math.max(-25, Math.min(25, vy * 3));
-      fly.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scaleX(${face}) rotate(${(tilt * -face).toFixed(1)}deg)`;
+      flies.forEach((f) => {
+        const el = f.el;
+        if (f.dead) {
+          // 잡힌 모기: 빙글 돌며 떨어지고 흐려진다. 1초 뒤 가장자리에서 새 모기.
+          const k = (now - f.dead) / 1000;
+          f.vy += 0.9; f.x += f.vx * 0.3; f.y += f.vy; f.spin += 28; f.alpha = Math.max(0, 1 - k * 1.1);
+          el.style.opacity = f.alpha.toFixed(2);
+          el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) rotate(${f.spin}deg)`;
+          if (k > 1.1) spawn(f, now, true);
+          return;
+        }
+        if (now > f.nextPick) pick(f, now);
+        // 모기약이 가까우면 반대쪽으로 도망간다 — 가까울수록 세게, 그리고 옆으로 꺾어 예측하기 어렵게
+        let fleeing = false;
+        if (cx != null) {
+          const dx = f.x - cx, dy = f.y - cy, d = Math.hypot(dx, dy);
+          if (d < FLEE && d > 1) {
+            fleeing = true;
+            const k = (1 - d / FLEE) * 3.2;
+            f.vx += (dx / d) * k; f.vy += (dy / d) * k;
+            // 0.4초마다 꺾는 방향을 바꾼다 (왼쪽/오른쪽으로 비껴 날기)
+            if (!f.jinkAt || now > f.jinkAt) { f.jinkAt = now + 400; f.jinkDir = Math.random() < 0.5 ? -1 : 1; }
+            f.vx += (-dy / d) * k * 0.9 * f.jinkDir; f.vy += (dx / d) * k * 0.9 * f.jinkDir;
+            // 구석에 몰리면 벽을 따라 빠져나간다
+            if (f.x < 60) f.vx += 1.2; if (f.x > W - 60) f.vx -= 1.2; if (f.y < 60) f.vy += 1.2; if (f.y > H - 60) f.vy -= 1.2;
+          }
+        }
+        f.vx += (f.gx - f.x) * 0.01; f.vy += (f.gy - f.y) * 0.01;
+        // 도망갈 땐 덜 미끄러져 더 빠르다. 너무 빨라지지는 않게 속도를 자른다
+        const damp = fleeing ? 0.94 : 0.9, vmax = fleeing ? 11 : 6;
+        f.vx *= damp; f.vy *= damp;
+        const sp = Math.hypot(f.vx, f.vy);
+        if (sp > vmax) { f.vx *= vmax / sp; f.vy *= vmax / sp; }
+        const tp = t + f.phase;   // 마리마다 윙윙거리는 박자가 다르다
+        f.x += f.vx + Math.sin(tp * 23) * 1.4 + Math.sin(tp * 7.3) * 0.9;
+        f.y += f.vy + Math.cos(tp * 19) * 1.3 + Math.sin(tp * 5.1) * 1.1;
+        if (f.entering && f.x > 20 && f.x < W - 20) f.entering = false;
+        if (!f.entering) { f.x = Math.max(20, Math.min(W - 20, f.x)); f.y = Math.max(20, Math.min(H - 20, f.y)); }
+        if (Math.abs(f.vx) > 0.4) f.face = f.vx > 0 ? -1 : 1;   // 그림이 왼쪽을 보고 있으므로 오른쪽으로 갈 땐 뒤집는다
+        const tilt = Math.max(-25, Math.min(25, f.vy * 3));
+        el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) scaleX(${f.face}) rotate(${(tilt * -f.face).toFixed(1)}deg)`;
+      });
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
   }
+
 }());
