@@ -286,6 +286,12 @@
 
     const t0 = performance.now();
     addFly(false);   // 지수를 알기 전엔 한 마리
+    // 시연용: 주소에 ?egg=1 (또는 egg=500, egg=1000) 을 붙이면 임명장을 바로 보여 준다. 잡은 수는 바꾸지 않는다
+    try {
+      const want = Number(new URLSearchParams(location.search).get('egg'));
+      const n = want === 1 ? 100 : want;
+      if (MILESTONES[n]) setTimeout(() => easterEgg(n), 1500);
+    } catch (err) { /* 무시 */ }
     function tick(now) {
       const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
       flies.forEach((f) => {
