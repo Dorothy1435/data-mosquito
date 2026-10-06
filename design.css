@@ -788,6 +788,7 @@ body .mz-chat-fab::before { display: none; }
 .hero-map.is-on { opacity: 1; }
 .hm-city { fill: rgba(255, 255, 255, .03); stroke: rgba(255, 255, 255, .34); stroke-width: 1.6; stroke-linejoin: round; }
 .hm-d { fill: none; stroke: rgba(255, 255, 255, .13); stroke-width: 1; stroke-linejoin: round; }
+.hm-d2 { fill: rgba(255, 255, 255, .025); stroke: rgba(255, 255, 255, .3); stroke-width: 1.2; }   /* 동네 경계가 다 있을 때: 면을 살짝 채워 바깥선이 저절로 두드러진다 */
 .hm-link { stroke: rgba(255, 255, 255, .13); stroke-width: 1; stroke-dasharray: 3 6; }
 .hm-glow { filter: url(#hmGlow); opacity: .45; }
 .hm-dot { opacity: .92; transform-box: fill-box; transform-origin: center; animation: hmpop .7s calc(var(--i, 0) * 45ms + .2s) cubic-bezier(.34, 1.56, .64, 1) both; }

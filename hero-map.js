@@ -50,15 +50,17 @@
     const proj = makeProjection(all);
 
     const parts = [GLOW];
-    if (boundary && boundary.city) boundary.city.forEach((r) => parts.push(`<path class="hm-city" d="${pathOf(r, proj)}"/>`));
     const rings = (boundary && boundary.districts) || {};
-    Object.values(rings).forEach((rs) => rs.forEach((r) => parts.push(`<path class="hm-d" d="${pathOf(r, proj)}"/>`)));
+    const hasDistricts = Object.keys(rings).length >= 10;
+    // 동네 경계가 다 있으면 시 경계를 따로 그리지 않는다 (두 자료의 점이 달라 선이 겹쳐 보인다)
+    if (boundary && boundary.city && !hasDistricts) boundary.city.forEach((r) => parts.push(`<path class="hm-city" d="${pathOf(r, proj)}"/>`));
+    Object.values(rings).forEach((rs) => rs.forEach((r) => parts.push(`<path class="hm-d${hasDistricts ? ' hm-d2' : ''}" d="${pathOf(r, proj)}"/>`)));
 
     const names = Object.keys(coords);
     const pos = {};
     names.forEach((n) => { pos[n] = proj([coords[n][1], coords[n][0]]); });
     // 동네 경계가 10개 미만이면 이웃끼리 점선으로 잇는다
-    if (Object.keys(rings).length < 10) {
+    if (!hasDistricts) {
       const seen = new Set();
       names.forEach((n) => {
         names.map((m) => [m, Math.hypot(pos[m][0] - pos[n][0], pos[m][1] - pos[n][1])])
