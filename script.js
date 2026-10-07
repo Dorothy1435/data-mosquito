@@ -1140,28 +1140,87 @@ function renderGimhaeRanking(district, weatherData) {
   }
 
   const total = ranked.length;
+  lastRanked = ranked;
   const currentRank = ranked.findIndex((item) => item.district === district) + 1;
-  // 상위 5개를 보여주고, 선택한 구역이 5위 밖이면 그 구역도 함께 붙인다.
-  const shown = ranked.slice(0, 5);
-  if (currentRank > 5 && ranked[currentRank - 1]) {
-    shown.push(ranked[currentRank - 1]);
-  }
 
-  rankingList.innerHTML = shown.map((item) => {
-    const rank = ranked.findIndex((row) => row.district === item.district) + 1;
+  // 17곳을 다 그리되, 펼치기 전에는 상위 5곳과 내 동네만 보인다 (CSS .ranking-list:not(.all))
+  rankingList.innerHTML = ranked.map((item, i) => {
+    const rank = i + 1;
     const isCurrent = item.district === district;
     const score = Math.round(item.mosquito_index);
     const stage = getCurrentStage(score);
     return `
-      <li class="ranking-item${isCurrent ? ' ranking-current' : ''}">
-        <span class="ranking-rank">${rank}위</span>
-        <span class="ranking-name">${item.district}${isCurrent ? ' · 선택한 구역' : ''}</span>
-        <span class="ranking-bar"><span class="ranking-fill" style="width:${score}%;background:${stage.color}"></span></span>
-        <span class="ranking-score">${score}점</span>
+      <li class="ranking-item${isCurrent ? ' ranking-current' : ''}${rank > 5 && !isCurrent ? ' ranking-extra' : ''}">
+        <button type="button" class="ranking-btn" data-district="${item.district}" aria-expanded="false">
+          <span class="ranking-rank">${rank}위</span>
+          <span class="ranking-name">${item.district}${isCurrent ? ' · 내 동네' : ''}</span>
+          <span class="ranking-bar"><span class="ranking-fill" style="width:${score}%;background:${stage.color}"></span></span>
+          <span class="ranking-score">${score}점</span>
+        </button>
       </li>`;
   }).join('');
+  rankingList.querySelectorAll('.ranking-btn').forEach((btn) => btn.addEventListener('click', () => showDistrictCard(btn.dataset.district)));
+
+  const more = document.getElementById('rankMore');
+  if (more) {
+    more.hidden = total <= 5;
+    more.textContent = rankingList.classList.contains('all') ? '상위 5곳만 보기' : `${total}곳 모두 보기`;
+    more.onclick = () => {
+      const all = rankingList.classList.toggle('all');
+      more.textContent = all ? '상위 5곳만 보기' : `${total}곳 모두 보기`;
+    };
+  }
+  // 카드가 열려 있던 동네가 있으면 새 값으로 다시 그린다
+  if (openDistrictCard) showDistrictCard(openDistrictCard, true);
 
   rankingSection.hidden = false;
+}
+
+// === 동네 카드: 순위 줄을 누르면 그 동네의 오늘 점수·주요 발생원·요령을 펼친다 ===
+let lastRanked = [];
+let openDistrictCard = null;
+function showDistrictCard(name, silent) {
+  const box = document.getElementById('districtCard');
+  if (!box) return;
+  const item = lastRanked.find((row) => row.district === name);
+  if (!item) return;
+  // 같은 동네를 다시 누르면 닫는다
+  if (!silent && openDistrictCard === name && !box.hidden) { closeDistrictCard(); return; }
+  openDistrictCard = name;
+  const rank = lastRanked.findIndex((row) => row.district === name) + 1;
+  const score = Math.round(item.mosquito_index);
+  const stage = getCurrentStage(score);
+  const rec = (GimhaeMosquitoModel.DISTRICTS || {})[name] || {};
+  const SRC = GimhaeMosquitoModel.SRC_KOR || {};
+  const sources = Object.entries(rec.sources || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, n]) => `<li><b>${SRC[k] || k}</b> ${n.toLocaleString('ko-KR')}곳</li>`).join('');
+  const count = item.expected_trap_count && item.expected_trap_count.value != null
+    ? `<p class="dc-note">공원 트랩 기준 하루 약 ${Math.round(item.expected_trap_count.value)}마리 예상 (실측 학습 모형 v5)</p>` : '';
+  const advice = item.advice && item.advice.citizen && item.advice.citizen[0] ? item.advice.citizen[0] : '';
+  const range = item.index_range ? `${Math.round(item.index_range.low)}~${Math.round(item.index_range.high)}점` : '';
+  const gap = rec.data_gap ? '<p class="dc-note">민원·현장조사 자료가 없는 구역이라 추정치예요.</p>' : '';
+  box.innerHTML = `
+    <div class="dc-head">
+      <div><p class="dc-k">${rank}위 · 17곳 중</p><h4 class="dc-name">${name}</h4></div>
+      <div class="dc-score"><span class="dc-num" style="color:${stage.color}">${score}</span><span class="dc-stage">${stage.label}</span></div>
+      <button type="button" class="dc-close" aria-label="닫기">닫기</button>
+    </div>
+    ${range ? `<p class="dc-note">예상 범위 ${range}</p>` : ''}${count}${gap}
+    <div class="dc-grid">
+      <div><p class="dc-k">주요 발생원</p><ul class="dc-src">${sources || '<li>등록된 발생원 없음</li>'}</ul></div>
+      <div><p class="dc-k">오늘 요령</p><p class="dc-advice">${advice || '집 주변 고인 물을 비워 주세요.'}</p></div>
+    </div>
+    <a class="more-link" href="gimhae.html?district=${encodeURIComponent(name)}">전문가 화면에서 자세히 <i>›</i></a>`;
+  box.hidden = false;
+  box.querySelector('.dc-close').addEventListener('click', closeDistrictCard);
+  rankingList.querySelectorAll('.ranking-btn').forEach((btn) => btn.setAttribute('aria-expanded', btn.dataset.district === name ? 'true' : 'false'));
+  if (!silent) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function closeDistrictCard() {
+  const box = document.getElementById('districtCard');
+  if (box) box.hidden = true;
+  openDistrictCard = null;
+  if (rankingList) rankingList.querySelectorAll('.ranking-btn').forEach((btn) => btn.setAttribute('aria-expanded', 'false'));
 }
 
 // === 지수 계산 상세 (날씨 · 발생원 · 인구) ===

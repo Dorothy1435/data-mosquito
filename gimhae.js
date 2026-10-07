@@ -344,7 +344,7 @@ function renderGimhaeMap(activeDistrict) {
     marker.on('click', () => {
       districtSelect.value = district;
       renderDistrict(district);
-      document.getElementById('top').scrollIntoView({ behavior: 'smooth' });
+      flashGauge();   // 맨 위로 튀지 않고, 바뀐 것을 게이지 깜빡임으로 알린다
     });
     gimhaeMarkers[district] = marker;
   });
@@ -1239,7 +1239,7 @@ function renderDistrictRanking(activeDistrict) {
       const name = button.dataset.district;
       districtSelect.value = name;
       renderDistrict(name);
-      document.getElementById('top').scrollIntoView({ behavior: 'smooth' });
+      flashGauge();   // 맨 위로 튀지 않고, 바뀐 것을 게이지 깜빡임으로 알린다
     });
   });
 }
@@ -1288,6 +1288,13 @@ function markModelV5() {
   if (card) card.hidden = false;
 }
 
+// 구역이 바뀌었음을 알리는 짧은 강조 (제자리 전환)
+function flashGauge() {
+  const g = document.querySelector('.xp-gauge');
+  if (!g) return;
+  g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
+}
+
 // 구역 선택 드롭다운을 채운다.
 function populateDistricts() {
   const districts = GimhaeMosquitoModel.listDistricts();
@@ -1332,6 +1339,8 @@ async function init() {
 
   setupAudienceMode();    // 시민용/전문가용 보기 전환
   populateDistricts();
+  // 홈 동네 카드의 '전문가 화면에서 자세히' 링크: gimhae.html?district=회현동
+  try { const want = new URLSearchParams(location.search).get('district'); if (want && GimhaeMosquitoModel.listDistricts().includes(want)) districtSelect.value = want; } catch (e) { /* 무시 */ }
   renderSourceTotals();   // 김해시 전체 발생원 총량(정적)
   renderVerifyChart();    // 검증 산점도(정적)
   initGimhaeMap();        // 발생원 지도 생성(마커는 구역 렌더 시 채움)

@@ -236,8 +236,12 @@
         <div class="grid town">
           <div class="rank rv">
             <div class="lead" id="rankLead"><span class="dim">순위를 계산하는 중</span></div>
-            <h3>오늘 조심할 동네</h3>
+            <h3>동네별 오늘 모기지수</h3>
+            <p class="dim rank-hint">동네를 누르면 자세히 볼 수 있어요.</p>
             <ol class="ranking-list" id="rankingList"></ol>
+            <button class="link rank-more" id="rankMore" type="button" hidden>17곳 모두 보기</button>
+            <!-- 누른 동네의 오늘 점수·주요 발생원·요령 (script.js showDistrictCard) -->
+            <div class="dcard" id="districtCard" hidden aria-live="polite"></div>
             <p class="sr-only" id="ranking-section"></p>
           </div>
         </div>
