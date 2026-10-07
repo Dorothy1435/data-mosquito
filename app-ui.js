@@ -226,8 +226,29 @@
 
   document.addEventListener('air:updated', (event) => {
     lastAir = event.detail || null;
-    if (lastDetail) renderKit(lastDetail);
+    // 대기질은 날씨보다 늦게 올 수 있어, 오면 나들이 지수(미세먼지 상한)와 준비물을 다시 그린다.
+    if (lastDetail) {
+      try {
+        const kitBefore = document.querySelectorAll('#kitList li.on').length;
+        renderOuting(lastDetail);
+        renderKit(lastDetail);
+        renderParks(lastDetail);   // 공원 추천도 나들이 점수를 기준으로 고른다
+        // 요약 칸 '챙길 것 N개'는 준비물 목록을 읽어 그린다. 마스크가 켜지거나 꺼졌을 때만 다시 그린다.
+        if (document.querySelectorAll('#kitList li.on').length !== kitBefore) renderGlance(lastDetail);
+      } catch (error) {
+        console.warn('대기질 반영 중 문제가 발생했습니다.', error);
+      }
+    }
   });
+
+  // 지금 보고 있는 위치의 대기질만 쓴다. (위치를 바꾼 직후 이전 위치 값이 섞이지 않게)
+  function airFor(d) {
+    const air = lastAir;
+    if (!air || d.lat == null || air.lat == null) return air;
+    const same = Number(air.lat).toFixed(2) === Number(d.lat).toFixed(2)
+      && Number(air.lng).toFixed(2) === Number(d.lng).toFixed(2);
+    return same ? air : null;
+  }
 
   // 시계는 30초마다 따로 돌린다 (숫자 계산과 별개로 시간이 실시간으로 바뀌게)
   setInterval(() => { if (lastDetail) renderNow(lastDetail); }, 30 * 1000);
@@ -397,14 +418,20 @@
     const w = d.weatherData || {};
     const series = d.series || [];
 
+    // 대기질: 아직 안 왔으면 undefined('확인 중'), 실패했으면 null('정보 없음')
+    const air = airFor(d);
+    const airHourly = (air && air.hourly) || {};
+
     const todayDate = new Date().getDate();
     const hours = series.map((point) => {
       const when = new Date(point.time);
+      const airAt = airHourly[String(point.time || '').slice(0, 13)] || {};   // 같은 시각의 미세먼지 예보
       return {
         hour: point.hourOfDay,
         isToday: Number.isNaN(when.getTime()) ? true : when.getDate() === todayDate,
         temperature: point.temperature, rainMm: point.precipNow, rainProbability: point.precipProbability,
         windSpeed: point.windSpeed, uvIndex: point.uvIndex, mosquitoIndex: point.index,
+        pm10: airAt.pm10 ?? null, pm25: airAt.pm25 ?? null,
       };
     });
     const outingSeries = O.computeSeries(hours);
@@ -423,6 +450,9 @@
       uvIndex: nowPoint.uvIndex != null ? nowPoint.uvIndex : w.uvIndexMax,   // 지금 시각의 자외선
       mosquitoIndex: d.index,
       peakHourText: mosquitoPeakText(series),
+      pm10: air ? air.pm10 : undefined,
+      pm25: air ? air.pm25 : undefined,
+      foodLabel: d.food ? d.food.label : null,
     });
     lastOutingScore = now.available ? now.score : null;
     d.outingNow = now; d.outingBest = best;
@@ -430,7 +460,11 @@
     const score = $('outingScore'), grade = $('outingGrade'), advice = $('outingAdvice');
     if (score) score.textContent = now.available ? now.score : '--';
     if (grade) { grade.textContent = now.grade.label; grade.dataset.tone = now.grade.label; }
-    if (advice) advice.innerHTML = now.available ? O.buildAdvice(now.score, best, null).join('<br>') : '날씨를 불러오면 알려드릴게요.';
+    if (advice) {
+      const lines = now.available ? O.buildAdvice(now.score, best, null) : ['날씨를 불러오면 알려드릴게요.'];
+      if (now.capNote) lines.push(now.capNote);   // 미세먼지 때문에 점수가 깎였으면 이유를 알려 준다
+      advice.innerHTML = lines.join('<br>');
+    }
 
     const order = ['나쁨', '보통', '좋음', '매우 좋음'];
     const at = order.indexOf(now.grade.label);
@@ -455,7 +489,7 @@
     const cond = $('outingConditions');
     if (cond) {
       cond.innerHTML = now.conditions.map((row) => `<div class="outing-condition">
-        <span class="outing-condition-icon" aria-hidden="true">${row.icon}</span><span>${row.name}</span>
+        <span class="outing-condition-icon" aria-hidden="true">${row.icon}</span><span>${row.name}</span>${row.tag ? `<span class="outing-condition-tag">${row.tag}</span>` : ''}
         <span class="outing-condition-value tone-${row.tone}">${row.text}</span></div>`).join('');
     }
   }
@@ -494,7 +528,7 @@
     const uv = uvAhead >= 0 ? uvAhead : (w.uvIndexMax ?? null);
     const rainProb = w.dailyRainProbability ?? w.precipitationProbability ?? null;
     const feels = w.feelsLike ?? w.temperature ?? null;
-    const air = lastAir;
+    const air = airFor(d);
 
     const items = [
       { key: 'spray', name: '기피제',

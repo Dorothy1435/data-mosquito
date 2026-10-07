@@ -166,6 +166,8 @@ h3 { font-size: var(--t-h3); line-height: 1.4; }
 .outing-condition-icon { display: none; }
 .outing-condition-value { margin-left: auto; font-weight: 600; color: #fff; text-align: right; }
 .outing-condition-value.tone-warn, .outing-condition-value.tone-bad { color: #FFB86B; }
+/* 미세먼지 '예보' · 식중독 '자체 산출' 출처 표시 (실측과 구분) */
+.outing-condition-tag { flex-shrink: 0; padding: 2px 8px; border: 1px solid var(--dark-line); border-radius: 999px; font-size: 14px; color: var(--g500); }
 .sub-h { margin: 72px 0 20px; color: #fff; }
 .dark .dim { color: var(--g500); }
 .days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }

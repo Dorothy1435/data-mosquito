@@ -1597,40 +1597,61 @@ function renderPeakTimes(series) {
 const outingGrid = document.getElementById('outingGrid');
 const outingNote = document.getElementById('outingNote');
 
-// 같은 좌표의 대기질은 캐시해 중복 호출을 막는다.
+// 같은 좌표의 대기질은 캐시해 중복 호출을 막는다. 시간별 값이 낡지 않게 1시간이 지나면 다시 받는다.
 const airQualityCache = new Map();
+const AIR_CACHE_MS = 60 * 60 * 1000;
 
 function getAirQualityUrl(lat, lng) {
   const params = new URLSearchParams({
     latitude: Number(lat).toFixed(2),
     longitude: Number(lng).toFixed(2),
     current: 'pm10,pm2_5',
+    hourly: 'pm10,pm2_5',   // 시간대별 나들이 지수에 쓰는 시간별 값 (2026-10-07)
+    forecast_days: '2',
     timezone: 'Asia/Seoul',
   });
   return `https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`;
 }
 
-// 대기질 실측값을 불러온다. 실패해도 페이지가 멈추지 않도록 빈 값을 돌려준다.
+// 숫자면 반올림, 아니면 null
+function roundOrNull(value) {
+  return typeof value === 'number' ? Math.round(value) : null;
+}
+
+// 대기질 값을 불러온다. 실패해도 페이지가 멈추지 않도록 빈 값을 돌려준다.
+// hourly 는 { '2026-10-07T13': { pm10, pm25 } } 처럼 '날짜T시'를 열쇠로 한 표다.
 async function loadAirQuality(lat, lng) {
   const cacheKey = `${Number(lat).toFixed(2)},${Number(lng).toFixed(2)}`;
-  if (airQualityCache.has(cacheKey)) return airQualityCache.get(cacheKey);
+  const cached = airQualityCache.get(cacheKey);
+  if (cached && Date.now() - cached.loadedAt < AIR_CACHE_MS) return cached;
 
   try {
     const response = await fetch(getAirQualityUrl(lat, lng));
     if (!response.ok) throw new Error(`대기질 응답 오류: ${response.status}`);
     const data = await response.json();
     const current = data.current || {};
+    const hourlySource = data.hourly || {};
+    const hourly = {};
+    (hourlySource.time || []).forEach((time, i) => {
+      hourly[String(time).slice(0, 13)] = {
+        pm10: roundOrNull((hourlySource.pm10 || [])[i]),
+        pm25: roundOrNull((hourlySource.pm2_5 || [])[i]),
+      };
+    });
     const result = {
       isLive: true,
-      pm10: typeof current.pm10 === 'number' ? Math.round(current.pm10) : null,
-      pm25: typeof current.pm2_5 === 'number' ? Math.round(current.pm2_5) : null,
+      lat, lng,
+      pm10: roundOrNull(current.pm10),
+      pm25: roundOrNull(current.pm2_5),
       observedAt: current.time || null,
+      hourly,
+      loadedAt: Date.now(),
     };
     airQualityCache.set(cacheKey, result);
     return result;
   } catch (error) {
     console.warn('대기질 정보를 불러오지 못했습니다.', error);
-    return { isLive: false, pm10: null, pm25: null, observedAt: null };
+    return { isLive: false, lat, lng, pm10: null, pm25: null, observedAt: null, hourly: {} };
   }
 }
 
@@ -1900,7 +1921,11 @@ async function loadAndRenderRegion(region, options = {}) {
   lastRenderUsedV5 = Boolean(window.ModelV5 && window.ModelV5.state.ready);
   // 계산이 끝났다고 알린다. 새 디자인의 나들이 지수·배경·눈금이 이 값을 받아 쓴다.
   document.dispatchEvent(new CustomEvent('mosquito:updated', {
-    detail: { region, index, stage, series, weatherData, precision, lat, lng, isGps, district: gimhaeDistrict, dailyOutlook },
+    detail: {
+      region, index, stage, series, weatherData, precision, lat, lng, isGps, district: gimhaeDistrict, dailyOutlook,
+      // 식중독지수(자체 산출) — 나들이 '오늘 조건'에 안내로만 쓴다 (점수에는 넣지 않음)
+      food: (() => { const score = computeFoodPoisoningIndex(weatherData); return { score, label: getFoodGrade(score).label }; })(),
+    },
   }));
 }
 

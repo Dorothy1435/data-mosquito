@@ -12,6 +12,10 @@
      자외선  · 강하면 감점
      바람    · 너무 세면 감점
 
+   미세먼지는 가중치가 아니라 '상한'으로 반영한다. (아래 CAPS)
+   식중독지수는 화면에 안내만 하고 점수에는 넣지 않는다.
+   (외출과 직접 관계가 없고, 기온이 이미 점수에 들어가 있어 두 번 깎게 되기 때문)
+
    주의: 이 값은 공공기관이 발표하는 공식 지수가 아니라
    이 사이트가 날씨 데이터로 직접 계산한 참고용 예상값이다.
    화면에 반드시 '자체 산출'임을 함께 표시한다.
@@ -45,7 +49,29 @@
     { when: (p) => p.mosquito <= 0.30, limit: 59, why: '모기가 많음(위험)' },
     { when: (p) => p.mosquito <= 0.56, limit: 79, why: '모기가 보통' },
     { when: (p) => p.wind <= 0.35, limit: 55, why: '바람이 매우 강함' },
+    // 미세먼지 상한 — 환경부 '나쁨'이면 최대 '보통', '매우 나쁨'이면 '나쁨'까지만 (2026-10-07)
+    // air: true 인 상한은 화면에 이유를 함께 보여 준다.
+    { when: (p, i) => airGradeOf(i.pm25, PM25_BREAKS) === 3, limit: 35, why: '초미세먼지 매우 나쁨', air: true },
+    { when: (p, i) => airGradeOf(i.pm10, PM10_BREAKS) === 3, limit: 35, why: '미세먼지 매우 나쁨', air: true },
+    { when: (p, i) => airGradeOf(i.pm25, PM25_BREAKS) === 2, limit: 55, why: '초미세먼지 나쁨', air: true },
+    { when: (p, i) => airGradeOf(i.pm10, PM10_BREAKS) === 2, limit: 55, why: '미세먼지 나쁨', air: true },
   ];
+
+  // 환경부 대기환경기준 4단계 경계값(㎍/㎥) — [좋음 상한, 보통 상한, 나쁨 상한]
+  // 준비물 '마스크' 기준(초미세먼지 36·미세먼지 81 이상)과 같은 경계다.
+  const PM10_BREAKS = [30, 80, 150];
+  const PM25_BREAKS = [15, 35, 75];
+  const AIR_LABELS = ['좋음', '보통', '나쁨', '매우 나쁨'];
+
+  // 농도를 0(좋음)~3(매우 나쁨) 단계 번호로 바꾼다. 값이 없으면 null.
+  function airGradeOf(value, breaks) {
+    if (value == null || Number.isNaN(Number(value))) return null;
+    const v = Number(value);
+    if (v <= breaks[0]) return 0;
+    if (v <= breaks[1]) return 1;
+    if (v <= breaks[2]) return 2;
+    return 3;
+  }
 
   // 나들이 지수 4단계. 모기지수(5단계)와 헷갈리지 않도록 이름을 다르게 썼다.
   const GRADES = [
@@ -166,16 +192,18 @@
     // 치명적인 조건이 하나라도 있으면 점수에 상한을 씌운다.
     // 가장 낮은 상한을 적용하고, 그 이유도 함께 돌려준다.
     let capReason = null;
+    let capNote = null;   // 화면에 보여 줄 이유 (지금은 미세먼지만)
     CAPS.forEach((cap) => {
       if (cap.when(parts, input) && score > cap.limit) {
         score = cap.limit;
         capReason = cap.why;
+        capNote = cap.air ? `${cap.why}이라 점수를 낮췄어요.` : null;
       }
     });
 
     const grade = gradeOf(score);
 
-    return { available: true, score, grade, parts, capReason, conditions: describeConditions(input) };
+    return { available: true, score, grade, parts, capReason, capNote, conditions: describeConditions(input) };
   }
 
   /* ---------- 화면 오른쪽 '오늘 나들이 조건' 4줄 ---------- */
@@ -240,7 +268,33 @@
       rows.push({ icon: '🦟', name: '모기', text: '적은 편이에요', tone: 'good' });
     }
 
+    // 미세먼지 · 초미세먼지 — Open-Meteo 대기질 예보값 (관측소 실측이 아님)
+    // 값이 아직 안 왔으면(undefined) '확인 중', 못 받았으면(null) '정보 없음'
+    rows.push(describeAir('🌫️', '미세먼지', input.pm10, PM10_BREAKS));
+    rows.push(describeAir('😷', '초미세먼지', input.pm25, PM25_BREAKS));
+
+    // 식중독 — 기온·습도로 자체 산출한 참고값. 나들이 점수에는 넣지 않고 안내만 한다.
+    const food = input.foodLabel;
+    if (!food) {
+      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '정보 없음', tone: 'dim' });
+    } else if (food === '경고' || food === '위험') {
+      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: `${food} · 도시락은 시원하게`, tone: 'bad' });
+    } else if (food === '주의') {
+      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '주의 · 음식은 익혀서', tone: 'warn' });
+    } else {
+      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '관심 · 걱정 적어요', tone: 'good' });
+    }
+
     return rows;
+  }
+
+  // 미세먼지 한 줄: '나쁨 · 42' 처럼 단계와 농도(㎍/㎥)를 함께 보여 준다.
+  function describeAir(icon, name, value, breaks) {
+    if (value === undefined) return { icon, name, tag: '예보', text: '확인 중', tone: 'dim' };
+    const level = airGradeOf(value, breaks);
+    if (level == null) return { icon, name, tag: '예보', text: '정보 없음', tone: 'dim' };
+    const tone = level <= 1 ? 'good' : (level === 2 ? 'warn' : 'bad');
+    return { icon, name, tag: '예보', text: `${AIR_LABELS[level]} · ${Math.round(Number(value))}`, tone };
   }
 
   /* ---------- 시간대별 나들이 지수 ---------- */
