@@ -1281,7 +1281,7 @@ function markModelV5() {
   const pill = document.getElementById('modelBadge');
   if (pill) { pill.textContent = '실측 학습 모형 v5'; pill.hidden = false; }
   const k = document.querySelector('.xp-first .kicker');
-  if (k) k.textContent = '전문가용 · 김해시 모기 위험 모델 v5';
+  if (k) k.textContent = '자세히 보기 · 김해 동네별 모기 모델 v5';
   const lead = document.getElementById('modelLead');
   if (lead) lead.textContent = '2026시즌 장비 실측 채집수 694건으로 학습한 v5 모형이 구역별 모기지수를 냅니다. 발생원·인구로 구역 수준을, 날씨와 낮 길이로 시간 효과를 계산하며, 실측과의 순위 일치는 0.70(일별 도시평균 0.91)입니다.';
   const card = document.getElementById('v5Card');

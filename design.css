@@ -900,3 +900,26 @@ body .mz-chat-fab::before { display: none; }
 .hm-cap { fill: rgba(255, 255, 255, .55); font: 500 13px var(--sans); }
 @media (max-width: 620px) { .hm-toggle { left: 12px; top: 12px; font-size: 13px; } .hm-cap { display: none; } }
 @media (min-width: 1232px) { .hm-toggle { left: calc(16px + clamp(24px, 5vw, 72px) - 16px); } }
+
+/* ---------- 32) 폰: 아래 탭 바 + 탭 화면 (2026-10-07 팀장 피드백) ----------
+   900px 이하에서만. 탭을 누르면 본문(main)의 그 탭 구역(data-tab)만 보이고, 햄버거 메뉴는 숨긴다. */
+.tabbar { display: none; }
+@media (max-width: 900px) {
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1150; display: grid; grid-template-columns: repeat(5, 1fr); height: calc(62px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: rgba(255, 255, 255, .94); backdrop-filter: saturate(180%) blur(18px); -webkit-backdrop-filter: saturate(180%) blur(18px); border-top: 1px solid var(--g200); }
+  .tabbar > * { display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 62px; border: 0; background: none; color: var(--g600); font: 600 12px var(--sans); text-decoration: none; cursor: pointer; }
+  .tabbar svg { width: 24px; height: 24px; }
+  .tabbar .is-on { color: var(--blue-ink); }
+  body.tabs { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  body.tabs .nav-toggle, body.tabs .lk { display: none !important; }
+  body.tabs .where { margin-left: auto; }
+  /* 본문 구역만 숨기고 보인다 (탭 바의 버튼은 건드리지 않는다) */
+  body.tabs main > [data-tab] { display: none !important; }
+  body.tabs[data-tab="today"] main > [data-tab="today"], body.tabs[data-tab="kit"] main > [data-tab="kit"], body.tabs[data-tab="photo"] main > [data-tab="photo"], body.tabs[data-tab="town"] main > [data-tab="town"] { display: block !important; }
+  /* 탭 안 첫 구역은 위 여백을 줄인다 (탭을 열면 바로 내용이 보이게) */
+  body.tabs section.s[data-tab] { padding-top: 48px; }
+  body.tabs section.s.dark[data-tab], body.tabs section.s.gray[data-tab] { margin-top: 48px; padding: 56px 0; }
+  body.tabs .hero-card { height: calc(100svh - 72px - 62px); min-height: 520px; }
+  body.tabs .foot { margin-top: 56px; }
+  body.tabs .fab-cam { bottom: calc(78px + env(safe-area-inset-bottom)); }
+  body.tabs .mz-chat { bottom: calc(78px + env(safe-area-inset-bottom)) !important; }
+}

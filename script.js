@@ -1213,7 +1213,7 @@ function showDistrictCard(name, silent) {
       <div><p class="dc-k">주요 발생원</p><div class="dc-pills">${srcPills || '<span class="dc-pill">등록된 발생원 없음</span>'}</div></div>
       <div><p class="dc-k">오늘 요령</p><p class="dc-advice">${advice || '집 주변 고인 물을 비워 주세요.'}</p></div>
     </div>
-    <a class="btn-sub dc-link" href="gimhae.html?district=${encodeURIComponent(name)}">전문가 화면에서 자세히 보기</a>`;
+    <a class="btn-sub dc-link" href="gimhae.html?district=${encodeURIComponent(name)}">이 동네 자세히 보기</a>`;
   box.hidden = false;
   box.querySelector('.dc-close').addEventListener('click', closeDistrictCard);
   rankingList.querySelectorAll('.ranking-btn').forEach((btn) => btn.setAttribute('aria-expanded', btn.dataset.district === name ? 'true' : 'false'));

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>모기제로 | 전문가용 · 김해시 모기 위험 모델</title>
+  <title>모기제로 | 자세히 보기 · 김해 동네별 모기</title>
   <link rel="canonical" href="https://mosquito-zero.vercel.app/gimhae.html">
   <meta name="description" content="김해시 행정 데이터(발생원 시설·방역민원)와 실시간 날씨를 결합해 읍·면·동별 모기 발생 위험도와 방제 우선순위를 보여주는 모델입니다.">
   <link rel="icon" href="assets/brand/logo-icon.png">
@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="모기제로">
-  <meta property="og:title" content="모기제로 | 전문가용 · 김해시 모기 위험 모델">
+  <meta property="og:title" content="모기제로 | 자세히 보기 · 김해 동네별 모기">
   <meta property="og:description" content="김해시 17개 구역의 발생원 위험·방제 우선순위·7일 예보를 보여주는 보건소용 화면입니다.">
   <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -38,7 +38,7 @@
         <a href="index.html#photo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>사진으로 알아보기</a>
         <a href="index.html#town"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>우리 동네</a>
         <a href="mosquito-info.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg>모기 도감</a>
-        <a href="gimhae.html" class="lk-pro" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>전문가용</a>
+        <a href="gimhae.html" class="lk-pro" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>자세히 보기</a>
       </nav>
       <div class="where">
         <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
@@ -54,7 +54,7 @@
     <section class="s g-first xp-first" aria-labelledby="gimhaeTitle">
       <div class="wrap split">
         <div class="copy up">
-          <p class="kicker">전문가용 · 김해시 모기 위험 모델</p>
+          <p class="kicker">자세히 보기 · 김해 동네별 모기 모델</p>
           <h1 id="gimhaeTitle">행정 데이터와 날씨로<br>보는 구역별 모기 위험</h1>
           <p id="modelLead">발생원 시설 16종과 인구를 단위면적당 밀도로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. 예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</p>
 
@@ -331,6 +331,14 @@
     </section>
   </main>
 
+  <!-- 폰에서만 보이는 아래 탭 바 (mobile-tabs.js). 데스크톱은 상단 메뉴를 쓴다 -->
+  <nav class="tabbar" aria-label="화면 이동">
+    <a href="index.html#flow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>오늘</span></a>
+    <a href="index.html#kit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg><span>챙길 것</span></a>
+    <a href="index.html#photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg><span>사진</span></a>
+    <a href="index.html#town"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg><span>우리 동네</span></a>
+    <a href="mosquito-info.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg><span>도감</span></a>
+  </nav>
   <footer class="foot">
     <div class="wrap">
       <p class="foot-brand">모기제로</p>
@@ -346,6 +354,7 @@
   <script src="mosquito-model.js"></script>
   <script src="model-v5.js"></script>
   <script src="nav.js"></script>
+  <script src="mobile-tabs.js"></script>
   <script src="motion.js"></script>
   <script src="gimhae.js"></script>
   <script src="chat.js"></script>
