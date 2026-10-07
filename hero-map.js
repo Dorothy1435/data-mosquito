@@ -1,24 +1,29 @@
 /* =============================================================
    모기제로 첫 화면 지도 (hero-map.js)
    -------------------------------------------------------------
-   첫 화면 오른쪽에 선택한 지역의 지도를 가는 선으로 그린다.
-     · 김해: 시 경계 + 17개 동네 원(오늘 모기지수 색·크기). 내 동네는 흰 테두리 + '내 동네' 이름표.
-       동네 경계는 OpenStreetMap에 있는 것만 그리고, 부족하면 이웃 동네끼리 점선으로 잇는다.
-     · 다른 도시(서울·부산 등): 도시 경계 + 지금 보는 지점 한 점(오늘 단계 색). 동네별 자료는 김해만 있다.
-     · 경계 자료: data/gimhae-boundary.json, data/city-boundaries.json (OpenStreetMap contributors, ODbL)
-     · script.js 가 계산을 끝내고 보내는 'mosquito:updated' 를 받아 그린다. 지역을 바꾸면 지도도 바뀐다.
+   첫 화면 오른쪽에 지도를 가는 선으로 그린다. 보기 두 가지를 '경남 한눈에' 버튼으로 오간다.
+     · 동네 보기(김해): 시 경계 + 17개 동네 원(오늘 모기지수 색·크기). 내 동네는 흰 테두리 + '내 동네' 이름표.
+     · 경남 한눈에: 18개 시·군 경계 위에 시·군마다 오늘 점수 색 점. 김해는 동네별 정밀 자료, 그 밖은 날씨로 추정.
+       지역을 김해가 아닌 시·군으로 고르면 이 보기가 기본이고 그 시·군이 강조된다.
+     · 경계 자료: data/gimhae-boundary.json, data/city-boundaries.json (통계청 2013 행정경계)
+     · script.js 가 계산을 끝내고 보내는 'mosquito:updated' 를 받아 그린다.
+     · 시·군 점수는 script.js 의 loadWeatherData·calculateMosquitoIndex(날씨 기반 일반식)를 그대로 쓴다. 10분 캐시.
    ============================================================= */
 (function () {
   'use strict';
   const VB_W = 1000, VB_H = 760, PAD = 56;
   const cache = {};
+  let view = 'local';          // 'local'(동네 보기) | 'gn'(경남 한눈에)
+  let lastDetail = null;       // 마지막 'mosquito:updated' 내용
+  let gnScores = null;         // { name: { index, color } }, 경남 18곳
+  let gnScoresAt = 0;
 
   function loadJson(url) {
     if (!cache[url]) cache[url] = fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     return cache[url];
   }
 
-  // 위도·경도 → 화면 좌표. 도시 하나 크기면 단순 투영으로 충분하다.
+  // 위도·경도 → 화면 좌표. 도 하나 크기까지는 단순 투영으로 충분하다.
   function makeProjection(points) {
     const lat0 = points.reduce((s, p) => s + p[1], 0) / points.length;
     const k = Math.cos((lat0 * Math.PI) / 180);
@@ -32,14 +37,20 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const GLOW = '<defs><filter id="hmGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="14"/></filter></defs>';
 
-  // 이름표(알약 + 글자). 도심처럼 빽빽한 곳은 원 위에 둔다.
+  // 이름표(알약 + 글자). 빽빽한 곳은 원 위에 둔다.
   function pillLabel(x, y, r, text) {
     const w = text.length * 11 + 28, ly = y - r - 18;
     return `<rect class="hm-pill" x="${(x - w / 2).toFixed(1)}" y="${(ly - 19).toFixed(1)}" width="${w}" height="30" rx="15"/>`
       + `<text class="hm-name me" x="${x.toFixed(1)}" y="${(ly + 2).toFixed(1)}" text-anchor="middle">${text}</text>`;
   }
+  function dot(parts, x, y, r, color, me, i, glow) {
+    parts.push(`<g class="hm-node${me ? ' me' : ''}" style="--i:${i}">`);
+    if (glow) parts.push(`<circle class="hm-glow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r * 1.6).toFixed(1)}" fill="${color}"/>`);
+    parts.push(`<circle class="hm-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>`);
+    if (me) parts.push(`<circle class="hm-me" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 9).toFixed(1)}"/>`);
+  }
 
-  /* ---------- 김해: 시 경계 + 17개 동네 원 ---------- */
+  /* ---------- 동네 보기(김해): 시 경계 + 17개 동네 원 ---------- */
   function renderGimhae(svg, boundary, districts, active) {
     const M = window.GimhaeMosquitoModel;
     const coords = M ? M.COORDS : {};
@@ -59,7 +70,6 @@
     const names = Object.keys(coords);
     const pos = {};
     names.forEach((n) => { pos[n] = proj([coords[n][1], coords[n][0]]); });
-    // 동네 경계가 10개 미만이면 이웃끼리 점선으로 잇는다
     if (!hasDistricts) {
       const seen = new Set();
       names.forEach((n) => {
@@ -82,11 +92,7 @@
       const r = idx == null ? 7 : 8 + (idx / 100) * 34;
       const color = d ? d.color : 'rgba(255,255,255,.35)';
       const me = n === active;
-      parts.push(`<g class="hm-node${me ? ' me' : ''}" style="--i:${i}">`);
-      if (d) parts.push(`<circle class="hm-glow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r * 1.6).toFixed(1)}" fill="${color}"/>`);
-      parts.push(`<circle class="hm-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>`);
-      if (me) parts.push(`<circle class="hm-me" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 9).toFixed(1)}"/>`);
-      // 이웃과 충분히 떨어진 동네와 내 동네만 이름을 쓴다 (도심은 겹치므로)
+      dot(parts, x, y, r, color, me, i, Boolean(d));
       const nearest = Math.min(...names.filter((m) => m !== n).map((m) => Math.hypot(pos[m][0] - x, pos[m][1] - y)));
       if (me) parts.push(pillLabel(x, y, r, `${esc(n)} · 내 동네`));
       else if (nearest > 44) parts.push(`<text class="hm-name" x="${x.toFixed(1)}" y="${(y + r + 22).toFixed(1)}" text-anchor="middle">${esc(n)}</text>`);
@@ -96,35 +102,79 @@
     svg.classList.add('is-on');
   }
 
-  /* ---------- 다른 도시: 도시 경계 + 지금 보는 지점 한 점 ---------- */
-  function renderCity(svg, rings, name, lat, lng, index, color) {
+  /* ---------- 경남 한눈에: 18개 시·군 경계 + 시·군마다 오늘 점수 점 ---------- */
+  function renderGyeongnam(svg, data, regions, scores, active, kimhaeIndex, kimhaeColor) {
+    const cities = (data && data.cities) || {};
     const all = [];
-    rings.forEach((r) => all.push(...r));
-    if (lat != null && lng != null) all.push([lng, lat]);
-    if (!all.length) { svg.innerHTML = ''; svg.classList.remove('is-on'); return; }
+    Object.values(cities).forEach((rs) => rs.forEach((r) => all.push(...r)));
+    if (!all.length) return;
     const proj = makeProjection(all);
     const parts = [GLOW];
-    rings.forEach((r) => parts.push(`<path class="hm-city" d="${pathOf(r, proj)}"/>`));
-    if (lat != null && lng != null) {
-      const [x, y] = proj([lng, lat]);
-      const r = index == null ? 10 : 10 + (index / 100) * 34;
-      parts.push('<g class="hm-node me" style="--i:0">');
-      parts.push(`<circle class="hm-glow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r * 1.8).toFixed(1)}" fill="${color}"/>`);
-      parts.push(`<circle class="hm-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>`);
-      parts.push(`<circle class="hm-me" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 9).toFixed(1)}"/>`);
-      parts.push(pillLabel(x, y, r, `${esc(name)} · 지금 보는 곳`));
+    Object.entries(cities).forEach(([name, rs]) => rs.forEach((r) => parts.push(`<path class="hm-d hm-d2${name === active ? ' hm-act' : ''}" d="${pathOf(r, proj)}"/>`)));
+    const pos = {};
+    regions.forEach((rg) => { pos[rg.name] = proj([rg.lng, rg.lat]); });
+    // 알약 이름표가 붙는 곳(지금 보는 곳·김해) 근처의 작은 이름은 겹치지 않게 생략한다
+    const pills = regions.filter((rg) => rg.name === active || rg.name === '김해').map((rg) => pos[rg.name]);
+    const nearPill = (x, y) => pills.some(([px, py]) => Math.abs(px - x) < 120 && Math.abs(py - y) < 60);
+    regions.forEach((rg, i) => {
+      const [x, y] = pos[rg.name];
+      const isK = rg.name === '김해';
+      const sc = isK && kimhaeIndex != null ? { index: kimhaeIndex, color: kimhaeColor } : (scores && scores[rg.name]);
+      const idx = sc ? sc.index : null;
+      const r = idx == null ? 7 : 7 + (idx / 100) * 26;
+      const color = sc ? sc.color : 'rgba(255,255,255,.35)';
+      const me = rg.name === active;
+      dot(parts, x, y, r, color, me, i, Boolean(sc));
+      if (isK) parts.push(`<circle class="hm-kim" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 16).toFixed(1)}"/>`);   // 정밀 자료가 있는 곳 표시
+      const others = regions.filter((o) => o.name !== rg.name);
+      const nearest = Math.min(...others.map((o) => Math.hypot(pos[o.name][0] - x, pos[o.name][1] - y)));
+      const label = me ? `${esc(rg.name)} · 지금 보는 곳` : (isK ? `${esc(rg.name)} · 동네별 정밀` : null);
+      if (label) parts.push(pillLabel(x, y, r, label));
+      else if (nearest > 40 && !nearPill(x, y)) parts.push(`<text class="hm-name" x="${x.toFixed(1)}" y="${(y + r + 20).toFixed(1)}" text-anchor="middle">${esc(rg.name)}</text>`);
       parts.push('</g>');
-    }
+    });
+    parts.push(`<text class="hm-cap" x="${VB_W - 8}" y="${VB_H - 10}" text-anchor="end">경남 18개 시·군 · 김해는 동네별 정밀 자료, 그 밖은 날씨로 추정 (참고용)</text>`);
     svg.innerHTML = parts.join('');
     svg.classList.add('is-on');
   }
 
-  document.addEventListener('mosquito:updated', (event) => {
+  // 시·군 18곳의 오늘 점수 (날씨 기반 일반식). 10분 캐시. script.js 의 전역 함수를 쓴다.
+  async function loadGnScores(regions) {
+    if (gnScores && Date.now() - gnScoresAt < 10 * 60 * 1000) return gnScores;
+    if (typeof window.loadWeatherData !== 'function' || typeof window.calculateMosquitoIndex !== 'function') return null;
+    const out = {};
+    await Promise.all(regions.map(async (rg) => {
+      try {
+        const w = await window.loadWeatherData(rg.lat, rg.lng, rg);
+        const idx = Math.round(window.calculateMosquitoIndex(rg, w));
+        const st = typeof window.getCurrentStage === 'function' ? window.getCurrentStage(idx) : null;
+        out[rg.name] = { index: idx, color: (st && st.color) || '#B5D65A', live: w && w.isLive };
+      } catch (e) { /* 그 시·군은 점만 회색 */ }
+    }));
+    gnScores = out; gnScoresAt = Date.now();
+    return out;
+  }
+
+  function draw() {
     const svg = document.getElementById('heroMap');
-    if (!svg) return;
-    const d = event.detail || {};
+    const btn = document.getElementById('heroViewBtn');
+    const d = lastDetail;
+    if (!svg || !d) return;
     const regionName = d.region && d.region.name;
-    if (regionName === '김해' || d.district) {
+    const isKimhae = regionName === '김해' || Boolean(d.district);
+    if (btn) { btn.hidden = false; btn.textContent = view === 'gn' ? (isKimhae ? '김해 동네 보기' : '시·군만 보기') : '경남 한눈에'; btn.setAttribute('aria-pressed', view === 'gn' ? 'true' : 'false'); }
+
+    if (view === 'gn') {
+      Promise.all([loadJson('data/city-boundaries.json'), loadJson('data/regions.json')]).then(async ([data, rj]) => {
+        const regions = (rj && rj.regions) || [];
+        // 먼저 점수 없이 그리고(바로 보이게), 점수가 오면 다시 그린다
+        renderGyeongnam(svg, data, regions, gnScores, regionName, d.index, d.stage && d.stage.color);
+        const scores = await loadGnScores(regions);
+        if (view === 'gn' && lastDetail === d) renderGyeongnam(svg, data, regions, scores, regionName, d.index, d.stage && d.stage.color);
+      });
+      return;
+    }
+    if (isKimhae) {
       let districts = [];
       try {
         if (window.GimhaeMosquitoModel && typeof window.gimhaeModelOptions === 'function') {
@@ -134,12 +184,35 @@
       loadJson('data/gimhae-boundary.json').then((boundary) => renderGimhae(svg, boundary, districts, d.district || null));
       return;
     }
+    // 김해 밖 시·군의 '시·군만 보기': 그 시·군 경계 + 지금 보는 지점
     const color = (d.stage && d.stage.color) || 'rgba(255,255,255,.6)';
     loadJson('data/city-boundaries.json').then((data) => {
       const rings = (data && data.cities && data.cities[regionName]) || [];
-      const lat = d.lat != null ? d.lat : (d.region && d.region.lat);
-      const lng = d.lng != null ? d.lng : (d.region && d.region.lng);
-      renderCity(svg, rings, regionName || '', lat, lng, d.index, color);
+      const all = []; rings.forEach((r) => all.push(...r));
+      const lat = d.lat != null ? d.lat : (d.region && d.region.lat), lng = d.lng != null ? d.lng : (d.region && d.region.lng);
+      if (lat != null) all.push([lng, lat]);
+      if (!all.length) return;
+      const proj = makeProjection(all);
+      const parts = [GLOW];
+      rings.forEach((r) => parts.push(`<path class="hm-city" d="${pathOf(r, proj)}"/>`));
+      if (lat != null) { const [x, y] = proj([lng, lat]); const r = d.index == null ? 10 : 10 + (d.index / 100) * 34; dot(parts, x, y, r, color, true, 0, true); parts.push(pillLabel(x, y, r, `${esc(regionName)} · 지금 보는 곳`)); parts.push('</g>'); }
+      svg.innerHTML = parts.join('');
+      svg.classList.add('is-on');
     });
+  }
+
+  document.addEventListener('mosquito:updated', (event) => {
+    const d = event.detail || {};
+    const regionName = d.region && d.region.name;
+    const wasKimhae = lastDetail && (lastDetail.region && lastDetail.region.name === '김해' || lastDetail.district);
+    const isKimhae = regionName === '김해' || Boolean(d.district);
+    // 지역이 김해 ↔ 다른 시·군으로 바뀌면 기본 보기로 돌아간다: 김해는 동네 보기, 다른 시·군은 경남 한눈에
+    if (!lastDetail || wasKimhae !== isKimhae) view = isKimhae ? 'local' : 'gn';
+    lastDetail = d;
+    draw();
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('heroViewBtn');
+    if (btn) btn.addEventListener('click', () => { view = view === 'gn' ? 'local' : 'gn'; draw(); });
   });
 })();

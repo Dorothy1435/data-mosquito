@@ -884,3 +884,13 @@ body .mz-chat-fab::before { display: none; }
   .dc-head { grid-template-columns: 1fr auto; } .dc-close { grid-column: 1 / -1; justify-self: start; }
   .dc-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- 31) 첫 화면 '경남 한눈에' 보기 (2026-10-07) ---------- */
+.hm-toggle { position: absolute; left: 20px; top: 20px; z-index: 3; min-height: 40px; padding: 0 16px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; background: rgba(255, 255, 255, .12); color: #fff; font: 600 14px var(--sans); cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: background .2s; }
+.hm-toggle:hover { background: rgba(255, 255, 255, .22); }
+.hm-toggle[aria-pressed="true"] { background: #fff; color: var(--g900); }
+.hm-d.hm-act { stroke: #fff; stroke-width: 2; fill: rgba(255, 255, 255, .07); }
+.hm-kim { fill: none; stroke: rgba(255, 255, 255, .55); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.hm-cap { fill: rgba(255, 255, 255, .55); font: 500 13px var(--sans); }
+@media (max-width: 620px) { .hm-toggle { left: 12px; top: 12px; font-size: 13px; } .hm-cap { display: none; } }
+@media (min-width: 1232px) { .hm-toggle { left: calc(16px + clamp(24px, 5vw, 72px) - 16px); } }

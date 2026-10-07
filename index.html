@@ -60,6 +60,8 @@
         <svg class="hero-map" id="heroMap" viewBox="0 0 1000 760" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
         <!-- 날아다니는 모기: 혼자 날아다니고, 마우스(모기약)로 누르면 잡힌다. 잡히면 새 모기가 나온다 (motion.js setupMosquito) -->
         <p class="spray-hint" id="sprayHint" aria-hidden="true">모기를 눌러서 잡아 보세요</p>
+        <!-- 지도 보기 전환: 김해 동네 보기 ↔ 경남 18개 시·군 한눈에 (hero-map.js) -->
+        <button type="button" class="hm-toggle" id="heroViewBtn" hidden aria-pressed="false">경남 한눈에</button>
         <div class="flyer" id="flyer" aria-hidden="true">
           <svg viewBox="0 0 120 80" width="100%" height="100%">
             <g class="legs" stroke="#1d1d1f" stroke-width="2" fill="none" stroke-linecap="round">
