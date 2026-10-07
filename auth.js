@@ -19,7 +19,22 @@
   let status = 'loading';  // loading · off(서버 없음) · ready · error
   let lastError = '';
 
-  function emit() { document.dispatchEvent(new CustomEvent('auth:changed', { detail: { user: user(), profile, status } })); }
+  function emit() {
+    markStaffNav();
+    document.dispatchEvent(new CustomEvent('auth:changed', { detail: { user: user(), profile, status } }));
+  }
+  // 직원 계정으로 로그인하면 상단 메뉴에 '전문가용' 버튼이 생긴다 (시민에게는 보이지 않는다)
+  function markStaffNav() {
+    const nav = document.getElementById('primaryNav'); if (!nav) return;
+    const staff = !!(profile && profile.role === 'staff');
+    let a = nav.querySelector('a[data-staff-link]');
+    if (staff && !a) {
+      a = document.createElement('a'); a.href = 'expert.html'; a.className = 'lk-pro'; a.dataset.staffLink = '1';
+      a.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6Z"/></svg>전문가용';
+      if (location.pathname.endsWith('/expert.html')) a.setAttribute('aria-current', 'page');
+      nav.appendChild(a);
+    } else if (!staff && a) a.remove();
+  }
   function user() { return session && session.user ? session.user : null; }
 
   // 1) 설정 받기 (서버 → 없으면 로컬 config.js)
