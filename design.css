@@ -864,25 +864,31 @@ body .mz-chat-fab::before { display: none; }
 .ranking-btn[aria-expanded="true"] { background: var(--blue-50); }
 .ranking-list:not(.all) .ranking-extra { display: none; }
 .rank-more { margin: 10px 0 0 8px; }
-.dcard { margin-top: 20px; padding: 24px 28px; border-radius: 24px; background: var(--g100); }
-.dc-head { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; }
+.dcard { position: relative; margin-top: 20px; padding: 28px 28px 24px; border-radius: 24px; background: #fff; border: 1px solid var(--g200); box-shadow: 0 12px 40px -24px rgba(0, 20, 60, .25); }
+.dc-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--g100); color: var(--g700); cursor: pointer; transition: background .2s; }
+.dc-close:hover { background: var(--g200); }
+.dc-head { display: grid; grid-template-columns: 1fr auto; gap: 16px 24px; align-items: start; padding-right: 36px; }
 .dc-k { font-size: 14px; font-weight: 600; color: var(--g600); }
-.dc-name { font-size: 24px; margin: 2px 0 0; }
-.dc-score { display: flex; align-items: baseline; gap: 8px; }
-.dc-num { font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-.dc-stage { font-size: 16px; font-weight: 700; color: var(--g800); }
-.dc-close { min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: #fff; color: var(--g800); font: 600 15px var(--sans); cursor: pointer; }
-.dc-note { margin-top: 8px; font-size: 15px; color: var(--g600); }
-.dc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--g200); }
-.dc-src { margin: 6px 0 0; padding: 0; list-style: none; font-size: 16px; } .dc-src li { padding: 3px 0; color: var(--g700); } .dc-src b { color: var(--g900); font-weight: 600; margin-right: 6px; }
-.dc-advice { margin-top: 6px; font-size: 16px; line-height: 1.6; color: var(--g800); }
-.dcard .more-link { margin-top: 16px; }
+.dc-name { font-size: 26px; line-height: 1.2; margin: 2px 0 0; }
+.dc-meta { margin-top: 8px; font-size: 15px; color: var(--g600); }
+.dc-score { display: grid; justify-items: end; gap: 6px; }
+.dc-num { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.dc-num small { font-size: 18px; font-weight: 600; letter-spacing: 0; margin-left: 2px; color: var(--g600); }
+.dc-stage { padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--c, var(--g300)) 28%, #fff); color: var(--g900); font-size: 14px; font-weight: 700; }
+.dc-note { margin-top: 10px; font-size: 15px; color: var(--g600); }
+.dc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--g100); }
+.dc-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dc-pill { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--g100); font-size: 15px; color: var(--g700); }
+.dc-pill b { color: var(--g900); font-weight: 600; }
+.dc-advice { margin-top: 8px; font-size: 16px; line-height: 1.6; color: var(--g800); }
+.dc-link { margin-top: 20px; min-height: 48px; }
 @media (max-width: 620px) {
   .rank-hint { margin: 2px 0 10px; }
   .ranking-btn { grid-template-columns: 32px 1fr 56px 44px; gap: 8px; padding: 12px 4px; font-size: 16px; }
-  .dcard { padding: 20px; border-radius: 20px; }
-  .dc-head { grid-template-columns: 1fr auto; } .dc-close { grid-column: 1 / -1; justify-self: start; }
+  .dcard { padding: 20px 18px 18px; border-radius: 20px; }
+  .dc-name { font-size: 22px; } .dc-num { font-size: 40px; }
   .dc-grid { grid-template-columns: 1fr; }
+  .dc-link { width: 100%; }
 }
 
 /* ---------- 31) 첫 화면 '경남 한눈에' 보기 (2026-10-07) ---------- */

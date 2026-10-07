@@ -1199,18 +1199,21 @@ function showDistrictCard(name, silent) {
   const advice = item.advice && item.advice.citizen && item.advice.citizen[0] ? item.advice.citizen[0] : '';
   const range = item.index_range ? `${Math.round(item.index_range.low)}~${Math.round(item.index_range.high)}점` : '';
   const gap = rec.data_gap ? '<p class="dc-note">민원·현장조사 자료가 없는 구역이라 추정치예요.</p>' : '';
+  const meta = [range ? `예상 범위 ${range}` : '', item.expected_trap_count && item.expected_trap_count.value != null ? `공원 트랩 하루 약 ${Math.round(item.expected_trap_count.value)}마리` : ''].filter(Boolean).join(' · ');
+  const srcPills = Object.entries(rec.sources || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, n]) => `<span class="dc-pill"><b>${SRC[k] || k}</b>${n.toLocaleString('ko-KR')}곳</span>`).join('');
   box.innerHTML = `
+    <button type="button" class="dc-close" aria-label="닫기"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg></button>
     <div class="dc-head">
-      <div><p class="dc-k">${rank}위 · 17곳 중</p><h4 class="dc-name">${name}</h4></div>
-      <div class="dc-score"><span class="dc-num" style="color:${stage.color}">${score}</span><span class="dc-stage">${stage.label}</span></div>
-      <button type="button" class="dc-close" aria-label="닫기">닫기</button>
+      <div class="dc-id"><p class="dc-k">${rank}위 · 17곳 중</p><h4 class="dc-name">${name}</h4>${meta ? `<p class="dc-meta">${meta}</p>` : ''}</div>
+      <div class="dc-score"><span class="dc-num" style="color:${stage.color}">${score}<small>점</small></span><span class="dc-stage" style="--c:${stage.color}">${stage.label}</span></div>
     </div>
-    ${range ? `<p class="dc-note">예상 범위 ${range}</p>` : ''}${count}${gap}
+    ${rec.data_gap ? '<p class="dc-note">민원·현장조사 자료가 없는 구역이라 추정치예요.</p>' : ''}
     <div class="dc-grid">
-      <div><p class="dc-k">주요 발생원</p><ul class="dc-src">${sources || '<li>등록된 발생원 없음</li>'}</ul></div>
+      <div><p class="dc-k">주요 발생원</p><div class="dc-pills">${srcPills || '<span class="dc-pill">등록된 발생원 없음</span>'}</div></div>
       <div><p class="dc-k">오늘 요령</p><p class="dc-advice">${advice || '집 주변 고인 물을 비워 주세요.'}</p></div>
     </div>
-    <a class="more-link" href="gimhae.html?district=${encodeURIComponent(name)}">전문가 화면에서 자세히 <i>›</i></a>`;
+    <a class="btn-sub dc-link" href="gimhae.html?district=${encodeURIComponent(name)}">전문가 화면에서 자세히 보기</a>`;
   box.hidden = false;
   box.querySelector('.dc-close').addEventListener('click', closeDistrictCard);
   rankingList.querySelectorAll('.ranking-btn').forEach((btn) => btn.setAttribute('aria-expanded', btn.dataset.district === name ? 'true' : 'false'));
