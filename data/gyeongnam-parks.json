@@ -1,0 +1,307 @@
+{
+ "note": "경남 17개 시·군(김해 제외) 대표 공원. 2026-10-07 경남도 피드백으로 추가. 이름은 공개 자료 기준이며 담당자 확인 전. 좌표는 OpenStreetMap(Nominatim) 검색 결과이고 approx=true 는 공원을 못 찾아 읍·면·동 중심 좌표를 넣은 것(거리 계산에 쓰지 않음). 공원별 모기 자료는 없다. 사진은 위키미디어 공용(CC) — assets/parks/CREDITS.md",
+ "source": {
+  "coords": "OpenStreetMap contributors (ODbL), Nominatim",
+  "photos": "Wikimedia Commons"
+ },
+ "parks": [
+  {
+   "city": "창원",
+   "name": "용지공원",
+   "type": "근린공원",
+   "lat": 35.23248,
+   "lon": 128.6809,
+   "photo": "assets/parks/changwon-yongji.jpg",
+   "credit": "Ossewa · CC BY-SA 4.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Yongji_Culture_Park.jpg"
+  },
+  {
+   "city": "창원",
+   "name": "3.15해양누리공원",
+   "type": "수변공원",
+   "lat": 35.18591,
+   "lon": 128.56435
+  },
+  {
+   "city": "창원",
+   "name": "진해 해양공원",
+   "type": "수변공원",
+   "lat": 35.09126,
+   "lon": 128.72047
+  },
+  {
+   "city": "양산",
+   "name": "황산공원",
+   "type": "수변공원",
+   "lat": 35.31022,
+   "lon": 128.98654,
+   "approx": true
+  },
+  {
+   "city": "양산",
+   "name": "양산디자인공원",
+   "type": "근린공원",
+   "lat": 35.32281,
+   "lon": 129.00025
+  },
+  {
+   "city": "양산",
+   "name": "명동공원",
+   "type": "근린공원",
+   "lat": 35.32943,
+   "lon": 129.08801,
+   "approx": true
+  },
+  {
+   "city": "진주",
+   "name": "진양호공원",
+   "type": "수변공원",
+   "lat": 35.1709,
+   "lon": 128.03924,
+   "photo": "assets/parks/jinju-jinyangho.jpg",
+   "credit": "Seongbin Im · CC BY-SA 2.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Jinyangho_(%EC%A7%84%EC%96%91%ED%98%B8).jpg"
+  },
+  {
+   "city": "진주",
+   "name": "초전공원",
+   "type": "근린공원",
+   "lat": 35.20524,
+   "lon": 128.12601
+  },
+  {
+   "city": "진주",
+   "name": "진주대첩역사공원",
+   "type": "역사공원",
+   "lat": 35.18882,
+   "lon": 128.0776,
+   "photo": "assets/parks/jinju-daecheop.jpg",
+   "credit": "Kang Byeong Kee · CC BY 3.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Jinju_Castle-KimSiMin-VictoryMonument.jpg"
+  },
+  {
+   "city": "함양",
+   "name": "상림공원",
+   "type": "근린공원",
+   "lat": 35.52399,
+   "lon": 127.71902,
+   "photo": "assets/parks/hamyang-sangnim.jpg",
+   "credit": "최옥석 · CC BY-SA 3.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:%ED%95%A8%EC%96%91_%EC%83%81%EB%A6%BC.jpg"
+  },
+  {
+   "city": "함양",
+   "name": "함양 대봉산 휴양밸리",
+   "type": "근린공원",
+   "lat": 35.5483,
+   "lon": 127.68826,
+   "approx": true
+  },
+  {
+   "city": "통영",
+   "name": "이순신공원",
+   "type": "역사공원",
+   "lat": 34.84478,
+   "lon": 128.44421
+  },
+  {
+   "city": "통영",
+   "name": "남망산조각공원",
+   "type": "근린공원",
+   "lat": 34.84112,
+   "lon": 128.43034
+  },
+  {
+   "city": "사천",
+   "name": "삼천포대교공원",
+   "type": "수변공원",
+   "lat": 34.92849,
+   "lon": 128.05053,
+   "photo": "assets/parks/sacheon-samcheonpo.jpg",
+   "credit": "iTurtle · CC BY 2.5",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Changseon-Samcheonpo_Bridge.jpg"
+  },
+  {
+   "city": "사천",
+   "name": "노산공원",
+   "type": "근린공원",
+   "lat": 34.92462,
+   "lon": 128.07393
+  },
+  {
+   "city": "거제",
+   "name": "거제식물원",
+   "type": "근린공원",
+   "lat": 34.85731,
+   "lon": 128.57922
+  },
+  {
+   "city": "거제",
+   "name": "장승포 몽돌해변공원",
+   "type": "수변공원",
+   "lat": 34.86536,
+   "lon": 128.72702,
+   "approx": true
+  },
+  {
+   "city": "밀양",
+   "name": "밀양아리랑대공원",
+   "type": "근린공원",
+   "lat": 35.50421,
+   "lon": 128.76122
+  },
+  {
+   "city": "밀양",
+   "name": "영남루 일대",
+   "type": "역사공원",
+   "lat": 35.49148,
+   "lon": 128.75391,
+   "photo": "assets/parks/miryang-yeongnamru.jpg",
+   "credit": "Maru4u · CC BY-SA 3.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Yeongnamru_Miryang_Gyeongsangnamdo.JPG"
+  },
+  {
+   "city": "의령",
+   "name": "충익사 일대",
+   "type": "역사공원",
+   "lat": 35.30761,
+   "lon": 128.26817,
+   "approx": true
+  },
+  {
+   "city": "의령",
+   "name": "부자공원",
+   "type": "근린공원",
+   "lat": 35.30761,
+   "lon": 128.26817,
+   "approx": true
+  },
+  {
+   "city": "함안",
+   "name": "악양생태공원",
+   "type": "수변공원",
+   "lat": 35.33525,
+   "lon": 128.39851
+  },
+  {
+   "city": "함안",
+   "name": "말이산고분군",
+   "type": "역사공원",
+   "lat": 35.27122,
+   "lon": 128.39564,
+   "approx": true
+  },
+  {
+   "city": "창녕",
+   "name": "우포늪 생태공원",
+   "type": "수변공원",
+   "lat": 35.55302,
+   "lon": 128.41482,
+   "photo": "assets/parks/changnyeong-upo.jpg",
+   "credit": "Jabon Oh · CC BY 2.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:Korea-Changnyeong-Upo_Wetland-01.jpg"
+  },
+  {
+   "city": "창녕",
+   "name": "남지 체육공원",
+   "type": "체육공원",
+   "lat": 35.42803,
+   "lon": 128.43144,
+   "approx": true
+  },
+  {
+   "city": "고성",
+   "name": "당항포관광지",
+   "type": "수변공원",
+   "lat": 35.07046,
+   "lon": 128.38406,
+   "approx": true
+  },
+  {
+   "city": "고성",
+   "name": "남산공원",
+   "type": "근린공원",
+   "lat": 34.97756,
+   "lon": 128.32024,
+   "approx": true
+  },
+  {
+   "city": "남해",
+   "name": "물건방조어부림",
+   "type": "수변공원",
+   "lat": 34.80464,
+   "lon": 128.02192,
+   "approx": true
+  },
+  {
+   "city": "남해",
+   "name": "남해 스포츠파크",
+   "type": "체육공원",
+   "lat": 34.80597,
+   "lon": 127.83594
+  },
+  {
+   "city": "하동",
+   "name": "하동 송림공원",
+   "type": "근린공원",
+   "lat": 35.0763,
+   "lon": 127.74569,
+   "approx": true,
+   "photo": "assets/parks/hadong-songnim.jpg",
+   "credit": "최옥석 · CC BY-SA 3.0",
+   "photo_source": "https://commons.wikimedia.org/wiki/File:%ED%95%98%EB%8F%99_%EC%86%A1%EB%A6%BC.jpg"
+  },
+  {
+   "city": "하동",
+   "name": "섬진강 둔치",
+   "type": "수변공원",
+   "lat": 35.0763,
+   "lon": 127.74569,
+   "approx": true
+  },
+  {
+   "city": "산청",
+   "name": "동의보감촌",
+   "type": "역사공원",
+   "lat": 35.43931,
+   "lon": 127.82806
+  },
+  {
+   "city": "산청",
+   "name": "경호강 둔치",
+   "type": "수변공원",
+   "lat": 35.4135,
+   "lon": 127.90275,
+   "approx": true
+  },
+  {
+   "city": "거창",
+   "name": "거창 창포원",
+   "type": "수변공원",
+   "lat": 35.65353,
+   "lon": 127.9414
+  },
+  {
+   "city": "거창",
+   "name": "건계정 일대",
+   "type": "수변공원",
+   "lat": 35.69265,
+   "lon": 127.87934
+  },
+  {
+   "city": "합천",
+   "name": "합천 영상테마파크",
+   "type": "역사공원",
+   "lat": 35.54889,
+   "lon": 128.07154
+  },
+  {
+   "city": "합천",
+   "name": "황강 둔치",
+   "type": "수변공원",
+   "lat": 35.60789,
+   "lon": 128.14465,
+   "approx": true
+  }
+ ]
+}

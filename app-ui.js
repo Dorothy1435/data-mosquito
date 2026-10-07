@@ -622,10 +622,43 @@
     history: '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 50h40M16 44h32M20 26v18M32 26v18M44 26v18M12 26h40L32 14Z"/></svg>',
   };
 
+  // 김해 밖 시·군의 대표 공원 (data/gyeongnam-parks.json). 한 번만 받는다
+  let gnParkData = null;
+  async function loadGnParks() {
+    if (gnParkData) return gnParkData;
+    try {
+      const res = await fetch('./data/gyeongnam-parks.json');
+      if (!res.ok) throw new Error('경남 공원 자료를 받지 못했습니다.');
+      gnParkData = (await res.json()).parks || [];
+    } catch (error) { console.warn('경남 공원 자료 불러오기 실패', error); gnParkData = []; }
+    return gnParkData;
+  }
+
   function renderParks(d) {
     const grid = $('parksGrid'), note = $('parksNote');
     if (!grid || !window.ParkPicks) return;
     if (lastOutingScore == null) { grid.innerHTML = '<p class="dim">날씨를 불러오면 공원을 골라드립니다.</p>'; return; }
+    const city = d.region && d.region.name;
+    const sub = document.querySelector('.park-head p');   // 제목 아래 한 줄: 김해는 동네 모기 자료, 그 밖은 날씨 기준
+    if (sub) sub.textContent = city && city !== '김해' ? '오늘 나들이 지수로 골랐어요. 누르면 지도가 열려요.' : '나들이 지수와 동네 모기 자료로 골랐어요. 누르면 지도가 열려요.';
+    // 김해가 아니면(또는 김해 밖 GPS) 그 시·군의 대표 공원을 보여 준다 (도청 피드백 2026-10-07)
+    if (city && city !== '김해') {
+      loadGnParks().then((parks) => {
+        const picks = window.ParkPicks.pickRegional(parks, city, lastOutingScore, { from: { lat: d.lat, lng: d.lng }, limit: 3 });
+        if (!picks.length) { grid.innerHTML = `<p class="dim">${city}의 대표 공원 자료를 아직 준비하지 못했어요.</p>`; if (note) note.textContent = ''; return; }
+        grid.innerHTML = picks.map((s, i) => {
+          const q = encodeURIComponent(`${city} ${s.park.name}`);
+          const pic = s.picture || {};
+          const img = pic.src
+            ? `<span class="pk-img"><img src="${pic.src}" alt="${s.park.name} 사진" loading="lazy">${s.park.credit ? `<small class="pk-credit">${s.park.credit}</small>` : ''}</span>`
+            : `<span class="pk-img pk-art" data-type="${parkArtType(s.park.type)}" aria-hidden="true">${PARK_ART[parkArtType(s.park.type)]}</span>`;
+          return `<a href="https://map.naver.com/p/search/${q}" target="_blank" rel="noopener" aria-label="${s.park.name} 네이버 지도에서 보기 (새 창)">
+            ${img}<span class="pk-txt"><span class="r">${i + 1}위 · ${city} 대표 공원</span><span class="nm">${s.park.name}</span><span class="m">${s.reason}</span></span></a>`;
+        }).join('');
+        if (note) note.textContent = `${city} 지역은 시·군 대표 공원을 오늘 날씨 기준으로 골랐어요. 공원별 모기 자료는 김해만 있어요. 공원을 누르면 네이버 지도가 열려요.`;
+      });
+      return;
+    }
     loadParks().then((parks) => {
       const picks = window.ParkPicks.pick(parks, lastOutingScore, { from: { lat: d.lat, lng: d.lng }, limit: 3 });
       if (!picks.length) { grid.innerHTML = '<p class="dim">공원 정보를 불러오지 못했습니다.</p>'; return; }

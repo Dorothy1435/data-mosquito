@@ -200,5 +200,27 @@
     return out;
   }
 
-  global.ParkPicks = { pick, scorePark, parkMosquitoRisk, distanceKm, pictureOf, TYPE_ICON };
+  /* ---------- 김해 밖: 시·군 대표 공원 고르기 ----------
+     data/gyeongnam-parks.json 의 대표 공원(시·군마다 2~3곳)을 오늘 나들이 지수와 공원 유형으로만 줄 세운다.
+     김해 밖은 발생원·동네 모기 자료가 없어 공원별 모기 추정을 하지 않는다 (화면에 '날씨 기준'이라고 적는다).
+     좌표가 읍·면 중심(approx)인 공원은 거리를 계산하지 않는다. */
+  function pickRegional(parks, city, outingScore, options) {
+    const opts = options || {};
+    const limit = opts.limit || 3;
+    if (!Array.isArray(parks) || outingScore == null) return [];
+    const mine = parks.filter((p) => p && p.city === city);
+    return mine.map((p) => {
+      // 물가 공원은 비·습한 날 모기가 늘 수 있어 조금 깎고, 산책형 공원은 조금 더한다 (김해와 같은 유형 보정)
+      let score = outingScore - (TYPE_ADJ[p.type] || 0) * 60 + (TYPE_FIT[p.type] || 0);
+      let distance = null;
+      if (!p.approx && opts.from && opts.from.lat != null && p.lat != null) distance = distanceKm(opts.from.lat, opts.from.lng, p.lat, p.lon);
+      const bits = [];
+      bits.push(p.type === '수변공원' ? '물가 · 저녁엔 기피제' : p.type === '역사공원' ? '볼거리 있는 공원' : p.type === '체육공원' ? '걷기·운동' : '산책하기 좋은 공원');
+      if (distance != null) bits.push(distance < 1 ? '걸어서 갈 만함' : `${distance.toFixed(1)}km`);
+      return { park: p, distance, score: Math.round(clamp(score, 0, 100)), reason: bits.join(' · '), picture: pictureOf(p), regional: true };
+    }).sort((a, b) => b.score - a.score || (a.distance ?? 99) - (b.distance ?? 99)).slice(0, limit);
+  }
+
+  global.ParkPicks = {
+    pickRegional, pick, scorePark, parkMosquitoRisk, distanceKm, pictureOf, TYPE_ICON };
 }(typeof window !== 'undefined' ? window : globalThis));
