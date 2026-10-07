@@ -2234,6 +2234,12 @@ async function showInitialLocation() {
     }
 
     const nearestRegion = findNearestRegion(latitude, longitude);
+    // 지역 목록이 경남 18개 시·군뿐이므로, 가장 가까운 곳이 60km 넘게 멀면 경남 밖으로 보고 김해를 그대로 둔다
+    const farKm = Math.hypot((nearestRegion.lat - latitude) * 111, (nearestRegion.lng - longitude) * 88);
+    if (farKm > 60) {
+      statusText.textContent = '현재 위치가 경남 밖이라 기본 지역(김해)으로 표시합니다. 위 목록에서 경남 시·군을 고를 수 있어요.';
+      return;
+    }
     regionSelect.value = nearestRegion.name;
     await loadAndRenderRegion(nearestRegion, {
       lat: latitude,
