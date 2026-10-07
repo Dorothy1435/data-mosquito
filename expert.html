@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>모기제로 | 자세히 보기 · 김해 동네별 모기</title>
-  <link rel="canonical" href="https://mosquito-zero.vercel.app/gimhae.html">
+  <title>모기제로 | 전문가용 · 김해시 모기 위험 모델</title>
+  <link rel="canonical" href="https://mosquito-zero.vercel.app/expert.html">
+  <meta name="robots" content="noindex, nofollow">
   <meta name="description" content="김해시 행정 데이터(발생원 시설·방역민원)와 실시간 날씨를 결합해 읍·면·동별 모기 발생 위험도와 방제 우선순위를 보여주는 모델입니다.">
   <link rel="icon" href="assets/brand/logo-icon.png">
   <!-- 앱 설치(PWA) · 공유 미리보기(카카오톡·SNS) -->
@@ -13,7 +14,7 @@
   <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="모기제로">
-  <meta property="og:title" content="모기제로 | 자세히 보기 · 김해 동네별 모기">
+  <meta property="og:title" content="모기제로 | 전문가용 · 김해시 모기 위험 모델">
   <meta property="og:description" content="김해시 17개 구역의 발생원 위험·방제 우선순위·7일 예보를 보여주는 보건소용 화면입니다.">
   <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -25,7 +26,10 @@
   <link rel="stylesheet" href="expert.css">
   <link rel="stylesheet" href="chat.css">
 </head>
-<body class="xp" id="top">
+<!-- 직원용 페이지. gimhae.html(시민용 자세히 보기)과 같은 뼈대·같은 gimhae.js 를 쓰고, body 의 data-audience="expert" 로
+     방제 약품·발생원 통계 등 직원용 구역까지 펼친다. 메뉴에는 넣지 않고(직원 주소 공유), 로그인 기능이 생기면 직원 계정만 열리게 한다.
+     ※ 화면 내용을 고칠 때는 gimhae.html 과 이 파일을 같이 고친다. -->
+<body class="xp" id="top" data-audience="expert">
   <a class="skip-link" href="#main">본문 바로가기</a>
 
   <!-- 상단 바: 홈과 같은 메뉴 + 구역 선택 -->
@@ -39,7 +43,7 @@
         <a href="index.html#town"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>우리 동네</a>
         <a href="mosquito-info.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg>모기 도감</a>
         <a href="me.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg>내 배지</a>
-        <a href="gimhae.html" class="lk-pro" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>자세히 보기</a>
+        <a href="expert.html" class="lk-pro" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>전문가용</a>
       </nav>
       <div class="where">
         <label class="sr-only" for="districtSelect">김해시 구역 선택</label>
@@ -55,12 +59,11 @@
     <section class="s g-first xp-first" aria-labelledby="gimhaeTitle">
       <div class="wrap split">
         <div class="copy up">
-          <p class="kicker">자세히 보기 · 김해 동네별 모기 모델</p>
+          <p class="kicker">전문가용 · 김해시 모기 위험 모델</p>
           <h1 id="gimhaeTitle">행정 데이터와 날씨로<br>보는 구역별 모기 위험</h1>
           <p id="modelLead">발생원 시설 16종과 인구를 단위면적당 밀도로 환산해 읍·면·동별 위험을 계산하고, 실시간 날씨를 곱해 모기지수를 냅니다. 예측은 실제 민원(공간 +0.951)과 실측 유충(시간 +0.996) 두 방향에서 검증했습니다.</p>
 
-          <!-- 이 화면은 시민용 '자세히 보기'. 방제 약품·발생원 통계 등 직원용 구역(data-audience="expert")은 여기선 접히고,
-               직원용 페이지 expert.html(같은 내용 + 직원용 구역, body data-audience="expert")에서만 보인다 -->
+          <!-- 직원용: data-audience="expert" 구역이 모두 펼쳐진다 -->
           <div class="pills" aria-label="데이터 상태">
             <span id="weatherSourceBadge" class="pill">실시간 날씨</span>
             <span id="districtBadge" class="pill">구역 선택</span>
@@ -353,6 +356,8 @@
   <script src="nav.js"></script>
   <script src="mobile-tabs.js"></script>
   <script src="motion.js"></script>
+  <script src="game-config.js"></script>
+  <script src="auth.js"></script>
   <script src="gimhae.js"></script>
   <script src="chat.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>

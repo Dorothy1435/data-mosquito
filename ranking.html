@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>모기제로 | 개인정보 처리방침</title>
-  <link rel="canonical" href="https://mosquito-zero.vercel.app/privacy.html">
-  <meta name="description" content="모기제로가 어떤 정보를 어디에 쓰는지 안내합니다.">
+  <title>모기제로 | 모기 잡기 랭킹</title>
+  <link rel="canonical" href="https://mosquito-zero.vercel.app/ranking.html">
+  <meta name="description" content="올해 모기를 가장 많이 잡은 사람들. 닉네임 랭킹과 연말 보상 안내.">
   <link rel="icon" href="assets/brand/logo-icon.png">
-  <!-- 앱 설치(PWA) · 공유 미리보기(카카오톡·SNS) -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#4A1566">
   <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
@@ -15,12 +14,11 @@
   <meta name="apple-mobile-web-app-title" content="모기제로">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="모기제로">
-  <meta property="og:title" content="모기제로 | 개인정보 처리방침">
-  <meta property="og:description" content="모기제로가 어떤 정보를 어디에 쓰는지 안내합니다.">
+  <meta property="og:title" content="모기제로 | 모기 잡기 랭킹">
+  <meta property="og:description" content="올해 모기를 가장 많이 잡은 사람들. 닉네임 랭킹과 연말 보상 안내.">
   <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="design.css">
 </head>
@@ -38,43 +36,26 @@
         <a href="me.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg>내 배지</a>
         <a href="gimhae.html" class="lk-pro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>자세히 보기</a>
       </nav>
+      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
     </div>
   </header>
 
-  <!-- 초안: 운영 기관(보건소) 법무 검토 뒤 확정한다. 괄호 [ ] 안은 운영 기관이 채울 내용. -->
-  <main id="main" class="wrap doc">
-    <p class="kicker">초안 · 운영 기관 검토 전</p>
-    <h1>개인정보 처리방침</h1>
-    <p class="lead">모기제로는 가입 없이 쓸 수 있고, 이름·전화번호 같은 개인정보를 모으지 않아요. 모기 잡기 랭킹에 참여하려면 선택으로 가입할 수 있어요(이메일·닉네임만). 아래는 서비스를 쓰는 동안 다루는 정보와 그 쓰임이에요.</p>
+  <main id="main" class="wrap doc me">
+    <p class="kicker" id="rkSeason">모기 잡기 · 시즌 랭킹</p>
+    <h1>모기를 가장 많이 잡은 사람</h1>
+    <p class="lead">닉네임만 보여요. 시즌 누적 잡은 수로 순위를 매기고, 12월에 정산해 보상을 드려요.</p>
 
-    <h2>1. 현재 위치</h2>
-    <p>'현재 위치로'를 누르고 허용했을 때만 휴대폰·브라우저의 위치를 읽어요. 날씨를 불러오는 데만 쓰고 저장하지 않아요. 날씨 서버(Open-Meteo, 해외)에는 정확한 좌표 대신 약 1km 단위로 반올림한 값만 보내요. 허용하지 않아도 동네를 직접 골라 쓸 수 있어요.</p>
+    <div class="acct-note" id="rkNote">랭킹을 불러오는 중이에요.</div>
+    <ol class="rk" id="rkList" aria-label="랭킹"></ol>
 
-    <h2>2. 모기 사진</h2>
-    <p>'사진으로 모기 알아보기'에 올린 사진은 모기 종류를 판별하는 데만 써요. 보내기 전에 휴대폰에서 사진 크기를 줄이면서 사진 속 촬영 위치·기기 정보를 지워요. 판별은 AI 서비스([OpenAI · Google · Groq 중 운영 기관이 설정한 곳], 해외)가 하며, 모기제로는 사진을 저장하지 않아요. 얼굴이나 개인정보가 찍히지 않게 모기만 찍어 주세요.</p>
-
-    <h2>3. AI 도우미 질문</h2>
-    <p>AI 도우미에 적은 질문은 답을 만드는 데만 AI 서비스(해외)로 보내고, 모기제로는 저장하지 않아요. 질문에 이름·전화번호·주소 같은 개인정보를 적지 마세요.</p>
-
-    <h2>4. '여기 모기 있어요' 제보 (시험판)</h2>
-    <p>동의한 경우에만 휴대폰의 현재 위치(GPS)를 1회 읽어, 모기가 있는 곳을 지도에 표시하는 데 써요. 지금은 시험판이라 위치를 서버로 보내거나 저장하지 않고, 화면을 닫으면 사라져요. 동의하지 않으면 동네를 직접 골라 표시할 수 있어요.</p>
-    <p>제보를 저장하는 정식 기능을 열 때는 위치정보법에 따른 위치기반서비스사업 신고와 개인위치정보 이용약관을 먼저 마련하고, 보관 기간·파기 방법·제3자 제공 여부를 이 문서에 알린 뒤 다시 동의를 받을게요. [운영 기관 확정 필요]</p>
-
-    <h2>5. 접속 기록</h2>
-    <p>사이트를 운영하는 서버(Vercel)는 보안과 장애 대응을 위해 접속 기록(IP 주소, 접속 시간 등)을 자동으로 남길 수 있어요. 보관 기간: [운영 기관 기입].</p>
-
-    <h2>6. 브라우저 저장</h2>
-    <p>모기 잡기 누적 수 등 화면 편의를 위한 값만 브라우저에 저장해요. 브라우저 설정에서 언제든 지울 수 있어요.</p>
-
-    <h2>7. 회원가입 (선택 · 모기 잡기 랭킹용)</h2>
-    <p>가입은 선택이에요. 가입하면 이메일 주소(로그인용)와 닉네임(랭킹에 공개), 모기 잡기 기록(단계·잡은 수·시간)이 서버(Supabase, 해외 리전일 수 있음)에 저장돼요. 이름·전화번호·위치는 받지 않고, 다른 사람에게는 닉네임과 기록만 보여요. 로그아웃은 '내 배지' 화면에서 할 수 있고, 탈퇴·삭제는 [운영 기관 문의처]로 요청하면 지워요. 보관 기간: [운영 기관 기입]. 연말 보상을 드릴 때 필요한 추가 정보는 그때 따로 동의를 받아요. [운영 기관 확정 필요]</p>
-
-    <h2>8. 문의</h2>
-    <p>개인정보 보호 책임자: [운영 기관 · 담당 부서 · 연락처 기입]</p>
-    <p class="dim">시행일: [운영 기관 기입]</p>
+    <div class="h-row"><h2>연말 보상 (예시)</h2><a href="me.html">내 배지 보기</a></div>
+    <table class="rwd" aria-label="연말 보상 (예시)">
+      <thead><tr><th>순위</th><th>보상</th></tr></thead>
+      <tbody id="rewardBody"></tbody>
+    </table>
+    <p class="note" style="margin-top:12px">공정한 집계를 위해 하루 도전 횟수를 제한하고, 사람이 낼 수 없는 속도의 기록은 서버가 받지 않아요. 보상 금액·범위는 운영 기관이 확정하면 바뀔 수 있어요.</p>
   </main>
 
-  <!-- 폰에서만 보이는 아래 탭 바 (mobile-tabs.js). 데스크톱은 상단 메뉴를 쓴다 -->
   <nav class="tabbar" aria-label="화면 이동">
     <a href="index.html#flow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>오늘</span></a>
     <a href="index.html#kit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg><span>챙길 것</span></a>
@@ -83,8 +64,19 @@
     <a href="mosquito-info.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg><span>도감</span></a>
     <a href="me.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg><span>내 배지</span></a>
   </nav>
-  <footer class="foot"><div class="wrap"><p><a href="index.html">오늘의 모기지수 보기</a> · <a href="mosquito-info.html">모기 도감</a></p></div></footer>
-  <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p>모기제로 · 참고용 예상값이에요. <a href="privacy.html">개인정보 처리방침</a></p>
+    </div>
+  </footer>
+
+  <script src="game-config.js"></script>
+  <script src="game.js"></script>
+  <script src="auth.js"></script>
+  <script src="nav.js"></script>
   <script src="mobile-tabs.js"></script>
+  <script src="ranking.js"></script>
+  <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
 </html>

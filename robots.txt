@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /expert.html
 Sitemap: https://mosquito-zero.vercel.app/sitemap.xml

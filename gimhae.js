@@ -1281,7 +1281,7 @@ function markModelV5() {
   const pill = document.getElementById('modelBadge');
   if (pill) { pill.textContent = '실측 학습 모형 v5'; pill.hidden = false; }
   const k = document.querySelector('.xp-first .kicker');
-  if (k) k.textContent = '자세히 보기 · 김해 동네별 모기 모델 v5';
+  if (k) k.textContent = (isStaff() ? '전문가용 · 김해시 모기 위험 모델' : '자세히 보기 · 김해 동네별 모기 모델') + ' v5';
   const lead = document.getElementById('modelLead');
   if (lead) lead.textContent = '2026시즌 장비 실측 채집수 694건으로 학습한 v5 모형이 구역별 모기지수를 냅니다. 발생원·인구로 구역 수준을, 날씨와 낮 길이로 시간 효과를 계산하며, 실측과의 순위 일치는 0.70(일별 도시평균 0.91)입니다.';
   const card = document.getElementById('v5Card');
@@ -1301,34 +1301,43 @@ function populateDistricts() {
   districtSelect.innerHTML = districts.map((name) => `<option value="${name}">${name}</option>`).join('');
 }
 
-// === 시민용 / 전문가용 보기 전환 (보건소 피드백 2026-09-10) ===
-// 방제 약품·발생원 통계처럼 방역 담당자용 내용은 시민 화면에서 감춘다.
-// 삭제가 아니라 '접기'이므로 전문가용 버튼을 누르면 그대로 다시 보인다.
-const AUDIENCE_KEY = 'mosquito-zero-audience';
+// === 시민 화면 / 직원용 내용 (팀장 피드백 2026-10-07) ===
+// 이 화면은 시민용 '자세히 보기'다. 방제 약품·발생원 통계처럼 방역 담당자용 구역(data-audience="expert")은
+// 직원일 때만 펼친다. 삭제가 아니라 '접기'라 직원에게는 그대로 보인다.
+// 페이지가 둘이다: gimhae.html(자세히 보기, 시민) / expert.html(전문가용, 직원. body 에 data-audience="expert").
+// 회원가입·로그인이 생기면 expert.html 은 직원 계정으로 로그인했을 때만 열리게 한다(window.MZAuth.isStaff).
+function isStaff() {
+  return document.body.dataset.audience === 'expert';
+}
 
-function applyAudienceMode(mode) {
-  const isCitizen = mode !== 'expert';
-  document.body.classList.toggle('citizen-mode', isCitizen);
-  document.querySelectorAll('[data-audience-mode]').forEach((btn) => {
-    const active = btn.dataset.audienceMode === (isCitizen ? 'citizen' : 'expert');
-    btn.classList.toggle('is-active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
-  const note = document.getElementById('audienceNote');
-  if (note) {
-    note.hidden = !isCitizen;
-  }
-  try { localStorage.setItem(AUDIENCE_KEY, isCitizen ? 'citizen' : 'expert'); } catch (error) { /* 저장 불가여도 동작에는 지장 없음 */ }
+function applyAudienceMode(staff) {
+  document.body.classList.toggle('citizen-mode', !staff);
+  try { localStorage.removeItem('mosquito-zero-audience'); } catch (error) { /* 예전 저장값 정리 */ }
 }
 
 function setupAudienceMode() {
-  let saved = 'citizen';   // 기본값은 시민용
-  try { saved = localStorage.getItem(AUDIENCE_KEY) || 'citizen'; } catch (error) { saved = 'citizen'; }
-  applyAudienceMode(saved);
-  document.querySelectorAll('[data-audience-mode]').forEach((btn) => {
-    btn.addEventListener('click', () => applyAudienceMode(btn.dataset.audienceMode));
-  });
+  applyAudienceMode(isStaff());
+  // 전문가용 페이지: 계정 서버(MZAuth)가 켜져 있으면 직원 계정으로 로그인했을 때만 펼친다.
+  // 서버가 아직 없으면(status off) 지금처럼 주소만 알면 열린다.
+  if (isStaff() && window.MZAuth) {
+    const gate = () => {
+      const A = window.MZAuth;
+      if (A.status !== 'ready') return;
+      const ok = A.isStaff();
+      applyAudienceMode(ok);
+      let note = document.getElementById('staffGate');
+      if (!ok) {
+        if (!note) {
+          note = document.createElement('p'); note.id = 'staffGate'; note.className = 'note strong';
+          const k = document.querySelector('.xp-first .kicker'); if (k) k.insertAdjacentElement('afterend', note);
+        }
+        note.innerHTML = A.user() ? '직원 계정이 아니에요. 방역 담당자용 내용은 직원 계정으로 로그인했을 때만 보여요.' : '방역 담당자용 내용은 직원 계정으로 <a href="me.html">로그인</a>했을 때만 보여요.';
+      } else if (note) note.remove();
+    };
+    A_ready(gate);
+  }
 }
+function A_ready(fn) { const A = window.MZAuth; A.ready.then(fn); document.addEventListener('auth:changed', fn); }
 
 async function init() {
   // 모델 스크립트가 로드되지 않았으면 안내한다.
@@ -1337,7 +1346,7 @@ async function init() {
     return;
   }
 
-  setupAudienceMode();    // 시민용/전문가용 보기 전환
+  setupAudienceMode();    // 시민 화면(기본) / 직원이면 방역 내용까지
   populateDistricts();
   // 홈 동네 카드의 '전문가 화면에서 자세히' 링크: gimhae.html?district=회현동
   try { const want = new URLSearchParams(location.search).get('district'); if (want && GimhaeMosquitoModel.listDistricts().includes(want)) districtSelect.value = want; } catch (e) { /* 무시 */ }
