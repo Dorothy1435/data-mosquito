@@ -6,9 +6,9 @@
       · 사진은 브라우저에서 긴 변 1024px 로 줄여 다시 저장한다.
         이때 사진에 숨어 있던 촬영 위치(GPS) 같은 정보가 모두 지워진다.
       · 줄인 사진만 /api/identify 로 보내 AI 가 판별한다. 저장하지 않는다.
-   2) 여기 모기 있어요 (시험판)
-      · 동(洞) 단위로만 고른다. 정확한 위치는 받지 않는다.
-      · 서버에 보내거나 저장하지 않는다. 이 화면을 연 동안만 지도에 점을 찍는다.
+   2) 모기 제보 — 빨간 '물렸어요' 버튼 · '여기 모기 있어요' (대화형 창)
+      · 위치는 '지금 여기예요'를 누를 때 GPS 를 한 번만 쓴다. 싫으면 동네를 고른다.
+      · 저장 스위치(서버 REPORT_STORE_ENABLED)가 꺼져 있으면 저장하지 않고 이 화면을 연 동안만 지도에 점을 찍는다.
         (저장하는 정식 기능은 위치정보법·개인정보 검토 뒤에 연다)
    ============================================================= */
 
@@ -171,117 +171,231 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  /* ---------------- 2) 여기 모기 있어요 (시험판) ----------------
-     위치 동의 → GPS 1회 → 지도에 표시. 동의하지 않거나 GPS 가 안 되면 동네를 직접 고른다.
-     시험판이라 위치를 서버로 보내거나 저장하지 않는다.
-     (저장하는 정식 기능은 위치기반서비스사업 신고, 개인위치정보 이용약관·동의, 보관 기간을 정한 뒤에 연다) */
+  /* ---------------- 2) 모기 제보 (물렸어요 · 모기 봤어요 · 고인 물) ----------------
+     2026-10-08 피드백: '여기서 모기 물렸어' 버튼을 눈에 띄게(빨간 경광등), 누르면 챗봇처럼 묻는다.
+     흐름: 무엇을 → 어디서 → (물렸으면) 언제 · 몇 군데 → 지도에 표시
+       · 빨간 버튼(data-report="bite")은 '물렸어요'로 바로 시작하고, 우리 동네의 '여기 모기 있어요'는 종류부터 묻는다.
+       · 위치는 '지금 여기예요'를 눌렀을 때만 GPS 를 한 번 쓴다. 이 버튼이 곧 동의다(바로 위에 안내 문장).
+         거부하거나 위치를 못 찾으면 동네를 직접 고른다.
+       · 서버(/api/report)는 저장 스위치가 켜져 있을 때만 저장한다. 꺼져 있으면 이 화면을 연 동안만 지도에 점을 찍는다.
+         (저장하는 정식 기능은 위치기반서비스사업 신고, 개인위치정보 이용약관·동의, 보관 기간을 정한 뒤에 연다)
+       · '언제 · 몇 군데'는 지금은 화면에만 보여 주고 서버로 보내지 않는다 (저장 칸이 아직 없다). */
   const reportMarkers = [];
   const GIMHAE = { minLat: 35.13, maxLat: 35.40, minLng: 128.68, maxLng: 129.05 };
+  const KIND_NAME = { mosquito: '모기 봤어요', bite: '물렸어요', breeding: '고인 물 발견' };
+  const KIND_COLOR = { mosquito: '#3182F6', bite: '#E5484D', breeding: '#0E9F6E' };
+  const WHERE_Q = { mosquito: '어디서 봤어요?', bite: '어디서 물렸어요?', breeding: '어디에 고인 물이 있어요?' };
+  let report = null;   // 지금 진행 중인 제보 { kind, lat, lng, place, source, when, count }
 
   function setupReport() {
-    const btn = $('reportBtn'), dlg = $('reportDialog');
-    if (!btn || !dlg) return;
-    const sel = $('reportDistrict'), msg = $('reportMsg'), submit = $('reportSubmit');
-    const model = window.GimhaeMosquitoModel;
-    const names = model && model.COORDS ? Object.keys(model.COORDS) : [];
-    sel.innerHTML = '<option value="">동네를 골라 주세요</option>' + names.map((n) => `<option>${n}</option>`).join('');
-    let mode = 'gps';
+    const dlg = $('reportDialog');
+    if (!dlg) return;   // 홈이 아닌 화면: 빨간 버튼은 링크(index.html#bite)라서 할 일이 없다
 
-    const setMode = (m) => {
-      mode = m;
-      $('reportConsent').hidden = m !== 'gps';
-      $('reportPick').hidden = m !== 'pick';
-      $('reportManual').hidden = m !== 'gps';
-      submit.textContent = m === 'gps' ? '내 위치로 표시하기' : '이 동네에 표시하기';
-      msg.textContent = '';
-    };
-    btn.addEventListener('click', () => {
-      setMode('gps');
-      $('reportAgree').checked = false;
-      checkStore();
-      if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    // 예전 주소(index.html#photo)로 들어오면 사진 판별이 있는 도감 화면으로 보낸다
+    if (location.hash === '#photo') { location.replace('mosquito-info.html#photo'); return; }
+
+    document.querySelectorAll('[data-report]').forEach((b) => b.addEventListener('click', () => openReport(b.dataset.report || null)));
+    const old = $('reportBtn');
+    if (old) old.addEventListener('click', () => openReport(null));
+    $('reportClose').addEventListener('click', () => dlg.close());
+    // 바깥(어두운 부분)을 누르면 닫는다
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    // 닫으면 진행 중이던 제보를 버린다. 늦게 온 위치·서버 응답은 아래 '같은 제보인지' 검사에서 걸러진다
+    dlg.addEventListener('close', () => { report = null; });
+
+    // 다른 화면의 빨간 버튼으로 들어오면 (index.html#bite) 바로 연다
+    if (location.hash === '#bite') {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (_) { /* 무시 */ }
+      setTimeout(() => openReport('bite'), 300);
+    }
+  }
+
+  /* ---------- 대화 그리기 ---------- */
+  function say(text, who) {
+    const log = $('reportLog');
+    const p = document.createElement('p');
+    p.className = who === 'me' ? 'bc-me' : 'bc-bot';
+    p.innerHTML = text;   // 이 파일에서 만든 문장만 넣는다 (사용자가 친 글자는 없다)
+    log.appendChild(p);
+    log.scrollTop = log.scrollHeight;
+    return p;
+  }
+
+  // 고를 수 있는 단추들을 보여 준다. items: [{ label, sub?, tone?, silent?, onPick }]
+  function choices(items, opts) {
+    const box = $('reportChoices');
+    box.className = 'bc-choices' + (opts && opts.grid ? ' is-grid' : '');
+    box.innerHTML = '';
+    items.forEach((it) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bc-opt' + (it.tone ? ' is-' + it.tone : '');
+      b.innerHTML = it.sub ? `<b>${it.label}</b><small>${it.sub}</small>` : it.label;
+      b.addEventListener('click', () => {
+        box.innerHTML = '';
+        if (!it.silent) say(it.label, 'me');   // 고른 답을 내 말풍선으로 남긴다
+        it.onPick();
+      });
+      box.appendChild(b);
     });
-    $('reportCancel').addEventListener('click', () => dlg.close());
-    $('reportManual').addEventListener('click', () => { setMode('pick'); sel.focus(); });
+    // 단추가 생기면 대화 칸이 줄어드니, 마지막 말이 보이게 다시 맨 아래로 내린다
+    const log = $('reportLog');
+    log.scrollTop = log.scrollHeight;
+    const first = box.querySelector('button');
+    if (first) first.focus({ preventScroll: true });
+  }
 
-    $('reportForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (mode === 'pick') {
-        if (!sel.value) { msg.textContent = '동네를 골라 주세요.'; sel.focus(); return; }
-        const c = model.COORDS[sel.value];
-        mark(c[0], c[1], `${sel.value} (동네 선택)`, 'pick');
-        dlg.close();
-        return;
+  /* ---------- 대화 순서 ---------- */
+  function openReport(kind) {
+    const dlg = $('reportDialog');
+    $('reportLog').innerHTML = '';
+    $('reportChoices').innerHTML = '';
+    if (dlg.showModal) { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+    const mine = report = { kind: null };
+    checkStore().then(() => {
+      if (report !== mine) return;   // 그사이 닫았거나 새로 열었으면 이 대화는 끝
+      if (kind && KIND_NAME[kind]) {
+        report.kind = kind;
+        say(kind === 'bite' ? '모기에 물렸군요. 알려 주시면 동네 지도에 표시할게요.' : '알려 주셔서 고마워요.');
+        askWhere();
+      } else {
+        askKind();
       }
-      if (!$('reportAgree').checked) { msg.textContent = '위치 정보 이용에 동의하거나, 동네를 직접 골라 주세요.'; return; }
-      if (!navigator.geolocation) { msg.textContent = '이 기기에서는 위치를 쓸 수 없어요. 동네를 직접 골라 주세요.'; setMode('pick'); return; }
-      submit.disabled = true;
-      msg.textContent = '위치를 확인하는 중이에요…';
-      navigator.geolocation.getCurrentPosition((pos) => {
-        submit.disabled = false;
-        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-        if (lat < GIMHAE.minLat || lat > GIMHAE.maxLat || lng < GIMHAE.minLng || lng > GIMHAE.maxLng) {
-          msg.textContent = '지금 위치가 김해 밖이에요. 김해 안에서만 표시할 수 있어요.';
-          return;
-        }
-        const dong = model && model.nearestDistrict ? model.nearestDistrict(lat, lng) : '';
-        mark(lat, lng, `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m`, 'gps');
-        dlg.close();
-      }, (err) => {
-        submit.disabled = false;
-        msg.textContent = err.code === 1
-          ? '위치 권한이 꺼져 있어요. 동네를 직접 골라 주세요.'
-          : '위치를 찾지 못했어요. 동네를 직접 골라 주세요.';
-        setMode('pick');
-      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
   }
 
-  /* 저장 스위치가 켜져 있는지 서버에 물어, 동의 안내의 '보관' 문구를 사실대로 바꾼다 */
+  function askKind() {
+    say('무엇을 알려 주실 건가요?');
+    choices([
+      { label: '물렸어요', sub: '여기서 모기에 물렸어요', tone: 'red', onPick: () => { report.kind = 'bite'; askWhere(); } },
+      { label: '모기 봤어요', sub: '모기가 날아다녀요', onPick: () => { report.kind = 'mosquito'; askWhere(); } },
+      { label: '고인 물 발견', sub: '모기가 자랄 수 있는 물웅덩이·용기', onPick: () => { report.kind = 'breeding'; askWhere(); } },
+    ]);
+  }
+
+  function askWhere() {
+    const keep = storeOn ? '약 100m 단위로 줄여 저장하고 1년 뒤 지워요.' : '아직은 저장하지 않고 내 화면에만 표시해요.';
+    say(`${WHERE_Q[report.kind]}<small>'지금 여기예요'를 누르면 휴대폰 위치(GPS)를 <b>한 번만</b> 써요. ${keep}</small>`);
+    choices([
+      { label: '📍 지금 여기예요', sub: '위치 1회 사용에 동의', tone: 'red', onPick: useGps },
+      { label: '동네 고르기', sub: '위치를 쓰지 않아요', onPick: pickDistrict },
+    ]);
+  }
+
+  function useGps() {
+    if (!navigator.geolocation) { say('이 기기에서는 위치를 쓸 수 없어요.'); pickDistrict(); return; }
+    const wait = say('위치를 확인하는 중이에요…');
+    const mine = report;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      if (report !== mine) return;   // 위치를 찾는 동안 창을 닫았으면 아무것도 보내지 않는다
+      wait.remove();
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      if (lat < GIMHAE.minLat || lat > GIMHAE.maxLat || lng < GIMHAE.minLng || lng > GIMHAE.maxLng) {
+        say('지금 위치가 김해 밖이에요. 지금은 김해 안에서만 표시할 수 있어요.');
+        choices([
+          { label: '김해 동네 고르기', onPick: pickDistrict },
+          { label: '닫기', silent: true, onPick: () => $('reportDialog').close() },
+        ]);
+        return;
+      }
+      const model = window.GimhaeMosquitoModel;
+      const dong = model && model.nearestDistrict ? model.nearestDistrict(lat, lng) : '';
+      Object.assign(report, { lat, lng, source: 'gps', place: `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m` });
+      say(`위치를 확인했어요. ${dong ? `<b>${dong}</b> 근처예요` : '김해 안이에요'} (오차 약 ${Math.round(accuracy)}m)`);
+      afterWhere();
+    }, (err) => {
+      if (report !== mine) return;
+      wait.remove();
+      say(err.code === 1 ? '위치 권한이 꺼져 있어요.' : '위치를 찾지 못했어요.');
+      pickDistrict();
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+  }
+
+  function pickDistrict() {
+    const model = window.GimhaeMosquitoModel;
+    const names = model && model.COORDS ? Object.keys(model.COORDS) : [];
+    if (!names.length) { say('동네 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+    say('어느 동네예요?');
+    choices(names.map((n) => ({ label: n, onPick: () => {
+      const c = model.COORDS[n];
+      Object.assign(report, { lat: c[0], lng: c[1], source: 'pick', place: `${n} (동네 선택)` });
+      afterWhere();
+    } })), { grid: true });
+  }
+
+  function afterWhere() {
+    if (report.kind !== 'bite') { finish(); return; }
+    say('언제 물렸어요?');
+    choices(['방금', '1시간 안', '오늘', '어제'].map((t) => ({ label: t, onPick: () => { report.when = t; askCount(); } })), { grid: true });
+  }
+
+  function askCount() {
+    say('몇 군데 물렸어요?');
+    choices(['1군데', '2~3군데', '4군데 이상'].map((t) => ({ label: t, onPick: () => { report.count = t; finish(); } })), { grid: true });
+  }
+
+  async function finish() {
+    const mine = report;
+    const saved = await sendReport(mine);
+    const stored = Boolean(saved && saved.stored);
+    addMarker(stored, mine);
+    if (report !== mine) return;   // 보내는 동안 창을 닫았으면 안내는 생략
+    say(stored ? '접수했어요. 보건소가 확인할게요. 고마워요!' : '내 화면의 지도에 표시했어요. 아직 보건소로 보내는 기능은 준비 중이라, 새로고침하면 사라져요.');
+    if (report.kind === 'bite') {
+      say('물린 곳은 긁지 말고 차갑게 식혀 주세요. 며칠 안에 열이 나면 병원에서 <b>모기에 물렸다</b>고 꼭 알려 주세요.');
+    } else if (report.kind === 'breeding') {
+      say('고인 물은 일주일에 한 번만 비워도 모기가 자라지 못해요. 직접 비우기 어려운 곳이면 보건소에 알려 주세요.');
+    }
+    choices([
+      { label: '지도에서 보기', tone: 'red', silent: true, onPick: showOnMap },
+      { label: '닫기', silent: true, onPick: () => $('reportDialog').close() },
+    ]);
+  }
+
+  // 서버에 보낸다. 저장 스위치가 꺼져 있으면 서버가 저장하지 않고 stored:false 를 돌려준다.
+  async function sendReport(r) {
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: r.kind, lat: r.lat, lng: r.lng, source: r.source }),
+      });
+      return await res.json();
+    } catch (_) { return null; }
+  }
+
+  // script.js 의 전역 지도(map)와 Leaflet(L)을 쓴다. 없으면 조용히 건너뛴다.
+  function addMarker(stored, r) {
+    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) return;
+    const extra = r.kind === 'bite' ? `<br>${r.when || ''} · ${r.count || ''}` : '';
+    const mk = L.circleMarker([r.lat, r.lng], { radius: 11, color: '#fff', weight: 3, fillColor: KIND_COLOR[r.kind], fillOpacity: 1 })
+      .addTo(map)
+      .bindPopup(`<b>${KIND_NAME[r.kind]}</b><br>${r.place}${extra}<br>방금 · ${stored ? '저장됨, 보건소 확인 전' : '내 화면에만 표시 (보건소 전송 준비 중)'}`);
+    reportMarkers.push(mk);
+    r.marker = mk;
+  }
+
+  // 제보 창을 닫고 우리 동네 지도로 간다 (폰에서는 '우리 동네' 탭이 열린다)
+  function showOnMap() {
+    const mk = report && report.marker;   // 닫으면 report 가 비워지므로 먼저 꺼내 둔다
+    $('reportDialog').close();
+    location.hash = 'town';
+    setTimeout(() => {
+      const el = $('map');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (mk && typeof map !== 'undefined' && map) {
+        map.invalidateSize();
+        map.setView(mk.getLatLng(), Math.max(map.getZoom(), 14), { animate: true });
+        setTimeout(() => mk.openPopup(), 500);
+      }
+    }, 150);
+  }
+
+  // 저장 스위치가 켜져 있는지 서버에 물어, 위치 안내 문구를 사실대로 바꾼다
   let storeOn = false;
   async function checkStore() {
     try {
       const r = await (await fetch('/api/report')).json();
       storeOn = Boolean(r && r.stored);
     } catch (_) { storeOn = false; }
-    const keep = $('reportKeep');
-    if (keep) keep.textContent = storeOn
-      ? '약 100m 단위로 줄여 저장하고 1년 뒤 지워요. 누가 보냈는지는 저장하지 않아요'
-      : '시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요';
-  }
-
-  const KIND_NAME = { mosquito: '모기 봤어요', bite: '물렸어요', breeding: '고인 물 발견' };
-  const KIND_COLOR = { mosquito: '#3182F6', bite: '#E5484D', breeding: '#0E9F6E' };
-
-  async function mark(lat, lng, label, source) {
-    const kindEl = document.querySelector('input[name="reportKind"]:checked');
-    const kind = kindEl ? kindEl.value : 'mosquito';
-    // 서버에 보낸다. 저장 스위치가 꺼져 있으면 서버가 저장하지 않고 stored:false 를 돌려준다.
-    let saved = null;
-    try {
-      const r = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, lat, lng, source }) });
-      saved = await r.json();
-    } catch (_) { saved = null; }
-    const stored = Boolean(saved && saved.stored);
-    // script.js 의 전역 지도(map)와 Leaflet(L)을 쓴다. 없으면 조용히 건너뛴다.
-    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) { toast(saved && saved.message ? saved.message : '제보를 받았어요.'); return; }
-    const mk = L.circleMarker([lat, lng], { radius: 11, color: '#fff', weight: 3, fillColor: KIND_COLOR[kind], fillOpacity: 1 })
-      .addTo(map)
-      .bindPopup(`<b>${KIND_NAME[kind]}</b><br>${label}<br>방금 · ${stored ? '저장됨, 보건소 확인 전' : '시험판(저장 안 됨)'}`);
-    reportMarkers.push(mk);
-    map.setView([lat, lng], Math.max(map.getZoom(), 14), { animate: true });
-    const el = document.getElementById('map');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTimeout(() => mk.openPopup(), 500);
-    toast(stored ? (saved.message || '제보했어요. 보건소가 확인할게요.') : '지도에 표시했어요. 시험판이라 저장되지 않아요.');
-  }
-
-  function toast(message) {
-    const el = $('toast');
-    if (!el) return;
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(toast.t);
-    toast.t = setTimeout(() => el.classList.remove('show'), 4200);
   }
 }());

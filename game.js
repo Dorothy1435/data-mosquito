@@ -7,7 +7,7 @@
      · 자유 모드: 평소 상태. 오늘 모기지수 단계만큼 모기가 떠 있고, 잡으면 새 모기가 들어온다. 잡은 수는 누적된다.
      · 도전 모드: '도전' 버튼을 누르면 1단계(3마리)부터. 제한 시간 안에 목표를 잡으면 다음 단계가 열리고,
                   못 잡으면 실패. 실패해도 누적 잡은 수는 그대로 남는다. 오늘 모기지수가 높을수록 더 높은 단계가 열린다
-                  (매우 위험인 날만 1,000마리 단계). 숫자는 전부 game-config.js 에 있다.
+                  (매우 높음인 날만 1,000마리 단계). 숫자는 전부 game-config.js 에 있다.
      · 배지: 누적 잡은 수가 기준에 닿으면 임명장(배지 카드)이 뜬다. 알 → 장구벌레 → 번데기 → 모기 → 종류별 모기 순.
      · 저장: 이 브라우저(localStorage 'mz-game')에 남긴다. 로그인했으면 auth.js(MZAuth)로 서버에도 보낸다.
        서버에는 한 마리마다가 아니라 도전이 끝날 때 한 번만 보낸다(서버 부하·어뷰징 방지).
@@ -33,12 +33,13 @@
       // 예전 버전('mz-kills' 에 잡은 수만 저장)에서 이어받는다
       let old = 0;
       try { old = parseInt(localStorage.getItem('mz-kills') || '0', 10) || 0; } catch (e) { old = 0; }
-      s = { kills: Math.max(0, old), bestStage: 0, badges: [], today: { date: todayKey(), runs: 0 }, history: [], pending: [] };
+      s = { kills: Math.max(0, old), bestStage: 0, badges: [], today: { date: todayKey(), runs: 0 }, history: [], pending: [], golden: 0 };
     }
     if (!s.today || s.today.date !== todayKey()) s.today = { date: todayKey(), runs: 0 };
     s.badges = Array.isArray(s.badges) ? s.badges : [];
     s.history = Array.isArray(s.history) ? s.history : [];
     s.pending = Array.isArray(s.pending) ? s.pending : [];
+    s.golden = Number(s.golden) || 0;   // 잡은 황금 모기 수
     return s;
   }
   const state = loadState();
@@ -74,7 +75,10 @@
     const card = proto && proto.closest('.hero-card');
     if (!proto || !card || reduceMotion) { if (proto) proto.hidden = true; return; }
     const hint = document.getElementById('sprayHint');
-    const BASE_HIT = small ? 70 : 56;     // 이 거리 안이면 잡힌 것 (손가락은 정확하지 않아 휴대폰은 조금 넓게)
+    const HIT = CFG.HIT_RADIUS || { mobile: 60, desktop: 46 };
+    const BASE_HIT = small ? HIT.mobile : HIT.desktop;   // 이 거리 안이면 잡힌 것 (손가락은 정확하지 않아 휴대폰은 조금 넓게)
+    const SPRAY = CFG.SPRAY || { cost: 12, refill: 32, lockMs: 1000 };
+    const EV = CFG.EVENTS || {};
     const FREE = { count: 1, flee: 230, push: 3.2, jink: 0.9, vmax: 11, hit: 1 };   // 자유 모드 난이도
     let diff = FREE;                      // 지금 적용 중인 난이도
     let cx = null, cy = null;             // 모기약(마우스) 위치
@@ -83,7 +87,12 @@
     card.classList.add('spray');
 
     // 도전 상태
-    const run = { on: false, stage: 0, target: 0, caught: 0, startAt: 0, endAt: 0, timer: null };
+    const run = { on: false, stage: 0, target: 0, caught: 0, startAt: 0, endAt: 0, timer: null,
+      base: 0, needQueen: false, swarmUntil: 0, swarmCheckAt: 0 };
+    // 모기약 통 (0~100). 바닥나면 잠깐 못 뿌린다
+    let tank = 100, tankLockUntil = 0, lastEmptyPopAt = 0;
+    // 연속 잡기
+    let combo = 0, lastKillAt = 0;
 
     /* --- 화면 조각: 도전 버튼·HUD --- */
     const hud = document.createElement('div');
@@ -97,6 +106,12 @@
         <button type="button" class="ghud-quit" aria-label="도전 그만두기">×</button>
       </div>`;
     card.appendChild(hud);
+    const tankEl = document.createElement('div');
+    tankEl.className = 'gtank';
+    tankEl.setAttribute('aria-hidden', 'true');
+    tankEl.innerHTML = '<span>모기약</span><i><b></b></i>';
+    card.appendChild(tankEl);
+    const tankBar = tankEl.querySelector('b');
     const goBtn = hud.querySelector('#gameGo');
     const runBox = hud.querySelector('.ghud-run');
     const stageEl = hud.querySelector('.ghud-stage');
@@ -133,6 +148,9 @@
       run.on = true; run.stage = n; run.target = s.target; run.caught = 0; run.startAt = performance.now(); run.endAt = run.startAt + s.seconds * 1000;
       diff = DIFF[Math.min(n - 1, DIFF.length - 1)];
       const cnt = Math.max(1, Math.round(diff.count * (small ? (CFG.MOBILE_COUNT_SCALE || 0.7) : 1)));
+      run.base = cnt; run.needQueen = false; run.swarmUntil = 0; run.swarmCheckAt = run.startAt + 1000;
+      combo = 0; tank = 100; tankLockUntil = 0;
+      flies.forEach((f) => { f.queen = 0; setLook(f); });
       setCount(cnt);
       goBtn.hidden = true; runBox.hidden = false; if (hint) hint.hidden = true;
       stageEl.textContent = `${n}단계`;
@@ -152,6 +170,8 @@
       run.on = false;
       const ms = Math.round(performance.now() - run.startAt);
       card.classList.remove('in-run');
+      run.needQueen = false; run.swarmUntil = 0;
+      flies.forEach((f) => { f.queen = 0; setLook(f); });
       goBtn.hidden = false; runBox.hidden = true;
       if (success) state.bestStage = Math.max(state.bestStage, run.stage);
       const rec = { stage: run.stage, kills: run.caught, ms, ok: !!success, at: new Date().toISOString() };
@@ -227,13 +247,40 @@
       else { f.x = W * (0.3 + Math.random() * 0.5); f.y = H * (0.15 + Math.random() * 0.4); f.entering = false; }
       f.vx = 0; f.vy = 0; f.alpha = 1; f.spin = 0; f.dead = 0; f.face = 1;
       f.el.style.opacity = '1';
+      const g = EV.golden;
+      f.golden = Boolean(g) && Math.random() < (run.on ? g.chanceRun : g.chanceFree);
+      f.queen = 0;
+      setLook(f);
       pick(f, now);
+    }
+    // 황금·여왕 모기는 모양을 바꿔 보여 준다 (design.css .is-golden / .is-queen)
+    function setLook(f) {
+      f.el.classList.toggle('is-golden', Boolean(f.golden));
+      f.el.classList.toggle('is-queen', f.queen > 0);
+    }
+    // 가운데 위에 잠깐 뜨는 알림 (모기떼·여왕 등장)
+    function banner(text) {
+      card.querySelectorAll('.gbanner').forEach((e) => e.remove());
+      const b = document.createElement('div');
+      b.className = 'gbanner';
+      b.setAttribute('role', 'status');
+      b.textContent = text;
+      card.appendChild(b);
+      setTimeout(() => b.remove(), 2200);
+    }
+    function popAt(x, y, text, cls) {
+      const pop = document.createElement('span');
+      pop.className = 'kill-pop' + (cls ? ' ' + cls : '');
+      pop.textContent = text;
+      pop.style.left = x + 'px'; pop.style.top = y + 'px';
+      card.appendChild(pop);
+      setTimeout(() => pop.remove(), 1200);
     }
     function addFly(fromEdge) {
       const el = flies.length ? proto.cloneNode(true) : proto;
       if (el !== proto) { el.removeAttribute('id'); card.appendChild(el); }
       el.hidden = false;
-      const f = { el, phase: Math.random() * 10, x: 0, y: 0, vx: 0, vy: 0, gx: 0, gy: 0, nextPick: 0, dead: 0, spin: 0, alpha: 1, face: 1, entering: false };
+      const f = { el, phase: Math.random() * 10, x: 0, y: 0, vx: 0, vy: 0, gx: 0, gy: 0, nextPick: 0, dead: 0, spin: 0, alpha: 1, face: 1, entering: false, golden: false, queen: 0, dartAt: 0 };
       spawn(f, performance.now(), fromEdge);
       flies.push(f);
     }
@@ -244,7 +291,16 @@
     }
     function applyFreeCount() {
       const table = small ? (CFG.FREE_COUNT_BY_LEVEL_MOBILE || [1, 1, 2, 3, 5]) : (CFG.FREE_COUNT_BY_LEVEL || [1, 2, 3, 5, 8]);
-      setCount(table[level == null ? 0 : level]);
+      let n = table[level == null ? 0 : level];
+      if (isDusk()) n += (EV.dusk && EV.dusk.extra) || 0;
+      setCount(n);
+      if (isDusk() && hint && !run.on) hint.textContent = '해 질 무렵이라 모기가 더 많아요 · ' + hint.textContent;
+    }
+    // 지금이 해 질 무렵인지 (실제 시각 기준)
+    function isDusk() {
+      const d = EV.dusk; if (!d) return false;
+      const h = new Date().getHours();
+      return h >= d.from && h < d.to;
     }
     document.addEventListener('mosquito:updated', (e) => {
       const idx = e.detail && e.detail.index;
@@ -257,12 +313,30 @@
 
     card.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); cx = e.clientX - r.left; cy = e.clientY - r.top; });
     function spray(px, py) {
+      const now = performance.now();
+      // 모기약 통이 바닥나면 잠깐 못 뿌린다
+      if (now < tankLockUntil || tank < SPRAY.cost) {
+        if (now - lastEmptyPopAt > 900) { lastEmptyPopAt = now; popAt(px, py - 20, '모기약 채우는 중…', 'is-empty'); }
+        return;
+      }
+      tank -= SPRAY.cost;
+      if (tank < SPRAY.cost) tankLockUntil = now + SPRAY.lockMs;
       puff(px, py);
       const hitR = BASE_HIT * (diff.hit || 1);
       flies.forEach((f) => {
         if (f.dead) return;
         const d = Math.hypot(px - f.x, py - f.y);
-        if (d <= hitR) { kill(f); return; }
+        if (d <= hitR * (f.queen ? 1.4 : 1)) {
+          // 여왕 모기는 여러 번 맞혀야 한다. 맞을 때마다 멀리 튕겨 나간다
+          if (f.queen > 1) {
+            f.queen -= 1;
+            const a = Math.random() * Math.PI * 2;
+            f.vx += Math.cos(a) * 18; f.vy += Math.sin(a) * 18;
+            popAt(f.x, f.y - 30, `여왕 모기 · ${f.queen}번 더`, 'is-queen');
+            return;
+          }
+          kill(f); return;
+        }
         if (d < 200) { const k = (1 - d / 200) * 14; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; }
       });
     }
@@ -305,18 +379,43 @@
       setTimeout(() => p.remove(), 800);
     }
     function kill(f) {
-      f.dead = performance.now(); state.kills += 1;
-      if (run.on && run.caught < run.target) {   // 목표를 채운 뒤 연사로 더 잡힌 건 도전 기록엔 안 넣는다 (서버 검사와 맞춤)
+      const now = performance.now();
+      const wasGolden = f.golden, wasQueen = f.queen > 0;
+      f.dead = now; f.queen = 0; f.golden = false; setLook(f);
+      state.kills += 1;
+      if (wasGolden) state.golden += 1;
+      // 마지막 한 마리가 여왕 모기일 때는 여왕을 잡아야 도전이 끝난다
+      const counts = run.on && run.caught < run.target && (!run.needQueen || wasQueen);
+      if (counts) {   // 목표를 채운 뒤 연사로 더 잡힌 건 도전 기록엔 안 넣는다 (서버 검사와 맞춤)
         run.caught += 1;
         countEl.innerHTML = `<b>${run.caught.toLocaleString('ko-KR')}</b>/${run.target.toLocaleString('ko-KR')}`;
       }
       save();
-      const pop = document.createElement('span');
-      pop.className = 'kill-pop';
-      pop.textContent = run.on ? `${run.caught}/${run.target}` : (state.kills === 1 ? '잡았다!' : `잡았다! ${state.kills.toLocaleString('ko-KR')}마리째`);
-      pop.style.left = f.x + 'px'; pop.style.top = (f.y - 30) + 'px';
-      card.appendChild(pop);
-      setTimeout(() => pop.remove(), 1200);
+      // 연속 잡기
+      combo = now - lastKillAt <= ((EV.combo && EV.combo.withinMs) || 1300) ? combo + 1 : 1;
+      lastKillAt = now;
+      let text = run.on ? `${run.caught}/${run.target}` : (state.kills === 1 ? '잡았다!' : `잡았다! ${state.kills.toLocaleString('ko-KR')}마리째`);
+      let cls = '';
+      if (wasGolden) {
+        cls = 'is-golden';
+        if (run.on && EV.golden) { run.endAt += EV.golden.bonusSec * 1000; text = `황금 모기! +${EV.golden.bonusSec}초`; }
+        else text = '황금 모기를 잡았어요!';
+      } else if (wasQueen) {
+        cls = 'is-queen'; text = '여왕 모기를 잡았어요!';
+      } else if (combo >= 3) {
+        text = `${combo}연속! ` + text;
+        if (run.on && EV.combo && combo % EV.combo.every === 0) { run.endAt += EV.combo.bonusSec * 1000; text = `${combo}연속! +${EV.combo.bonusSec}초`; }
+      }
+      popAt(f.x, f.y - 30, text, cls);
+      // 여왕 등장: 목표까지 한 마리 남으면 살아 있는 모기 하나를 여왕으로 바꾼다
+      if (run.on && EV.queen && run.stage >= EV.queen.fromStage && !run.needQueen && run.caught === run.target - 1) {
+        run.needQueen = true;
+        if (run.swarmUntil) { run.swarmUntil = 0; setCount(run.base); }   // 모기떼는 여왕이 나오면 끝
+        const alive = flies.filter((x) => !x.dead);
+        const q = alive.length ? alive[Math.floor(Math.random() * alive.length)] : null;
+        if (q) { q.queen = EV.queen.hits; q.golden = false; setLook(q); }
+        banner(`마지막은 여왕 모기! ${EV.queen.hits}번 맞혀야 해요`);
+      }
       if (hint) hint.hidden = true;
       if (run.on && run.caught >= run.target) { setTimeout(() => endRun(true), 350); return; }
       if (!run.on && dueBadges().length) awardDue();
@@ -333,8 +432,30 @@
       if (b) setTimeout(() => showBadge(b), 1500);
     } catch (err) { /* 무시 */ }
 
+    let lastTick = performance.now();
     function tick(now) {
       const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
+      const dt = Math.min(0.1, Math.max(0, (now - lastTick) / 1000)); lastTick = now;
+      // 모기약 통 다시 채우기 + 막대 표시 (가득 차 있으면 숨긴다)
+      tank = Math.min(100, tank + SPRAY.refill * dt);
+      tankBar.style.width = tank.toFixed(0) + '%';
+      tankEl.classList.toggle('is-low', now < tankLockUntil);
+      tankEl.classList.toggle('show', tank < 99.5);
+      // 모기떼 습격 (도전 중, fromStage 단계부터, 1초마다 확률)
+      const sw = EV.swarm;
+      if (run.on && sw && run.stage >= sw.fromStage && !run.needQueen) {
+        if (run.swarmUntil && now > run.swarmUntil) { run.swarmUntil = 0; setCount(run.base); }
+        else if (!run.swarmUntil && now > run.swarmCheckAt) {
+          run.swarmCheckAt = now + 1000;
+          if (run.caught >= run.target * 0.2 && Math.random() < sw.chance) {
+            run.swarmUntil = now + sw.ms;
+            setCount(run.base + sw.extra);
+            banner('모기떼가 몰려와요!');
+          }
+        }
+      }
+      const swarmBoost = run.swarmUntil ? ((sw && sw.speed) || 1) : 1;
+      const dart = EV.dart;
       flies.forEach((f) => {
         const el = f.el;
         if (f.dead) {
@@ -342,7 +463,11 @@
           f.vy += 0.9; f.x += f.vx * 0.3; f.y += f.vy; f.spin += 28; f.alpha = Math.max(0, 1 - k * 1.1);
           el.style.opacity = f.alpha.toFixed(2);
           el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) rotate(${f.spin}deg)`;
-          if (k > (run.on ? 0.6 : 1.1)) spawn(f, now, true);   // 도전 중엔 새 모기가 더 빨리 들어온다
+          if (k > (run.on ? 0.6 : 1.1)) {
+            spawn(f, now, true);   // 도전 중엔 새 모기가 더 빨리 들어온다
+            // 여왕이 필요한데 살아 있는 여왕이 없으면 새로 들어오는 모기를 여왕으로
+            if (run.on && run.needQueen && !flies.some((x) => x.queen > 0 && !x.dead)) { f.queen = EV.queen.hits; f.golden = false; setLook(f); }
+          }
           return;
         }
         if (now > f.nextPick) pick(f, now);
@@ -359,7 +484,13 @@
           }
         }
         f.vx += (f.gx - f.x) * 0.01; f.vy += (f.gy - f.y) * 0.01;
-        const damp = fleeing ? 0.94 : 0.9, vmax = fleeing ? diff.vmax : 6;
+        // 갑자기 꺾기: 가끔 휙 다른 방향으로 (손가락이 닿기 전에도 예측하기 어렵게)
+        if (dart && now > f.dartAt) {
+          if (f.dartAt) { const a = Math.random() * Math.PI * 2, pw = dart.power * (diff.jink || 1); f.vx += Math.cos(a) * pw; f.vy += Math.sin(a) * pw; }
+          f.dartAt = now + dart.minMs + Math.random() * (dart.maxMs - dart.minMs);
+        }
+        const speedUp = (f.golden ? ((EV.golden && EV.golden.speed) || 1) : 1) * swarmBoost * (f.queen ? 0.8 : 1);
+        const damp = fleeing ? 0.94 : 0.9, vmax = (fleeing ? diff.vmax : 6) * speedUp;
         f.vx *= damp; f.vy *= damp;
         const sp = Math.hypot(f.vx, f.vy);
         if (sp > vmax) { f.vx *= vmax / sp; f.vy *= vmax / sp; }

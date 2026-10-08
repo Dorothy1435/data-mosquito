@@ -38,7 +38,6 @@
       <nav class="lk" id="primaryNav" aria-label="주요 메뉴">
         <a href="#flow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>오늘 하루</a>
         <a href="#kit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg>챙길 것</a>
-        <a href="#photo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>사진으로 알아보기</a>
         <a href="#town"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>우리 동네</a>
         <a href="mosquito-info.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg>모기 도감</a>
         <a href="me.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg>내 배지</a>
@@ -50,6 +49,7 @@
         <button id="myLocationButton" class="loc-btn" type="button">현재 위치로</button>
       </div>
       <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+      <a class="me-top" href="me.html" aria-label="내 배지"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg></a>
     </div>
   </header>
 
@@ -151,35 +151,6 @@
       </div>
     </section>
 
-    <!-- 3-1. 사진으로 모기 알아보기: 휴대폰에서는 카메라가 바로 열린다 -->
-    <section class="s" id="photo" data-tab="photo" aria-labelledby="phT">
-      <div class="wrap split">
-        <div class="copy rv">
-          <h2 id="phT">모기를 찍으면<br>어떤 모기인지 알려드려요</h2>
-          <p>잡은 모기나 벽에 앉은 모기를 찍어 보세요. 우리 주변 모기 4종 중 무엇에 가까운지 AI가 알려드려요.</p>
-          <div class="photo-btns">
-            <button class="btn-main" type="button" data-open="photoCamera">카메라로 찍기</button>
-            <button class="btn-sub" type="button" data-open="photoPick">앨범에서 고르기</button>
-            <input id="photoCamera" type="file" accept="image/*" capture="environment" hidden>
-            <input id="photoPick" type="file" accept="image/*" hidden>
-          </div>
-          <p class="note">사진은 판별에만 쓰고 저장하지 않아요. 보내기 전에 사진 속 촬영 위치 정보를 지워요. AI가 본 참고용 결과이고, 의학적 판단이 아니에요.</p>
-        </div>
-        <div class="frame photo-frame rv" id="photoBox" data-state="idle" aria-live="polite">
-          <div class="ph-idle">
-            <p class="ph-t">이렇게 찍으면 잘 알아봐요</p>
-            <ol class="ph-tips"><li>모기가 화면에 크게 나오게</li><li>밝은 곳에서, 흔들리지 않게</li><li>날개와 다리가 보이게</li></ol>
-          </div>
-          <div class="ph-work">
-            <img id="photoPreview" alt="올린 모기 사진">
-            <div class="ph-loading"><span class="spin" aria-hidden="true"></span>사진을 살펴보고 있어요</div>
-            <div class="ph-result" id="photoResult"></div>
-            <button class="btn-sub ph-again" type="button" id="photoAgain">다른 사진 올리기</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- 4. 오늘 하루: 검정 판 -->
     <section class="s dark" id="today" data-tab="today" aria-labelledby="tdT">
       <div class="wrap">
@@ -227,7 +198,7 @@
           <button id="heatmapButton" class="map-btn" type="button" aria-pressed="false">발생원 히트맵 보기</button>
           <div class="map-legends">
             <div class="legend" aria-label="지도 범례">
-              <span><i class="dot stage-safe"></i>매우 양호</span><span><i class="dot stage-good"></i>양호</span><span><i class="dot stage-normal"></i>보통</span><span><i class="dot stage-risk"></i>위험</span><span><i class="dot stage-danger"></i>매우 위험</span>
+              <span><i class="dot stage-safe"></i>매우 낮음</span><span><i class="dot stage-good"></i>낮음</span><span><i class="dot stage-normal"></i>보통</span><span><i class="dot stage-risk"></i>높음</span><span><i class="dot stage-danger"></i>매우 높음</span>
             </div>
             <div id="heatmapLegend" class="legend" aria-label="발생원 히트맵 범례" hidden>
               <span class="legend-title">발생원 위험</span>
@@ -277,7 +248,7 @@
       <div class="wrap">
         <div class="head rv">
           <h2 id="gdT">우리 주변에서<br>병을 옮기는 모기 4종</h2>
-          <p>사는 곳을 알면 어디 물을 비울지 보여요. 잡은 모기는 <a href="#photo">사진으로 알아볼 수</a> 있어요.</p>
+          <p>사는 곳을 알면 어디 물을 비울지 보여요. 잡은 모기는 <a href="mosquito-info.html#photo">사진으로 알아볼 수</a> 있어요.</p>
           <a class="more-link" href="mosquito-info.html">모기 도감 전체 보기 <i aria-hidden="true">›</i></a>
         </div>
         <div class="species">
@@ -303,42 +274,10 @@
         <img src="assets/bg/gimhae-night.jpg" alt="" loading="lazy">
         <div class="in">
           <h2 id="rpT">여기 모기 있어요</h2>
-          <p>누르면 우리 동네 지도에 표시돼요. 지금은 시험판이라 저장되지 않아요.</p>
+          <p>모기를 봤거나, 물렸거나, 고인 물을 찾았다면 알려 주세요. 우리 동네 지도에 표시돼요.</p>
           <button class="btn-white" type="button" id="reportBtn">여기 모기 있어요</button>
         </div>
       </div>
-      <!-- 제보 창: 1단계 위치 동의 → GPS / 거부하면 동네 직접 고르기. 시험판이라 저장하지 않는다 -->
-      <dialog class="sheet" id="reportDialog" aria-labelledby="rdT">
-        <form id="reportForm" method="dialog">
-          <h3 id="rdT">무엇을 알려 주실 건가요?</h3>
-          <fieldset class="kinds">
-            <legend class="sr-only">제보 종류</legend>
-            <label><input type="radio" name="reportKind" value="mosquito" checked><span><b>모기 봤어요</b><small>모기가 날아다녀요</small></span></label>
-            <label><input type="radio" name="reportKind" value="bite"><span><b>물렸어요</b><small>여기서 모기에 물렸어요</small></span></label>
-            <label><input type="radio" name="reportKind" value="breeding"><span><b>고인 물 발견</b><small>모기가 자랄 수 있는 물웅덩이·용기</small></span></label>
-          </fieldset>
-          <div class="consent" id="reportConsent">
-            <p class="consent-t">위치 정보 이용 안내</p>
-            <dl>
-              <dt>무엇을</dt><dd>지금 휴대폰의 위치(GPS) 1회</dd>
-              <dt>왜</dt><dd>모기가 있는 곳을 보건소와 지도에 알리려고</dd>
-              <dt>보관</dt><dd id="reportKeep">시험판이라 저장하지 않아요. 이 화면을 닫으면 사라져요</dd>
-            </dl>
-            <label class="sheet-agree"><input type="checkbox" id="reportAgree"> 위의 위치 정보 이용에 동의해요</label>
-            <p class="dim">동의하지 않아도 동네를 직접 골라 표시할 수 있어요.</p>
-          </div>
-          <div class="pick" id="reportPick" hidden>
-            <label for="reportDistrict">동네를 골라 주세요</label>
-            <select id="reportDistrict" class="sheet-select"></select>
-          </div>
-          <p class="sheet-msg" id="reportMsg" role="alert"></p>
-          <div class="sheet-btns">
-            <button class="btn-sub" type="button" id="reportCancel">닫기</button>
-            <button class="btn-sub" type="button" id="reportManual">동네 직접 고르기</button>
-            <button class="btn-main" type="submit" id="reportSubmit">내 위치로 표시하기</button>
-          </div>
-        </form>
-      </dialog>
     </section>
 
   </main>
@@ -347,10 +286,9 @@
   <nav class="tabbar" aria-label="화면 이동">
     <button type="button" data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>오늘</span></button>
     <button type="button" data-tab="kit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg><span>챙길 것</span></button>
-    <button type="button" data-tab="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg><span>사진</span></button>
+    <button type="button" class="tab-bite" data-report="bite"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v3H5z"/><path d="M12 3v2M4.6 6.1l1.4 1.4M19.4 6.1 18 7.5"/></svg></i><span>물렸어요</span></button>
     <button type="button" data-tab="town"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg><span>우리 동네</span></button>
     <a href="mosquito-info.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg><span>도감</span></a>
-    <a href="me.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg><span>내 배지</span></a>
   </nav>
   <footer class="foot">
     <div class="wrap">
@@ -362,21 +300,21 @@
     </div>
   </footer>
   <div class="toast" id="toast" role="status"></div>
-  <!-- 페이지 안 카메라 화면: 누르면 뒷면 카메라가 바로 켜진다 -->
-  <dialog class="cam" id="camDialog" aria-label="모기 사진 찍기">
-    <video id="camVideo" playsinline muted autoplay></video>
-    <div class="cam-guide" aria-hidden="true"><span></span></div>
-    <p class="cam-tip">모기가 동그라미 안에 크게 오게 찍어 주세요</p>
-    <div class="cam-bar">
-      <button class="cam-close" type="button" id="camClose">닫기</button>
-      <button class="cam-shot" type="button" id="camShot" aria-label="사진 찍기"></button>
-      <span aria-hidden="true"></span>
+  <!-- 제보 창 (citizen.js): 탭으로 숨는 구역 밖에 둔다 (숨은 구역 안의 창은 열어도 안 보인다). 챗봇처럼 하나씩 묻는다. 무엇을 → 어디서(GPS 1회 또는 동네 고르기) → (물렸으면) 언제·몇 군데.
+       위치는 '지금 여기예요'를 누를 때 한 번만 쓴다. 저장 스위치가 꺼져 있으면 저장하지 않는다 -->
+  <dialog class="bite-chat" id="reportDialog" aria-labelledby="bcT">
+    <div class="bc-head">
+      <span class="bc-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v3H5z"/><path d="M12 3v2M4.6 6.1l1.4 1.4M19.4 6.1 18 7.5"/></svg></span>
+      <h3 id="bcT">모기 제보</h3>
+      <button class="bc-close" type="button" id="reportClose" aria-label="제보 창 닫기">×</button>
     </div>
+    <div class="bc-log" id="reportLog" aria-live="polite"></div>
+    <div class="bc-choices" id="reportChoices"></div>
   </dialog>
-  <!-- 떠 있는 카메라 버튼: 어디서든 바로 모기를 찍을 수 있게 (Tach · HERoines 의 고정 버튼 기법) -->
-  <button class="fab-cam" type="button" data-open="photoCamera" aria-label="모기 사진 찍어서 알아보기">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3l1.6-2.5h6.8L17 8.5h3v10H4Z"/><circle cx="12" cy="13.2" r="3.3"/></svg>
-    <span>모기 찍기</span>
+  <!-- 떠 있는 빨간 버튼: 어디서든 '여기서 물렸어요'를 바로 알릴 수 있게 (폰에서는 아래 탭 바 가운데에 있다) -->
+  <button class="fab-bite" type="button" data-report="bite">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v3H5z"/><path d="M12 3v2M4.6 6.1l1.4 1.4M19.4 6.1 18 7.5"/></svg>
+    <span>여기서 물렸어요</span>
   </button>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

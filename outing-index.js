@@ -114,15 +114,15 @@
 
   // 모기: 모기지수가 높을수록 나들이엔 나쁘다.
   // 단순히 뒤집지 않고 모기지수 5단계에 맞춰 단을 둔다.
-  // '위험' 단계부터는 체감상 확 나빠지므로 점수를 크게 떨어뜨린다.
+  // '높음' 단계부터는 체감상 확 나빠지므로 점수를 크게 떨어뜨린다.
   function scoreMosquito(mosquitoIndex) {
     if (mosquitoIndex == null || Number.isNaN(mosquitoIndex)) return 0.5;
     const m = clamp(mosquitoIndex, 0, 100);
-    if (m <= 20) return 1;      // 매우 양호
+    if (m <= 20) return 1;      // 매우 낮음
     if (m <= 40) return 0.80;   // 양호
     if (m <= 60) return 0.55;   // 보통
     if (m <= 80) return 0.28;   // 위험
-    return 0.08;                // 매우 위험
+    return 0.08;                // 매우 높음
   }
 
   // 자외선: 기상청 UV 단계 기준으로 나눈다.
@@ -274,16 +274,16 @@
     rows.push(describeAir('😷', '초미세먼지', input.pm25, PM25_BREAKS));
 
     // 식중독 — 기온·습도로 자체 산출한 참고값. 나들이 점수에는 넣지 않고 안내만 한다.
+    // 식약처 단계 이름(관심·주의·경고·위험)은 낯설어서, 화면에는 자외선 줄처럼 쉬운 말로 바꿔 쓴다.
     const food = input.foodLabel;
-    if (!food) {
-      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '정보 없음', tone: 'dim' });
-    } else if (food === '경고' || food === '위험') {
-      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: `${food} · 도시락은 시원하게`, tone: 'bad' });
-    } else if (food === '주의') {
-      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '주의 · 음식은 익혀서', tone: 'warn' });
-    } else {
-      rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: '관심 · 걱정 적어요', tone: 'good' });
-    }
+    const FOOD_TEXT = {
+      '관심': { text: '걱정 없어요', tone: 'good' },
+      '주의': { text: '조금 조심 · 음식은 익혀 먹기', tone: 'warn' },
+      '경고': { text: '높아요 · 도시락은 시원하게', tone: 'bad' },
+      '위험': { text: '매우 높아요 · 음식은 바로 먹기', tone: 'bad' },
+    };
+    const foodRow = FOOD_TEXT[food] || { text: '정보 없음', tone: 'dim' };
+    rows.push({ icon: '🍱', name: '식중독', tag: '자체 산출', text: foodRow.text, tone: foodRow.tone });
 
     return rows;
   }

@@ -53,7 +53,7 @@ const defaultRegionData = {
       windSpeed: 2.1,
       mosquitoDensity: 83,
       weatherText: '비',
-      note: '현재 비와 높은 습도로 매우 위험 단계에 가깝습니다.',
+      note: '현재 비와 높은 습도로 매우 높음 단계에 가깝습니다.',
     },
     {
       name: '대전',
@@ -88,7 +88,7 @@ const stageInfo = [
   {
     min: 0,
     max: 20,
-    label: '매우 양호',
+    label: '매우 낮음',
     className: 'stage-safe',
     advice: '모기 활동이 매우 낮아 일반적인 야외활동이 가능합니다.',
     color: '#5fd08a',
@@ -96,7 +96,7 @@ const stageInfo = [
   {
     min: 21,
     max: 40,
-    label: '양호',
+    label: '낮음',
     className: 'stage-good',
     advice: '늦은 저녁에는 가벼운 주의가 필요합니다.',
     color: '#b5d65a',
@@ -112,7 +112,7 @@ const stageInfo = [
   {
     min: 61,
     max: 80,
-    label: '위험',
+    label: '높음',
     className: 'stage-risk',
     advice: '야외활동 시 긴소매와 모기 기피제를 권장합니다.',
     color: '#f08a3e',
@@ -120,7 +120,7 @@ const stageInfo = [
   {
     min: 81,
     max: 100,
-    label: '매우 위험',
+    label: '매우 높음',
     className: 'stage-danger',
     advice: '야간 야외활동을 최소화하고 방충망과 고인 물을 점검하세요.',
     color: '#e5484d',

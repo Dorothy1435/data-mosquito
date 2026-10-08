@@ -2,7 +2,8 @@
    모기제로 모바일 탭 화면 (mobile-tabs.js)
    -------------------------------------------------------------
    폰(900px 이하)에서는 긴 한 페이지 스크롤 대신 아래 탭 바로 화면을 바꾼다.
-     · 탭 5개: 오늘 · 챙길 것 · 사진 · 우리 동네 · 도감. 탭을 누르면 그 탭의 구역만 보이고 맨 위로 간다.
+     · 탭: 오늘 · 챙길 것 · [빨간 물렸어요] · 우리 동네 · 도감 · 내 배지. 탭을 누르면 그 탭의 구역만 보이고 맨 위로 간다.
+       (사진 판별은 도감 화면으로 옮겼다 — 2026-10-08 피드백. 물렸어요 버튼은 화면을 바꾸지 않고 제보 창을 연다: citizen.js)
      · 구역은 data-tab 값으로 탭에 배정한다 (index.html). 바닥글은 어느 탭에서나 보인다.
      · 주소의 # (예: index.html#kit) 로 들어오면 그 구역이 속한 탭을 연다. 페이지 안 # 링크도 탭을 바꾼다.
      · 지도(Leaflet)는 숨겨진 채 만들어지면 크기를 모르므로, 탭이 보일 때 창 크기 변경 신호를 보내 다시 재게 한다.
@@ -11,9 +12,9 @@
 (function () {
   'use strict';
   const mq = window.matchMedia('(max-width: 900px)');
-  const TABS = ['today', 'kit', 'photo', 'town'];
+  const TABS = ['today', 'kit', 'town'];
   // 구역 id → 탭 (주소의 # 와 페이지 안 링크용)
-  const HASH_TAB = { heroTitle: 'today', glance: 'today', flow: 'today', today: 'today', outing: 'today', kit: 'kit', photo: 'photo', town: 'town', why: 'town', report: 'town', rankLead: 'town', districtCard: 'town' };
+  const HASH_TAB = { heroTitle: 'today', glance: 'today', flow: 'today', today: 'today', outing: 'today', kit: 'kit', town: 'town', why: 'town', report: 'town', rankLead: 'town', districtCard: 'town' };
   let active = null;
 
   function tabOf(id) { return HASH_TAB[id] || null; }
@@ -30,7 +31,7 @@
     });
     if (!o.keepScroll) window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
     if (!o.keepHash) {
-      const id = { today: 'flow', kit: 'kit', photo: 'photo', town: 'town' }[tab];
+      const id = { today: 'flow', kit: 'kit', town: 'town' }[tab];
       try { history.replaceState(null, '', '#' + id); } catch (e) { /* 무시 */ }
     }
     // 지도·그래프가 숨어 있다 나타나면 크기를 다시 재게 한다

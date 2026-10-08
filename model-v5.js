@@ -29,11 +29,11 @@
   // 홈 화면과 같은 5단계 (반올림 정수 판정)
   function grade(index) {
     const n = Math.round(index);
-    if (n <= 20) return [1, '매우 양호', '#5FD08A'];
-    if (n <= 40) return [2, '양호', '#B5D65A'];
+    if (n <= 20) return [1, '매우 낮음', '#5FD08A'];
+    if (n <= 40) return [2, '낮음', '#B5D65A'];
     if (n <= 60) return [3, '보통', '#F2C94C'];
-    if (n <= 80) return [4, '위험', '#F08A3E'];
-    return [5, '매우 위험', '#E5484D'];
+    if (n <= 80) return [4, '높음', '#F08A3E'];
+    return [5, '매우 높음', '#E5484D'];
   }
   const clamp = (x) => Math.max(0, Math.min(100, x));
   const r1 = (x) => Math.round(x * 10) / 10;

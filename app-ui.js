@@ -25,11 +25,11 @@
 
   /* ---------- 모기지수 5단계 ---------- */
   const STAGES = [
-    { max: 20, label: '매우 양호', className: 'stage-safe', word: '거의 없어요.' },
-    { max: 40, label: '양호', className: 'stage-good', word: '적은 편이에요.' },
+    { max: 20, label: '매우 낮음', className: 'stage-safe', word: '거의 없어요.' },
+    { max: 40, label: '낮음', className: 'stage-good', word: '적은 편이에요.' },
     { max: 60, label: '보통', className: 'stage-normal', word: '조금 있어요.' },
-    { max: 80, label: '위험', className: 'stage-risk', word: '많은 편이에요.' },
-    { max: 100, label: '매우 위험', className: 'stage-danger', word: '아주 많아요.' },
+    { max: 80, label: '높음', className: 'stage-risk', word: '많은 편이에요.' },
+    { max: 100, label: '매우 높음', className: 'stage-danger', word: '아주 많아요.' },
   ];
   const stageOf = (index) => STAGES.find((s) => index <= s.max) || STAGES[STAGES.length - 1];
 

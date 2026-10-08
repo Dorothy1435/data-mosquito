@@ -6,7 +6,7 @@
    · 사진·위치는 이 파일이 다루지 않는다
    버전을 바꾸면 옛 저장분을 지운다.
    ============================================================= */
-const VERSION = 'mz-2026-10-07';
+const VERSION = 'mz-2026-10-08';
 const SHELL = ['/', '/index.html', '/mosquito-info.html', '/privacy.html', '/gimhae.html', '/expert.html', '/design.css', '/expert.css', '/chat.css', '/gimhae.js',
   '/script.js', '/app-ui.js', '/hero-map.js', '/model-v5.js', '/mobile-tabs.js', '/game-config.js', '/game.js', '/auth.js', '/me.html', '/me.js', '/ranking.html', '/ranking.js', '/data/gimhae-boundary.json', '/data/city-boundaries.json', '/motion.js', '/citizen.js', '/chat.js', '/mosquito-model.js', '/outing-index.js',
   '/park-picks.js', '/weather-bg.js', '/nav.js', '/assets/brand/logo-icon.png', '/assets/brand/icon-192.png'];

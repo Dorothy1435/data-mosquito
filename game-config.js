@@ -19,8 +19,8 @@ window.MZ_GAME_CONFIG = {
     { target: 1000, seconds: 600 },
   ],
 
-  // 오늘 모기지수 단계(0 매우 양호 … 4 매우 위험)에 따라 열리는 스테이지 수.
-  // 모기가 많은 날일수록 더 높은 단계까지 열리고, '매우 위험'인 날에만 1,000마리 단계가 열린다
+  // 오늘 모기지수 단계(0 매우 낮음 … 4 매우 높음)에 따라 열리는 스테이지 수.
+  // 모기가 많은 날일수록 더 높은 단계까지 열리고, '매우 높음'인 날에만 1,000마리 단계가 열린다
   OPEN_STAGES_BY_LEVEL: [3, 3, 4, 5, 6],
 
   // 스테이지별 난이도. 뒤로 갈수록 마리 수가 많고, 더 멀리서 더 빠르게 도망가며, 명중 범위가 좁아진다
@@ -38,6 +38,29 @@ window.MZ_GAME_CONFIG = {
   FREE_COUNT_BY_LEVEL: [1, 2, 3, 5, 8],
   FREE_COUNT_BY_LEVEL_MOBILE: [1, 1, 2, 3, 5],
   MOBILE_COUNT_SCALE: 0.7,   // 도전 모드에서 휴대폰 동시 마리 수 배율
+
+  // 명중 반경(px). 이 거리 안에 뿌리면 잡힌다. 휴대폰은 손가락이라 조금 넓게 (2026-10-08: 70/56 → 60/46, 너무 쉽다는 의견)
+  HIT_RADIUS: { mobile: 60, desktop: 46 },
+
+  // 모기약 통 (%). 꾹 누르고 문지르면 다 잡히던 문제를 막는다 (2026-10-08)
+  //   한 번 뿌릴 때 cost 만큼 줄고, 1초에 refill 만큼 다시 찬다. 바닥나면 lockMs 동안 못 뿌린다
+  SPRAY: { cost: 12, refill: 32, lockMs: 1000 },
+
+  // 특수 이벤트 (2026-10-08 "특수한 이벤트도 없다" 피드백)
+  EVENTS: {
+    // 황금 모기: 가끔 나오는 빠른 금빛 모기. 도전 중에 잡으면 제한 시간 +bonusSec
+    golden: { chanceRun: 0.08, chanceFree: 0.04, bonusSec: 5, speed: 1.3 },
+    // 연속 잡기: within ms 안에 이어서 잡으면 콤보. every 콤보마다 도전 시간 +bonusSec
+    combo: { withinMs: 1300, every: 5, bonusSec: 2 },
+    // 모기떼 습격: fromStage 단계부터, 목표의 20%를 넘기면 가끔 ms 동안 extra 마리가 더 몰려온다 (1초마다 chance 확률)
+    swarm: { fromStage: 3, chance: 0.05, extra: 3, ms: 6000, speed: 1.15 },
+    // 여왕 모기: fromStage 단계부터 마지막 한 마리는 크고 질긴 여왕 모기. hits 번 맞혀야 잡힌다
+    queen: { fromStage: 2, hits: 3 },
+    // 해질녘: 실제 시각이 이 시간대면 자유 모드 모기가 extra 마리 더 (모기는 해 질 무렵 가장 활발 — 앱 안내와 같은 이야기)
+    dusk: { from: 18, to: 20, extra: 1 },
+    // 갑자기 꺾기: 손가락이 가까이 없어도 가끔 휙 방향을 튼다 (휴대폰은 손가락이 닿기 전엔 모기가 피할 수 없어 쉬웠다)
+    dart: { minMs: 900, maxMs: 2200, power: 5 },
+  },
 
   // 수집형 배지: 누적으로 잡은 수가 need 에 닿으면 받는다. 알 → 장구벌레 → … → 세계적 모기 순으로 자란다
   BADGES: [
