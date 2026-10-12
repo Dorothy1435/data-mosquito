@@ -1102,3 +1102,9 @@ body.tabs .fab-bite { display: none; }
 
 /* 오늘 모기가 가장 많은 때 (일몰·일출 기준, 모델 v5.1) */
 .sun-line { margin-top: 12px; font-size: 16px; font-weight: 600; color: var(--g800); }
+
+/* 직원용 시민 제보 표 (expert.html) */
+.staff-reports-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0; }
+.staff-reports-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.staff-reports-table th, .staff-reports-table td { padding: 10px 12px; border-bottom: 1px solid var(--g200); text-align: left; }
+.staff-reports-table th { font-size: 14px; color: var(--g600); font-weight: 600; }

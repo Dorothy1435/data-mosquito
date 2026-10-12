@@ -19,16 +19,26 @@ create table if not exists public.reports (
   id            bigint generated always as identity primary key,
   created_at    timestamptz not null default now(),
   kind          text not null check (kind in ('mosquito', 'bite', 'breeding')),   -- 모기 봤어요 · 물렸어요 · 고인 물 발견
-  lat           numeric(7, 3) not null check (lat between 35.13 and 35.40),       -- 약 100m 로 반올림한 값
-  lng           numeric(7, 3) not null check (lng between 128.68 and 129.05),
+  lat           numeric(7, 3) check (lat between 35.13 and 35.40),                -- 약 100m 로 반올림한 값. 동 단위 저장이면 비어 있다
+  lng           numeric(7, 3) check (lng between 128.68 and 129.05),
   district      text not null,                                                    -- 김해 17개 읍·면·동 중 가장 가까운 곳
   source        text not null check (source in ('gps', 'pick')),                  -- GPS 동의 / 동네 직접 선택
   photo_label   text check (photo_label in ('흰줄숲모기', '얼룩날개모기', '집모기류', '모기 아님', '알 수 없음')),
+  precision     text not null default 'district' check (precision in ('district', '100m')),   -- 저장한 위치의 자세함
+  bite_when     text check (bite_when in ('방금', '1시간 안', '오늘', '어제')),                -- 물렸어요: 언제
+  bite_count    text check (bite_count in ('1군데', '2~3군데', '4군데 이상')),                 -- 물렸어요: 몇 군데
   -- 보건소 확인 (Mosquito Alert 의 confirmed / probable / not sure 와 같은 3단계 + 반려)
   review        text not null default 'new' check (review in ('new', 'confirmed', 'probable', 'unsure', 'rejected')),
   reviewed_at   timestamptz,
   review_note   text check (char_length(review_note) <= 300)
 );
+
+-- 이미 예전 표를 만든 경우: 아래 줄로 칸을 더한다 (처음 만드는 경우엔 위에서 이미 만들어져 그냥 지나간다)
+alter table public.reports alter column lat drop not null;
+alter table public.reports alter column lng drop not null;
+alter table public.reports add column if not exists precision text not null default 'district' check (precision in ('district', '100m'));
+alter table public.reports add column if not exists bite_when text check (bite_when in ('방금', '1시간 안', '오늘', '어제'));
+alter table public.reports add column if not exists bite_count text check (bite_count in ('1군데', '2~3군데', '4군데 이상'));
 
 create index if not exists reports_created_idx on public.reports (created_at desc);
 create index if not exists reports_district_idx on public.reports (district, created_at desc);

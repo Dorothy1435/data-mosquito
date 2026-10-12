@@ -179,7 +179,10 @@
          거부하거나 위치를 못 찾으면 동네를 직접 고른다.
        · 서버(/api/report)는 저장 스위치가 켜져 있을 때만 저장한다. 꺼져 있으면 이 화면을 연 동안만 지도에 점을 찍는다.
          (저장하는 정식 기능은 위치기반서비스사업 신고, 개인위치정보 이용약관·동의, 보관 기간을 정한 뒤에 연다)
-       · '언제 · 몇 군데'는 지금은 화면에만 보여 주고 서버로 보내지 않는다 (저장 칸이 아직 없다). */
+       · 위치 저장 방식은 서버가 알려 준다(GET /api/report 의 precision).
+           district(기본): 폰 안에서 GPS 를 동 이름으로 바꾸고, 서버에는 동 이름만 보낸다. 좌표는 폰 밖으로 나가지 않는다.
+           100m          : 좌표를 보내고 서버가 약 100m 로 반올림해 저장한다 (위치정보법 절차를 마친 뒤).
+       · '언제 · 몇 군데'도 함께 보낸다 (물렸어요일 때만). */
   const reportMarkers = [];
   const GIMHAE = { minLat: 35.13, maxLat: 35.40, minLng: 128.68, maxLng: 129.05 };
   const KIND_NAME = { mosquito: '모기 봤어요', bite: '물렸어요', breeding: '고인 물 발견' };
@@ -274,7 +277,8 @@
   }
 
   function askWhere() {
-    const keep = storeOn ? '약 100m 단위로 줄여 저장하고 1년 뒤 지워요.' : '아직은 저장하지 않고 내 화면에만 표시해요.';
+    const keep = !storeOn ? '아직은 저장하지 않고 내 화면에만 표시해요.'
+      : (storePrecision === '100m' ? '약 100m 단위로 줄여 저장하고 1년 뒤 지워요.' : '정확한 위치는 보내지 않고 <b>동네 이름만</b> 저장해요. 1년 뒤 지워요.');
     say(`${WHERE_Q[report.kind]}<small>'지금 여기예요'를 누르면 휴대폰 위치(GPS)를 <b>한 번만</b> 써요. ${keep}</small>`);
     choices([
       { label: '📍 지금 여기예요', sub: '위치 1회 사용에 동의', tone: 'red', onPick: useGps },
@@ -300,7 +304,7 @@
       }
       const model = window.GimhaeMosquitoModel;
       const dong = model && model.nearestDistrict ? model.nearestDistrict(lat, lng) : '';
-      Object.assign(report, { lat, lng, source: 'gps', place: `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m` });
+      Object.assign(report, { lat, lng, district: dong || null, source: 'gps', place: `${dong ? dong + ' 근처' : '내 위치'} · 오차 약 ${Math.round(accuracy)}m` });
       say(`위치를 확인했어요. ${dong ? `<b>${dong}</b> 근처예요` : '김해 안이에요'} (오차 약 ${Math.round(accuracy)}m)`);
       afterWhere();
     }, (err) => {
@@ -318,7 +322,7 @@
     say('어느 동네예요?');
     choices(names.map((n) => ({ label: n, onPick: () => {
       const c = model.COORDS[n];
-      Object.assign(report, { lat: c[0], lng: c[1], source: 'pick', place: `${n} (동네 선택)` });
+      Object.assign(report, { lat: c[0], lng: c[1], district: n, source: 'pick', place: `${n} (동네 선택)` });
       afterWhere();
     } })), { grid: true });
   }
@@ -340,7 +344,8 @@
     const stored = Boolean(saved && saved.stored);
     addMarker(stored, mine);
     if (report !== mine) return;   // 보내는 동안 창을 닫았으면 안내는 생략
-    say(stored ? '접수했어요. 보건소가 확인할게요. 고마워요!' : '내 화면의 지도에 표시했어요. 아직 보건소로 보내는 기능은 준비 중이라, 새로고침하면 사라져요.');
+    if (saved && saved.limited) say('제보가 너무 잦아요. 잠시 후 다시 알려 주세요. 이번 것은 내 화면에만 표시했어요.');
+    else say(stored ? `${saved.district || ''} 제보로 접수했어요. 보건소가 확인할게요. 고마워요!` : '내 화면의 지도에 표시했어요. 아직 보건소로 보내는 기능은 준비 중이라, 새로고침하면 사라져요.');
     if (report.kind === 'bite') {
       say('물린 곳은 긁지 말고 차갑게 식혀 주세요. 며칠 안에 열이 나면 병원에서 <b>모기에 물렸다</b>고 꼭 알려 주세요.');
     } else if (report.kind === 'breeding') {
@@ -357,7 +362,11 @@
     try {
       const res = await fetch('/api/report', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: r.kind, lat: r.lat, lng: r.lng, source: r.source }),
+        // 동 단위 저장이면 좌표는 보내지 않는다 (지도 점은 이 화면 안에서만 찍는다)
+        body: JSON.stringify(Object.assign(
+          { kind: r.kind, district: r.district, source: r.source, when: r.when, count: r.count },
+          storePrecision === '100m' ? { lat: r.lat, lng: r.lng } : {},
+        )),
       });
       return await res.json();
     } catch (_) { return null; }
@@ -392,10 +401,12 @@
 
   // 저장 스위치가 켜져 있는지 서버에 물어, 위치 안내 문구를 사실대로 바꾼다
   let storeOn = false;
+  let storePrecision = 'district';   // 서버가 알려 주는 위치 저장 방식 (district · 100m)
   async function checkStore() {
     try {
       const r = await (await fetch('/api/report')).json();
       storeOn = Boolean(r && r.stored);
-    } catch (_) { storeOn = false; }
+      storePrecision = r && r.precision === '100m' ? '100m' : 'district';
+    } catch (_) { storeOn = false; storePrecision = 'district'; }
   }
 }());

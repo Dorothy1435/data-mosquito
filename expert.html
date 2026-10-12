@@ -251,6 +251,21 @@
     </section>
 
     <!-- 모델 안내 (방역 담당자용, 회색 판) -->
+    <!-- 시민 제보 (직원 계정일 때만 보임, 권한은 서버가 확인: api/reports-admin.js, staff-reports.js) -->
+    <section class="s" id="staffReports" hidden aria-labelledby="staffReportsTitle">
+      <div class="wrap">
+        <div class="head"><h2 id="staffReportsTitle">시민 제보</h2><p>물렸어요 · 모기 봤어요 · 고인 물 제보를 동별로 봐요. 보낸 사람 정보는 저장하지 않아요.</p></div>
+        <div class="staff-reports-bar">
+          <label for="staffReportsDays">기간</label>
+          <select id="staffReportsDays" class="sheet-select"><option value="7">최근 7일</option><option value="30" selected>최근 30일</option><option value="90">최근 90일</option><option value="365">최근 1년</option></select>
+          <button type="button" class="btn-main" id="staffReportsLoad">불러오기</button>
+          <button type="button" class="btn-sub" id="staffReportsCsv">CSV 내려받기</button>
+        </div>
+        <p class="dim" id="staffReportsMsg" role="status"></p>
+        <table class="staff-reports-table" id="staffReportsTable"></table>
+      </div>
+    </section>
+
     <section class="s gray" data-audience="expert" aria-labelledby="modelNoteTitle">
       <div class="wrap">
         <div class="head rv">
@@ -358,6 +373,7 @@
   <script src="game-config.js"></script>
   <script src="auth.js"></script>
   <script src="gimhae.js"></script>
+  <script src="staff-reports.js"></script>
   <script src="chat.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>

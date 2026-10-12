@@ -152,6 +152,8 @@
     get lastError() { return lastError; },
     ready, user, profile: () => profile,
     isStaff: () => !!(profile && profile.role === 'staff'),
+    // 직원 전용 서버 함수(api/reports-admin.js)에 보낼 접속 토큰
+    accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signOut, submitRuns, myScore, myBadges, ranking, myRank,
   };
 }());
