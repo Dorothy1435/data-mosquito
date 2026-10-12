@@ -1108,3 +1108,21 @@ body.tabs .fab-bite { display: none; }
 .staff-reports-table { width: 100%; border-collapse: collapse; font-size: 16px; }
 .staff-reports-table th, .staff-reports-table td { padding: 10px 12px; border-bottom: 1px solid var(--g200); text-align: left; }
 .staff-reports-table th { font-size: 14px; color: var(--g600); font-weight: 600; }
+
+/* 방역 내비게이션 (expert.html, control-nav.js) */
+.nav-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; }
+.nav-summary { font-size: 16px; color: var(--g800); margin-bottom: 16px; }
+.nav-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: start; }
+.nav-map { height: 420px; border-radius: 20px; overflow: hidden; background: var(--g100); }
+.nav-route { margin: 12px 0 0; padding: 0; list-style: none; }
+.nav-route li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--g200); }
+.nav-no { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--bite, #E5484D); color: #fff; font-weight: 700; font-size: 14px; }
+.nav-txt { display: grid; flex: 1; min-width: 0; } .nav-txt small { font-size: 14px; color: var(--g600); }
+.nav-go { flex: none; min-height: 44px; }
+.nav-dlist { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+.nav-d { padding: 16px; border-radius: 16px; background: var(--g50); border: 1px solid var(--g200); }
+.nav-d-h { display: flex; justify-content: space-between; align-items: center; font-size: 17px; }
+.nav-score { padding: 2px 10px; border-radius: 999px; background: var(--bite-50, #FFF0F0); color: var(--bite-ink, #C4262E); font-size: 14px; font-weight: 700; }
+.nav-todo { margin: 8px 0 0; padding-left: 18px; font-size: 15px; color: var(--g800); }
+.nav-pin span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #E5484D; color: #fff; font: 700 14px var(--sans); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+@media (max-width: 900px) { .nav-grid { grid-template-columns: 1fr; } .nav-map { height: 320px; } }

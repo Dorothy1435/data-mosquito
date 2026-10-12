@@ -93,6 +93,23 @@
     </section>
 
     <!-- 이 구역 핵심 진단: 발생원 원인 → 권장 방역 조치 (방역 담당자용) -->
+    <!-- 방역 내비게이션: 오늘 모기지수로 어느 동부터·어느 지점으로 갈지 (control-nav.js). 로그인이 켜지면 직원만 보인다 -->
+    <section class="s" id="controlNav" data-audience="expert" aria-labelledby="navTitle">
+      <div class="wrap">
+        <div class="head"><h2 id="navTitle">오늘의 방역 내비게이션</h2><p>오늘 모기지수(모델 v5.1)·발생원·유충 조사·민원으로 우선 동을 고르고, 그 동의 유충 지점을 가까운 순서로 이어 드려요.</p></div>
+        <div class="nav-bar">
+          <label for="navStart">출발</label><select id="navStart" class="sheet-select"></select>
+          <label for="navCount">동 수</label><select id="navCount" class="sheet-select"><option>3</option><option selected>5</option><option>8</option></select>
+        </div>
+        <p class="nav-summary" id="navSummary" role="status">계산하는 중이에요…</p>
+        <div class="nav-grid">
+          <div><div id="navMap" class="nav-map" aria-label="방역 경로 지도"></div><ol class="nav-route" id="navRoute"></ol></div>
+          <ol class="nav-dlist" id="navDistricts"></ol>
+        </div>
+        <p class="dim">우선 점수 = 오늘 모기지수 50% + 발생원 밀도위험 20% + 유충 양성률 15% + 면적당 민원 15%. 거리는 직선거리 어림이고, 길찾기는 카카오맵이 실제 길로 안내해요.</p>
+      </div>
+    </section>
+
     <section class="s" data-audience="expert" aria-labelledby="diagnosisTitle">
       <div class="wrap">
         <div class="head rv">
@@ -373,6 +390,7 @@
   <script src="game-config.js"></script>
   <script src="auth.js"></script>
   <script src="gimhae.js"></script>
+  <script src="control-nav.js"></script>
   <script src="staff-reports.js"></script>
   <script src="chat.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>

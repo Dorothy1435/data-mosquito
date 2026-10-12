@@ -30,6 +30,7 @@
   function markStaffNav() {
     const nav = document.getElementById('primaryNav'); if (!nav) return;
     const staff = !!(profile && profile.role === 'staff');
+    if (nav.querySelector('a[href="expert.html"]:not([data-staff-link])')) return;   // 메뉴에 이미 있으면 (2026-10-12 누구나 보이게)
     let a = nav.querySelector('a[data-staff-link]');
     if (staff && !a) {
       a = document.createElement('a'); a.href = 'expert.html'; a.className = 'lk-pro'; a.dataset.staffLink = '1';
