@@ -292,9 +292,59 @@
     /* --- 엘리트 · 보스 모기 ---
        엘리트: 스킬 1개(순간이동·투명·분신 중 무작위), 여러 번 맞혀야 잡힌다
        보스:   스킬 3개 모두, 체력 막대가 뜨고, 체력이 반 아래로 내려가면 화가 나서 스킬이 빨라진다 */
-    function makeEl() {
-      const el = proto.cloneNode(true);
-      el.removeAttribute('id'); el.hidden = false;
+    /* 엘리트·보스 그림 (일반 모기와 같은 120×80 칸, 머리가 왼쪽)
+       엘리트: 보라 갑옷 줄무늬 · 뿔 두 개 · 빨간 겹눈 · 꼬리 침 · 무늬 날개 · 머리 위에 스킬 표시
+       보스:   크고 뚱뚱한 검붉은 몸 · 등 가시 · 빛나는 마디 · 금관 · 빨간 눈 두 개 · 찢어진 큰 날개 · 긴 침 */
+    const LEGS = '<path d="M52 44 L40 60 L30 74"/><path d="M58 45 L54 63 L50 78"/><path d="M64 45 L70 62 L78 76"/><path d="M50 42 L34 50 L18 54"/><path d="M68 43 L84 54 L100 58"/>';
+    const SKILL_MARK = {
+      blink: '<path d="M60 2 L53 12 L58 12 L54 21 L64 9 L59 9 Z" fill="#FDE047" stroke="#1d1d1f" stroke-width=".8" stroke-linejoin="round"/>',
+      cloak: '<path d="M52 21 V10 a6 6 0 0 1 12 0 V21 l-3-2 -3 2 -3-2 Z" fill="rgba(255,255,255,.75)" stroke="#1d1d1f" stroke-width=".8"/><circle cx="56" cy="11" r="1" fill="#1d1d1f"/><circle cx="60" cy="11" r="1" fill="#1d1d1f"/>',
+      decoy: '<circle cx="55" cy="12" r="5" fill="none" stroke="#A7F3D0" stroke-width="1.8"/><circle cx="61" cy="12" r="5" fill="none" stroke="#fff" stroke-width="1.8"/>',
+    };
+    const LOOKS = {
+      elite: (skill) => `<svg viewBox="0 0 120 80" width="100%" height="100%">
+        <g class="legs" stroke="#2E1065" stroke-width="2.4" fill="none" stroke-linecap="round">${LEGS}</g>
+        <g class="wing w1"><path d="M50 34 C60 8 92 6 96 16 C90 26 70 34 50 36 Z" fill="rgba(196,170,255,.55)" stroke="#6D28D9" stroke-width="1.4"/><path d="M56 32 L88 14 M62 33 L92 20 M68 33 L93 24" stroke="#6D28D9" stroke-width=".9" opacity=".7"/></g>
+        <g class="wing w2"><path d="M50 36 C54 16 76 12 82 20 C76 30 64 34 50 37 Z" fill="rgba(196,170,255,.35)" stroke="#7C3AED" stroke-width="1"/></g>
+        <path d="M58 41 Q80 37 104 47 Q82 55 58 47 Z" fill="#3B2470" stroke="#fff" stroke-width="1.2"/>
+        <path d="M70 40.5 v9 M80 41 v10 M90 43 v8" stroke="#C4B5FD" stroke-width="2.4"/>
+        <path d="M103 46 L114 46.5 L104 49.5 Z" fill="#C4B5FD" stroke="#fff" stroke-width=".6"/>
+        <ellipse cx="54" cy="42" rx="9" ry="7" fill="#2E1065" stroke="#fff" stroke-width="1.2"/>
+        <path d="M47 39 Q54 33 61 39" stroke="#A78BFA" stroke-width="2" fill="none"/>
+        <circle cx="43" cy="40" r="5" fill="#2E1065" stroke="#fff" stroke-width="1.2"/>
+        <path d="M44 35.6 L47.5 27.5 L46.8 36.4 Z M40.6 35.8 L39.5 28 L43 35.4 Z" fill="#C4B5FD" stroke="#fff" stroke-width=".6" stroke-linejoin="round"/>
+        <circle cx="41.5" cy="39.4" r="2.3" fill="#FF3B6B"/><circle cx="40.9" cy="38.7" r=".7" fill="#fff"/>
+        <path d="M39 42 L16 49" stroke="#1d1d1f" stroke-width="2" stroke-linecap="round"/>
+        ${SKILL_MARK[skill] || ''}
+      </svg>`,
+      boss: () => `<svg viewBox="0 0 120 80" width="100%" height="100%">
+        <g class="legs" stroke="#1a0606" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">${LEGS}</g>
+        <g class="wing w1"><path d="M48 33 C52 6 94 2 108 14 L100 17 L105 23 L95 24 L98 30 C80 34 62 35 48 36 Z" fill="rgba(70,12,12,.6)" stroke="#991B1B" stroke-width="1.6"/><path d="M54 32 L96 10 M60 33 L100 20 M66 34 L94 28" stroke="#F87171" stroke-width=".8" opacity=".6"/></g>
+        <g class="wing w2"><path d="M48 35 C52 14 80 10 88 18 L82 22 L86 27 C72 32 60 35 48 37 Z" fill="rgba(70,12,12,.4)" stroke="#991B1B" stroke-width="1.2"/></g>
+        <path d="M56 37 Q84 27 112 46 Q86 63 56 51 Z" fill="#1F0707" stroke="#F87171" stroke-width="1.4"/>
+        <path class="boss-glow" d="M68 35.5 Q71 44 68 54 M80 33 Q83 44 80 57 M92 36 Q95 45 92 55 M103 41 Q105 46 103 51" stroke="#EF4444" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <path d="M62 36 L65 27 L68 35 Z M74 32.5 L78 22 L81.5 32.5 Z M87 34 L91 25 L93.5 36 Z" fill="#7F1D1D" stroke="#F87171" stroke-width="1" stroke-linejoin="round"/>
+        <ellipse cx="51" cy="42" rx="11" ry="9" fill="#2A0B0B" stroke="#F87171" stroke-width="1.4"/>
+        <path d="M43 37 Q51 30 59 37 M44 47 Q51 52 58 47" stroke="#B91C1C" stroke-width="2" fill="none"/>
+        <circle cx="38" cy="41" r="7" fill="#2A0B0B" stroke="#F87171" stroke-width="1.4"/>
+        <path d="M31.5 34.5 L32.5 25.5 L36 30.5 L38.6 23.5 L41.2 30.5 L44.6 25.5 L45.4 34.5 Z" fill="#FACC15" stroke="#A16207" stroke-width="1" stroke-linejoin="round"/>
+        <circle cx="38.6" cy="31" r="1.3" fill="#EF4444"/>
+        <circle class="boss-eye" cx="34.6" cy="39.6" r="2.6" fill="#FF2D2D"/><circle class="boss-eye" cx="40" cy="38.2" r="2.1" fill="#FF2D2D"/>
+        <circle cx="34" cy="39" r=".8" fill="#fff"/><circle cx="39.5" cy="37.6" r=".7" fill="#fff"/>
+        <path d="M32 44 L5 53" stroke="#1a0606" stroke-width="2.8" stroke-linecap="round"/><circle cx="5" cy="53" r="1.9" fill="#EF4444"/>
+      </svg>`,
+    };
+    function makeEl(kind, skill) {
+      let el;
+      if (LOOKS[kind]) {
+        el = document.createElement('div');
+        el.className = 'flyer';
+        el.setAttribute('aria-hidden', 'true');
+        el.innerHTML = LOOKS[kind](skill);   // 이 파일에서 만든 그림만 넣는다
+      } else {
+        el = proto.cloneNode(true);
+        el.removeAttribute('id'); el.hidden = false;
+      }
       card.appendChild(el);
       return el;
     }
@@ -310,12 +360,13 @@
     function addSpecial(kind) {
       const conf = SP[kind];
       const now = performance.now();
-      const f = newFly(makeEl());
+      const keys = Object.keys(SP.SKILLS);
+      const skills = kind === 'boss' ? keys : [keys[Math.floor(Math.random() * keys.length)]];
+      const f = newFly(makeEl(kind, skills[0]));
       spawn(f, now, true);
       f.golden = false; f.queen = 0; setLook(f);
       f.kind = kind; f.hp = conf.hp; f.maxHp = conf.hp; f.size = conf.size; f.rage = false; f.cloakUntil = 0;
-      const keys = Object.keys(SP.SKILLS);
-      f.skills = kind === 'boss' ? keys : [keys[Math.floor(Math.random() * keys.length)]];
+      f.skills = skills;
       f.skillAt = {};
       f.skills.forEach((k) => { f.skillAt[k] = now + skillInterval(f, k) * (0.6 + Math.random() * 0.4); });
       f.el.classList.add('is-' + kind);
@@ -361,7 +412,7 @@
       } else if (key === 'decoy') {
         const n = SP.SKILLS.decoy.count || 2;
         for (let i = 0; i < n; i++) {
-          const d = newFly(makeEl());
+          const d = newFly(makeEl(f.kind, f.skills[0]));   // 진짜와 똑같은 그림
           d.kind = 'decoy'; d.expire = now + SP.SKILLS.decoy.lastMs; d.size = f.size;
           d.x = f.x + (Math.random() - 0.5) * 120; d.y = f.y + (Math.random() - 0.5) * 80;
           d.el.classList.add('is-' + f.kind);   // 진짜와 똑같이 생겼다

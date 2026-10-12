@@ -1084,7 +1084,16 @@ function renderAnalysis(region, weatherData, index, precision) {
 
 // === 오늘의 행동요령 ===
 // 일반(비김해) 지역용 행동요령 — 정밀 모델과 동일한 5단계 기준(0~20·21~40·41~60·61~80·81~100)으로 만든다.
-function generalActionGuide(index) {
+// 모기가 가장 활발한 때: 일몰 직후 3시간 + 일출 전 2시간 (모델 v5.1 과 같은 기준, 그날의 실제 일몰·일출 시각)
+function activeHoursFromSun(sunrise, sunset) {
+  if (!sunrise || !sunset) return '일몰 직후와 새벽에 가장 활발';
+  const set = new Date(sunset);
+  const until = new Date(set.getTime() + 3 * 60 * 60 * 1000);
+  const hm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `일몰(${hm(set)}) 직후~${hm(until)}, 일출(${hm(new Date(sunrise))}) 전 2시간에 가장 활발`;
+}
+
+function generalActionGuide(index, weatherData) {
   const n = Math.round(index);
   const level = n <= 20 ? 1 : (n <= 40 ? 2 : (n <= 60 ? 3 : (n <= 80 ? 4 : 5)));
   const repellent = {
@@ -1094,7 +1103,8 @@ function generalActionGuide(index) {
     4: 'DEET 10~20% 또는 이카리딘 + 긴팔 권장',
     5: 'DEET 20%+ 또는 이카리딘 고농도, 노출 최소화',
   }[level];
-  const activeHours = level >= 2 ? '일몰 직후(19~22시)와 새벽(04~06시)에 가장 활발' : '활동 미약';
+  const w = weatherData || {};
+  const activeHours = level >= 2 ? activeHoursFromSun(w.sunrise, w.sunset) : '활동 미약';
   const tips = {
     1: ['특별한 조치가 필요 없습니다.'],
     2: ['야간 외출 시 가벼운 기피제를 사용하세요.', '집 주변 화분받침·빈 용기의 고인물을 비우세요.'],
@@ -1107,17 +1117,25 @@ function generalActionGuide(index) {
 
 // 게이지 아래 '오늘의 행동요령' 카드를 채운다.
 // 김해 정밀 모델이 있으면 모델이 계산한 맞춤 요령을, 없으면 일반 요령을 쓴다.
-function renderActionGuide(index, precision) {
+function renderActionGuide(index, precision, weatherData) {
   if (!repellentText || !activeHoursText || !actionTips) return;
   const guide = precision
     ? {
         repellent: precision.recommended_repellent,
-        activeHours: precision.active_hours,
+        // v5.1 은 그날 일몰·일출로 시간을 준다. v5 가 아직 안 왔을 때(v4 값)는 같은 기준으로 여기서 계산한다
+        activeHours: /^v5(\.\d+)?$/.test(precision.model_version || '') ? precision.active_hours
+          : activeHoursFromSun((weatherData || {}).sunrise, (weatherData || {}).sunset),
         tips: precision.advice && precision.advice.citizen ? precision.advice.citizen : [],
       }
-    : generalActionGuide(index);
+    : generalActionGuide(index, weatherData);
   repellentText.textContent = guide.repellent;
   activeHoursText.textContent = guide.activeHours;
+  // '지금부터 24시간' 구역에 한 줄로 보여 준다
+  const line = document.getElementById('activeHoursLine');
+  if (line) {
+    line.hidden = !guide.activeHours;
+    line.textContent = guide.activeHours ? `오늘 모기가 가장 많은 때 · ${guide.activeHours}` : '';
+  }
   actionTips.innerHTML = guide.tips.map((tip) => `<li>${tip}</li>`).join('');
 }
 
@@ -1887,7 +1905,7 @@ async function loadAndRenderRegion(region, options = {}) {
   renderHeroSummary(region.name, index, stage, series);
   buildWeatherCards(region, index);
   renderAnalysis(region, weatherData, index, precision);
-  renderActionGuide(index, precision);
+  renderActionGuide(index, precision, weatherData);
   renderOutingIndices(lat, lng, weatherData).catch((error) => console.warn('나들이 지수 표시 실패', error));
   renderCalcDetail(region, weatherData, index, precision);
   renderGimhaeRanking(gimhaeDistrict, weatherData);

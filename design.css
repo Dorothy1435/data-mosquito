@@ -1080,9 +1080,10 @@ body.tabs .fab-bite { display: none; }
 
 /* 엘리트 · 보스 모기 (game.js, 2026-10-08)
    엘리트: 조금 크고 보라빛 · 보스: 아주 크고 검붉은 빛, 화나면 더 붉게 · 분신은 진짜와 같은 모양 */
-.hero-card .flyer.is-elite { width: 182px; height: 122px; filter: hue-rotate(250deg) saturate(3) drop-shadow(0 0 14px rgba(167, 112, 255, .95)); }
-.hero-card .flyer.is-boss { width: 294px; height: 197px; filter: brightness(.55) sepia(1) saturate(6) hue-rotate(-30deg) drop-shadow(0 0 18px rgba(229, 72, 77, .9)); }
-.hero-card .flyer.is-boss.is-rage { filter: brightness(.7) sepia(1) saturate(9) hue-rotate(-35deg) drop-shadow(0 0 26px rgba(255, 40, 40, 1)); }
+.hero-card .flyer.is-elite { width: 182px; height: 122px; filter: drop-shadow(0 0 10px rgba(167, 112, 255, .85)); }
+.hero-card .flyer.is-boss { width: 294px; height: 197px; filter: drop-shadow(0 0 14px rgba(239, 68, 68, .7)); }
+.hero-card .flyer.is-boss.is-rage { filter: drop-shadow(0 0 24px rgba(255, 40, 40, 1)); }
+.hero-card .flyer.is-boss.is-rage .boss-glow, .hero-card .flyer.is-boss.is-rage .boss-eye { fill: #FF5A5A; stroke: #FF8A8A; }
 .hero-card .flyer.is-elite, .hero-card .flyer.is-boss { transition: opacity .25s; }
 .kill-pop.is-elite { background: #8B5CF6; color: #fff; }
 .kill-pop.is-boss { background: #7F1D1D; color: #fff; }
@@ -1098,3 +1099,6 @@ body.tabs .fab-bite { display: none; }
   .hero-card .flyer.is-boss { width: 210px; height: 140px; }
   .gboss { top: 62px; width: calc(100% - 24px); }
 }
+
+/* 오늘 모기가 가장 많은 때 (일몰·일출 기준, 모델 v5.1) */
+.sun-line { margin-top: 12px; font-size: 16px; font-weight: 600; color: var(--g800); }
