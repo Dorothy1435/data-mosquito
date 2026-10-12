@@ -12,7 +12,10 @@
 (function () {
   'use strict';
   const CFG = window.MZ_GAME_CONFIG || {};
-  const SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  // 버전을 정확히 고정하고 무결성 값(SRI)을 붙인다. 외부 서버의 파일이 바뀌면 브라우저가 실행을 거부한다 (2026-10-12 보안 점검)
+  // 버전을 올릴 때는 새 파일의 sha384 값을 다시 계산해 SDK_SRI 도 함께 바꾼다
+  const SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
+  const SDK_SRI = 'sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R';
   let client = null;
   let session = null;
   let profile = null;      // { id, nickname, role }
@@ -52,6 +55,7 @@
     return new Promise((resolve, reject) => {
       if (window.supabase && window.supabase.createClient) { resolve(); return; }
       const s = document.createElement('script'); s.src = SDK_URL; s.async = true;
+      s.integrity = SDK_SRI; s.crossOrigin = 'anonymous';
       s.onload = () => resolve(); s.onerror = () => reject(new Error('sdk'));
       document.head.appendChild(s);
     });

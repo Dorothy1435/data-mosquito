@@ -30,7 +30,7 @@
       const me = A.profile();
       if (!rows.length) { note.className = 'acct-note'; note.textContent = '아직 기록이 없어요. 첫 번째로 이름을 올려 보세요.'; list.innerHTML = ''; return; }
       note.className = 'acct-note';
-      note.innerHTML = A.user() ? (me ? `<b>${me.nickname}</b>님으로 로그인 중. 랭킹은 5분마다 갱신돼요.` : '로그인 중') : '로그인하면 내 순위가 표시돼요. 랭킹은 5분마다 갱신돼요. <a href="me.html">로그인</a>';
+      note.innerHTML = A.user() ? (me ? `<b>${esc(me.nickname)}</b>님으로 로그인 중. 랭킹은 5분마다 갱신돼요.` : '로그인 중') : '로그인하면 내 순위가 표시돼요. 랭킹은 5분마다 갱신돼요. <a href="me.html">로그인</a>';
       list.innerHTML = rows.map((r) => `<li${me && r.nickname === me.nickname ? ' class="me"' : ''}><span class="n">${r.rank}</span><span><span class="who">${esc(r.nickname)}</span><br><span class="rk-sub">최고 ${r.best_stage || 0}단계 · 배지 ${r.badge_count || 0}개</span></span><span class="sc">${n(r.total_kills)}<small>마리</small></span></li>`).join('');
     } catch (e) {
       note.className = 'acct-note warn'; note.textContent = '랭킹을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.';

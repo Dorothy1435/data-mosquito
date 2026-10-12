@@ -11,6 +11,7 @@
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const GROQ_MODEL = process.env.GROQ_MODEL || '';   // 비워 두면 api/_groq.js 가 이 키로 쓸 수 있는 모델을 골라 준다
 const groq = require('./_groq.js');
+const limit = require('./_limit.js');
 // Gemini는 계정마다 되는 모델이 달라, 여러 개를 순차 시도한다.
 const GEMINI_MODELS = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
@@ -61,8 +62,18 @@ const KNOWLEDGE = `
 `;
 
 // 브라우저가 보낸 공원 추천 힌트를 프롬프트용 텍스트로.
-function parksToText(parks) {
-  if (!parks || typeof parks !== 'object') return '';
+// 브라우저가 보낸 글은 그대로 믿지 않는다: 짧은 이름만, 개수 제한
+const clip = (v, n) => String(v == null ? '' : v).replace(/[\r\n<>{}]/g, ' ').slice(0, n);
+const clipList = (v, count, n) => (Array.isArray(v) ? v.slice(0, count).map((x) => clip(x, n)) : []);
+
+function parksToText(parksRaw) {
+  if (!parksRaw || typeof parksRaw !== 'object') return '';
+  const parks = {
+    safe: clipList(parksRaw.safe, 5, 30),
+    risky: parksRaw.risky ? clip(parksRaw.risky, 30) : '',
+    current_district: parksRaw.current_district ? clip(parksRaw.current_district, 12) : '',
+    current_safe: clipList(parksRaw.current_safe, 5, 30),
+  };
   const lines = [];
   if (Array.isArray(parks.safe) && parks.safe.length) lines.push(`- 산책하기 상대적으로 안전한 공원(관리형): ${parks.safe.join(', ')}`);
   if (parks.risky) lines.push(`- 물가·수풀이 많아 주의할 공원: ${parks.risky}`);
@@ -106,6 +117,15 @@ ${parksText || '(공원 데이터 없음)'}
 function districtsToText(districts) {
   if (!Array.isArray(districts) || !districts.length) return '';
   return districts
+    .slice(0, 40)
+    .filter((d) => d && typeof d === 'object')
+    .map((raw) => ({
+      name: clip(raw.name, 12),
+      index: Number.isFinite(Number(raw.index)) ? Math.round(Number(raw.index) * 10) / 10 : '?',
+      grade: clip(raw.grade, 8),
+      density_risk: Number.isFinite(Number(raw.density_risk)) ? Number(raw.density_risk) : '?',
+      top_sources: clipList(raw.top_sources, 3, 20),
+    }))
     .map((d) => {
       const src = Array.isArray(d.top_sources) && d.top_sources.length
         ? ` 주요발생원: ${d.top_sources.join(', ')}` : '';
@@ -212,8 +232,13 @@ module.exports = async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const question = String(body.question || '').slice(0, 500).trim();
     if (!question) { res.status(400).json({ error: '질문이 비어 있습니다.' }); return; }
-    debug = String(body.debug || '') === '1';
-    const systemPrompt = buildSystemPrompt(districtsToText(body.districts), body.today, parksToText(body.parks));
+    debug = limit.debugAllowed(body.debug);
+    // 호출 한도: 한 사람 1분 8번 · 하루 80번, 사이트 전체 하루 3,000번
+    if (!(await limit.allow(req, 'ask', { perMin: 8, perDay: 80, allPerDay: 3000 }))) {
+      res.status(200).json({ ok: false, limited: true, answer: '질문이 많이 몰렸어요. 1분쯤 뒤에 다시 물어봐 주세요 🦟', followups: [] });
+      return;
+    }
+    const systemPrompt = buildSystemPrompt(districtsToText(body.districts), clip(body.today, 20), parksToText(body.parks));
 
     // 이전 대화(멀티턴 기억) — 최근 8개만, 형식/길이 정리
     const history = Array.isArray(body.history) ? body.history

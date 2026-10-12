@@ -50,7 +50,7 @@
     if (!A || A.status === 'loading') { sub.textContent = '서버 확인 중'; return; }
     if (A.status === 'off' || A.status === 'error') {
       name.textContent = '손님'; sub.textContent = '이 기기에만 기록이 남아요'; btns.innerHTML = '';
-      body.innerHTML = `<p class="acct-note warn">회원가입·로그인·랭킹은 준비 중이에요. 서버(Supabase)가 연결되면 열려요. 그때까지도 잡은 수와 배지는 이 기기에 그대로 남아요.${A.status === 'error' ? ' (연결 오류: ' + A.lastError + ')' : ''}</p>`;
+      body.innerHTML = `<p class="acct-note warn">회원가입·로그인·랭킹은 준비 중이에요. 서버(Supabase)가 연결되면 열려요. 그때까지도 잡은 수와 배지는 이 기기에 그대로 남아요.${A.status === 'error' ? ' (지금은 서버에 연결할 수 없어요)' : ''}</p>`;
       return;
     }
     const u = A.user(), p = A.profile();

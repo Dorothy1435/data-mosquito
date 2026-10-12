@@ -12,6 +12,7 @@ const OPENAI_VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
 const GEMINI_VISION_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || '';   // 비워 두면 api/_groq.js 가 이미지를 받는 모델을 골라 준다
 const groq = require('./_groq.js');
+const limit = require('./_limit.js');
 
 const LABELS = ['흰줄숲모기', '얼룩날개모기', '집모기류', '모기 아님', '알 수 없음'];
 
@@ -89,6 +90,11 @@ module.exports = async function handler(req, res) {
     const m = dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
     if (!m) { res.status(400).json({ ok: false, message: '사진 형식을 읽지 못했어요. 다시 찍어 주세요.' }); return; }
     if (m[2].length > 2_000_000) { res.status(413).json({ ok: false, message: '사진이 너무 커요. 다시 찍어 주세요.' }); return; }
+    // 호출 한도: 한 사람 1분 5장 · 하루 40장, 사이트 전체 하루 1,500장
+    if (!(await limit.allow(req, 'identify', { perMin: 5, perDay: 40, allPerDay: 1500 }))) {
+      res.status(200).json({ ok: false, limited: true, message: '사진 판별 요청이 많이 몰렸어요. 잠시 후 다시 시도해 주세요.' });
+      return;
+    }
 
     const chain = [];
     if (openaiKey) chain.push(() => callOpenAICompatible('https://api.openai.com/v1/chat/completions', openaiKey, OPENAI_VISION_MODEL, dataUrl));
@@ -107,7 +113,7 @@ module.exports = async function handler(req, res) {
       try { const result = await fn(); res.status(200).json({ ok: true, ...result }); return; }
       catch (e) { const m = String(e.message || e).slice(0, 200); errors.push(m); console.error('사진 판별 제공자 실패, 다음으로', m); }   // 사진 내용은 기록하지 않는다
     }
-    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.', ...(String(body.debug || '') === '1' ? { errors, groqModels: groqKey ? await groq.availableModels(groqKey) : null, keys: { openai: Boolean(openaiKey), gemini: Boolean(geminiKey), groq: Boolean(groqKey) } } : {}) });
+    res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.', ...(limit.debugAllowed(body.debug) ? { errors, groqModels: groqKey ? await groq.availableModels(groqKey) : null, keys: { openai: Boolean(openaiKey), gemini: Boolean(geminiKey), groq: Boolean(groqKey) } } : {}) });
   } catch (e) {
     res.status(200).json({ ok: false, message: '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.' });
   }

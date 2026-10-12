@@ -12,6 +12,7 @@
 // 누가 보냈는지(IP·기기)는 저장하지 않는다. 오류 기록에도 위치를 남기지 않는다.
 
 const model = require('../mosquito-model.js');
+const limit = require('./_limit.js');
 
 const KINDS = ['mosquito', 'bite', 'breeding'];
 const LABELS = ['흰줄숲모기', '얼룩날개모기', '집모기류', '모기 아님', '알 수 없음'];
@@ -57,6 +58,12 @@ module.exports = async function handler(req, res) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)
     || lat < BOUNDS.minLat || lat > BOUNDS.maxLat || lng < BOUNDS.minLng || lng > BOUNDS.maxLng) {
     res.status(400).json({ ok: false, message: '김해 안에서만 제보할 수 있어요.' }); return;
+  }
+
+  // 반복 제보 막기: 한 사람 1분 3건 · 하루 30건, 사이트 전체 하루 20,000건
+  if (!(await limit.allow(req, 'report', { perMin: 3, perDay: 30, allPerDay: 20000 }))) {
+    res.status(200).json({ ok: false, stored: false, limited: true, message: '제보가 너무 잦아요. 잠시 후 다시 알려 주세요.' });
+    return;
   }
 
   if (!enabled) {
