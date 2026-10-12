@@ -43,6 +43,8 @@
     // 버튼을 누르면 숨겨 둔 파일 입력을 연다 (키보드로도 쓸 수 있게 버튼을 둔다)
     // '카메라로 찍기'는 페이지 안에서 카메라를 바로 연다. 안 되는 기기에서는 휴대폰 기본 카메라(파일 입력)로 넘어간다.
     document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => {
+      // 찍는 동안 AI 모델(처음 한 번 약 30MB)을 미리 받아 둔다
+      if (window.MZPhotoModel) window.MZPhotoModel.load().catch(() => {});
       if (b.dataset.open === 'photoCamera') openCamera();
       else $(b.dataset.open).click();
     }));
@@ -78,9 +80,14 @@
     //    확실하면 그 결과를 보여 주고, '알 수 없음'이면 서버 AI 에 한 번 더 물어본다.
     let local = null;
     if (window.MZPhotoModel) {
-      // 처음엔 엔진(약 14MB)을 받느라 느릴 수 있어 20초까지만 기다리고, 넘으면 서버 AI 로 넘어간다
-      const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 20000));
+      // 처음엔 엔진·모델(약 30MB)을 받느라 느릴 수 있다. 서버 AI 는 사진용 키가 없으면 실패하므로
+      // 폰 모델을 끝까지(최대 90초) 기다리고, 받는 중이면 그렇게 알려 준다
+      const loadingEl = box.querySelector('.ph-loading');
+      const ready = window.MZPhotoModel.isReady && window.MZPhotoModel.isReady();
+      if (loadingEl && !ready) loadingEl.lastChild.textContent = 'AI 준비 중이에요 (처음 한 번만 받아요)';
+      const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 90000));
       try { local = await Promise.race([window.MZPhotoModel.classify(dataUrl), timeout]); } catch (e) { local = null; }
+      if (loadingEl) loadingEl.lastChild.textContent = '사진을 살펴보고 있어요';
       if (mine !== photoSeq) return;
       if (local && local.label !== '알 수 없음') { showResult(local); return; }
     }

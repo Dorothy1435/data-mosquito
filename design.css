@@ -1216,3 +1216,13 @@ body.tabs .fab-bite { display: none; }
   .nav-acts .nav-go { min-height: 52px; font-size: 17px; }
   .nav-d { padding: 14px; }
 }
+
+/* 폰 첫 화면: 소리·골드·도전 버튼이 '경남 한눈에'와 겹치지 않게 (2026-10-12) */
+@media (max-width: 620px) {
+  .ghud { gap: 6px; }
+  .ghud-more { display: none; }
+  .ghud-go { padding: 0 12px 0 10px; }
+  .ghud-btn { min-width: 36px; padding: 0 8px; }
+}
+.ghud-more { font-style: normal; }
+@media (max-width: 374px) { .ghud-go span { display: none; } .ghud-go { padding: 0 10px; } }   /* 아주 작은 폰: 도전은 아이콘만 */

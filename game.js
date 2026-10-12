@@ -187,7 +187,7 @@
     hud.innerHTML = `
       <button type="button" class="ghud-btn" id="gameSound" aria-label="효과음 끄기"></button>
       <button type="button" class="ghud-btn ghud-shop" id="gameShop" aria-label="상점 열기"><span aria-hidden="true">🪙</span><b id="gameGold">0</b></button>
-      <button type="button" class="ghud-go" id="gameGo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>도전</span></button>
+      <button type="button" class="ghud-go" id="gameGo" aria-label="모기 잡기 도전"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>도전</span></button>
       <div class="ghud-run" hidden>
         <span class="ghud-stage"></span>
         <span class="ghud-count"><b>0</b>/0</span>
@@ -573,7 +573,8 @@
       const n = Math.round(idx);
       level = n <= 20 ? 0 : n <= 40 ? 1 : n <= 60 ? 2 : n <= 80 ? 3 : 4;
       if (!run.on) applyFreeCount();
-      goBtn.querySelector('span').textContent = `도전 · ${openStages()}단계까지`;
+      // 폰에서는 '도전'만 보이게 뒷부분을 따로 감싼다 (첫 화면 위 버튼들이 '경남 한눈에'와 겹치지 않게)
+      goBtn.querySelector('span').innerHTML = `도전<em class="ghud-more"> · ${openStages()}단계까지</em>`;
     });
 
     card.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); cx = e.clientX - r.left; cy = e.clientY - r.top; });

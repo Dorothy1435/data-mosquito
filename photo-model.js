@@ -93,5 +93,5 @@
     };
   }
 
-  window.MZPhotoModel = { classify, load };
+  window.MZPhotoModel = { classify, load, isReady: () => Boolean(session) };
 }());
