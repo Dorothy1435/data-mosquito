@@ -1174,3 +1174,45 @@ body.tabs .fab-bite { display: none; }
 .run-status { margin: 0; min-height: 1.4em; font-size: 15px; font-weight: 600; color: var(--g800); }
 .run-rule { margin: 0; }
 @media (max-width: 620px) { .run-card { padding: 18px; } .run-card .run-big { font-size: 46px; } .run-stats { grid-template-columns: 1fr 1fr; } }
+
+/* 방역 내비게이션 현장용 (2026-10-12): 조건 칸 · 도착 예정 · 큰 길찾기 · 완료 체크. 폰 우선 */
+.nav-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0 12px; }
+.nav-f { display: grid; gap: 6px; min-width: 0; font-size: 14px; font-weight: 600; color: var(--g700); }
+.nav-f .sheet-select { width: 100%; min-height: 48px; font-size: 16px; }
+.nav-f small { font-size: 13px; font-weight: 500; color: var(--g500); }
+.nav-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 6px; }
+.nav-tools .btn-main, .nav-tools .btn-sub { min-height: 48px; }
+.nav-progress { font-size: 16px; font-weight: 700; color: #0E9F6E; font-variant-numeric: tabular-nums; }
+.nav-copytext { width: 100%; font: 14px/1.5 ui-monospace, Consolas, monospace; padding: 10px; border: 1px solid var(--g300); border-radius: 12px; }
+.nav-h3 { margin: 0 0 10px; font-size: 18px; }
+.nav-route li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 0; }
+.nav-route .nav-no { margin-top: 2px; }
+.nav-txt { display: grid; gap: 2px; }
+.nav-txt b { font-size: 17px; }
+.nav-eta { font-size: 15px; font-weight: 700; color: var(--g900); font-variant-numeric: tabular-nums; }
+.nav-txt .nav-do { color: var(--g800); }
+.nav-acts { display: grid; gap: 8px; justify-items: stretch; min-width: 104px; }
+.nav-acts .nav-go { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; }
+.nav-check { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 10px; border-radius: 12px; background: var(--g100); font-size: 15px; font-weight: 600; cursor: pointer; }
+.nav-check input { width: 22px; height: 22px; accent-color: #0E9F6E; }
+.nav-route li.is-done { opacity: .55; }
+.nav-route li.is-done .nav-no { background: #0E9F6E; }
+.nav-route li.is-done .nav-txt b { text-decoration: line-through; }
+.nav-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.nav-flags span { padding: 3px 10px; border-radius: 999px; background: #FDECEC; color: #B42318; font-size: 14px; font-weight: 700; }
+.nav-flags.is-none span { background: var(--g100); color: var(--g600); }
+.nav-pin.nav-start span { width: 44px; border-radius: 10px; background: #191F28; font-size: 13px; }
+.nav-rules { margin-top: 16px; }
+.nav-rules ul { padding-left: 18px; font-size: 15px; color: var(--g800); }
+@media (max-width: 900px) {
+  .nav-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .nav-form { gap: 10px; }
+  .nav-tools .btn-main { flex: 1 1 100%; }
+  .nav-map { height: 300px; border-radius: 16px; }
+  .nav-route li { grid-template-columns: 30px minmax(0, 1fr); }
+  .nav-acts { grid-column: 1 / -1; grid-template-columns: 1fr auto; }   /* 길찾기는 넓게, 완료는 옆에 */
+  .nav-acts .nav-go { min-height: 52px; font-size: 17px; }
+  .nav-d { padding: 14px; }
+}

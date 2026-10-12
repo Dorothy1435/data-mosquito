@@ -96,17 +96,37 @@
     <!-- 방역 내비게이션: 오늘 모기지수로 어느 동부터·어느 지점으로 갈지 (control-nav.js). 로그인이 켜지면 직원만 보인다 -->
     <section class="s" id="controlNav" data-audience="expert" aria-labelledby="navTitle">
       <div class="wrap">
-        <div class="head"><h2 id="navTitle">오늘의 방역 내비게이션</h2><p>오늘 모기지수(모델 v5.1)·발생원·유충 조사·민원으로 우선 동을 고르고, 그 동의 유충 지점을 가까운 순서로 이어 드려요.</p></div>
-        <div class="nav-bar">
-          <label for="navStart">출발</label><select id="navStart" class="sheet-select"></select>
-          <label for="navCount">동 수</label><select id="navCount" class="sheet-select"><option>3</option><option selected>5</option><option>8</option></select>
+        <div class="head"><h2 id="navTitle">오늘의 방역 내비게이션</h2><p>방역 기준을 넘은 동을 고르고, 그 동에서 유충이 많이 나온 지점을 실제 도로 순서로 이어 드려요. 도착 예정 시각을 보고 길찾기를 눌러 출발하세요.</p></div>
+        <div class="nav-form">
+          <label class="nav-f"><span>방역 종류</span><select id="navMode" class="sheet-select"><option value="larva">유충 구제 (낮)</option><option value="adult">성충 연무 (해 질 무렵)</option></select></label>
+          <label class="nav-f"><span>출발지</span><select id="navStart" class="sheet-select"></select></label>
+          <label class="nav-f"><span>출발 시각</span><input type="time" id="navTime" class="sheet-select" aria-describedby="navTimeHint"><small id="navTimeHint">비우면 지금</small></label>
+          <label class="nav-f"><span>지점당 작업</span><select id="navWork" class="sheet-select"><option value="10">10분</option><option value="15" selected>15분</option><option value="20">20분</option><option value="30">30분</option></select></label>
+          <label class="nav-f"><span>고르는 방식</span><select id="navPick" class="sheet-select"><option value="rule">방역 기준을 넘은 동</option><option value="top">우선 점수 상위</option></select></label>
+          <label class="nav-f"><span>상위 동 수</span><select id="navCount" class="sheet-select"><option>3</option><option selected>5</option><option>8</option></select></label>
+          <label class="nav-f"><span>길찾기 앱</span><select id="navApp" class="sheet-select"><option value="kakao">카카오맵</option><option value="naver">네이버 지도 (폰 앱)</option></select></label>
         </div>
         <p class="nav-summary" id="navSummary" role="status">계산하는 중이에요…</p>
-        <div class="nav-grid">
-          <div><div id="navMap" class="nav-map" aria-label="방역 경로 지도"></div><ol class="nav-route" id="navRoute"></ol></div>
-          <ol class="nav-dlist" id="navDistricts"></ol>
+        <div class="nav-tools">
+          <button type="button" class="btn-main" id="navCopy">작업 목록 복사 (단톡방용)</button>
+          <span class="nav-progress" id="navProgress"></span>
+          <button type="button" class="btn-sub" id="navReset">완료 체크 지우기</button>
         </div>
-        <p class="dim">우선 점수 = 오늘 모기지수 50% + 발생원 밀도위험 20% + 유충 양성률 15% + 면적당 민원 15%. 거리는 직선거리 어림이고, 길찾기는 카카오맵이 실제 길로 안내해요.</p>
+        <p class="dim" id="navCopyMsg" role="status"></p>
+        <textarea id="navCopyText" class="nav-copytext" rows="6" hidden aria-label="복사할 작업 목록"></textarea>
+        <div class="nav-grid">
+          <div class="nav-left"><div id="navMap" class="nav-map" aria-label="방역 경로 지도"></div><ol class="nav-route" id="navRoute"></ol></div>
+          <div class="nav-right"><h3 class="nav-h3">고른 동과 이유</h3><ol class="nav-dlist" id="navDistricts"></ol></div>
+        </div>
+        <details class="more nav-rules"><summary>방역 기준과 계산 방법</summary>
+          <ul>
+            <li><b>방역 대상 기준</b>: 오늘 모기지수 61점 이상(높음)이면 대상. 또는 오늘 41점 이상(보통)이면서 유충 조사 양성률 50% 이상(조사 5곳 이상)이나 면적당 민원 상위 3분의 1이면 대상. 유충·민원은 날마다 바뀌지 않아 그것만으로는 고르지 않아요. 하루 최대 8개 동. <b>초안이며 보건소와 확정할 값</b>이에요.</li>
+            <li><b>순서</b>: 우선 점수 = 오늘 모기지수 50% + 발생원 밀도위험 20% + 유충 양성률 15% + 면적당 민원 15%.</li>
+            <li><b>지점</b>: 동마다 유충 조사 지점(누적 993곳) 중 '양성률 × 유충 수'가 큰 2곳. 지난 조사 자료라 현장 확인이 필요해요.</li>
+            <li><b>경로</b>: OpenStreetMap 도로로 길을 찾는 공개 경로 서버(OSRM)로 도로 기준 순서·거리·운전 시간을 계산해요(시험용 서버라 정식 운영 땐 카카오·네이버 길찾기 API로 바꿀 예정). 실패하면 직선 거리로 어림해요.</li>
+            <li><b>출발지</b>: 김해시보건소 위치는 OpenStreetMap 기준(분성로)이라 담당자 확인이 필요해요. 주소는 지도 자료에서 찾은 근처 주소예요.</li>
+          </ul>
+        </details>
       </div>
     </section>
 
