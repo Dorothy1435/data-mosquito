@@ -2113,6 +2113,27 @@ function buildGimhaeSourceLayer(weatherData) {
   return layer;
 }
 
+// 지도를 김해 전체에 맞춘다.
+// 폰에서는 '우리 동네' 탭이 숨어 있을 때 지도 크기가 0이라 맞추면 최대 확대(골목 수준)가 된다.
+// 그래서 숨어 있으면 표시만 해 두고, 탭이 보일 때(tab:shown) 다시 맞춘다.
+let mapFitPending = false;
+function fitMapToGimhae() {
+  if (!map) return;
+  if (!map.getContainer().offsetWidth) { mapFitPending = true; return; }
+  mapFitPending = false;
+  map.fitBounds([
+    [GIMHAE_BOUNDS.minLat, GIMHAE_BOUNDS.minLng],
+    [GIMHAE_BOUNDS.maxLat, GIMHAE_BOUNDS.maxLng],
+  ], { padding: [20, 20] });
+}
+document.addEventListener('tab:shown', (event) => {
+  if (event.detail.tab !== 'town' || !map) return;
+  setTimeout(() => {
+    map.invalidateSize();
+    if (mapFitPending) fitMapToGimhae();
+  }, 80);
+});
+
 // 발생원 히트맵을 켜고 끈다. 처음 켤 때 김해 날씨를 한 번만 받아 17개 구역에 적용한다.
 async function toggleGimhaeHeatmap() {
   if (!map || !window.GimhaeMosquitoModel) {
@@ -2148,10 +2169,7 @@ async function toggleGimhaeHeatmap() {
 
   gimhaeSourceLayer = buildGimhaeSourceLayer(gimhaeLayerWeather).addTo(map);
   // 김해 영역으로 지도를 맞춰 히트맵이 잘 보이게 한다.
-  map.fitBounds([
-    [GIMHAE_BOUNDS.minLat, GIMHAE_BOUNDS.minLng],
-    [GIMHAE_BOUNDS.maxLat, GIMHAE_BOUNDS.maxLng],
-  ], { padding: [20, 20] });
+  fitMapToGimhae();
 
   if (heatmapButton) {
     heatmapButton.textContent = '김해 발생원 히트맵 끄기';
