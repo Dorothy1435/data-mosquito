@@ -1,0 +1,12 @@
+{
+  "appId": "com.mosquitozero.app",
+  "appName": "모기제로",
+  "webDir": "app-shell",
+  "server": {
+    "url": "https://mosquito-zero.vercel.app/?source=android",
+    "errorPath": "index.html"
+  },
+  "android": {
+    "backgroundColor": "#ffffff"
+  }
+}

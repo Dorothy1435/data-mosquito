@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기제로</title>
+  <!-- 안드로이드 앱 안에서 사이트를 열지 못했을 때(인터넷 끊김 등) 보여 주는 화면.
+       앱은 평소에 실제 사이트(capacitor.config.json 의 server.url)를 연다. -->
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+           font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; background: #fff; color: #191f28; text-align: center; }
+    img { width: 72px; height: 72px; border-radius: 18px; }
+    h1 { margin: 20px 0 8px; font-size: 22px; }
+    p { margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #4e5968; }
+    button { min-height: 52px; padding: 0 28px; border: 0; border-radius: 14px; background: #3182f6; color: #fff; font-size: 17px; font-weight: 700; }
+    button:focus-visible { outline: 3px solid #191f28; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="logo-icon.png" alt="모기제로 로고">
+    <h1>인터넷에 연결되지 않았어요</h1>
+    <p>모기지수는 실시간 날씨로 계산해서 인터넷이 필요해요.<br>와이파이나 데이터를 켠 뒤 다시 시도해 주세요.</p>
+    <button type="button" onclick="location.href='https://mosquito-zero.vercel.app/?source=android'">다시 시도</button>
+  </main>
+</body>
+</html>

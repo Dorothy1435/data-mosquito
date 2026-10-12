@@ -26,6 +26,19 @@ CLI를 사용할 경우 예시는 다음과 같습니다.
 vercel
 ```
 
+## 안드로이드 앱 (Capacitor) — 2026-10-12
+
+웹사이트를 그대로 안드로이드 앱 안에서 연다. 앱은 실제 사이트(`https://mosquito-zero.vercel.app`)를 불러오므로 사이트를 고치면 앱도 자동으로 최신이 된다.
+
+* `capacitor.config.json`: 앱 이름·패키지 이름(`com.mosquitozero.app`)·여는 주소
+* `app-shell/index.html`: 인터넷이 끊겨 사이트를 못 열 때 보여 주는 화면
+* `android/`: 안드로이드 스튜디오 프로젝트. 위치·카메라 권한은 `android/app/src/main/AndroidManifest.xml`
+* Node.js 는 앱을 만들 때만 쓰고(`npx cap ...`), 사이트에는 들어가지 않는다. `.vercelignore` 로 `android/` 는 사이트에 올리지 않는다.
+
+실행: 안드로이드 스튜디오 → Open → `android` 폴더 → 위쪽 기기 선택 → ▶ Run.
+설정을 바꾼 뒤에는 `npx cap sync android` 를 한 번 실행한다.
+명령줄 빌드: `cd android && ./gradlew assembleDebug` (결과: `android/app/build/outputs/apk/debug/app-debug.apk`).
+
 ## 화면 디자인 v17 "토스 + 애플" (2026-09-29, 현재)
 
 - toss.im 과 apple.com/kr 을 실제로 스크롤하며 캡처해 비교한 뒤 만들었습니다. 참고 캡처는 `docs/reference/` 에 있습니다.

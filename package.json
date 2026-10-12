@@ -5,5 +5,10 @@
   "description": "모기지수 생활환경 정보 웹앱",
   "scripts": {
     "dev": "npx serve ."
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
   }
 }
