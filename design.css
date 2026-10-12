@@ -1233,3 +1233,5 @@ body.tabs .fab-bite { display: none; }
 .run-link:hover { background: #E0F7EC; }
 .run-link:focus-visible { outline: 3px solid #0E9F6E; outline-offset: 2px; }
 .doc .h-row.run-first { margin-top: 8px; }
+/* 폰 상단: 전문가용(방패) 버튼을 내 기록(별) 옆에 */
+@media (max-width: 900px) { body.tabs .me-top + .me-top { margin-left: 8px; } }
