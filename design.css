@@ -1151,3 +1151,26 @@ body.tabs .fab-bite { display: none; }
 .gcoil { position: absolute; z-index: 2; width: calc(var(--r) * 2); height: calc(var(--r) * 2); margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(230, 230, 230, .45) 0%, rgba(200, 200, 200, .25) 55%, transparent 72%); animation: gcoil var(--ms) ease-out forwards; }
 @keyframes gcoil { 0% { transform: scale(.4); opacity: 0; } 15% { transform: scale(1); opacity: 1; } 80% { opacity: .9; } 100% { transform: scale(1.1); opacity: 0; } }
 @media (max-width: 620px) { .ghud-btn { min-width: 36px; min-height: 36px; font-size: 13px; padding: 0 8px; } .shop-item { grid-template-columns: 40px minmax(0, 1fr); } .shop-item > :last-child { grid-column: 1 / -1; justify-self: end; } }
+
+/* 뛰어런 (me.html, runner.js) */
+.run-card { display: grid; gap: 16px; margin-top: 16px; padding: 24px; border-radius: 24px; background: var(--g50); border: 1.5px solid var(--g200); }
+.run-card.is-on { border-color: #0E9F6E; background: #EEFBF5; }
+.run-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.run-card .k { margin: 0; font-size: 14px; color: var(--g600); }
+.run-card .run-big { margin: 4px 0 0; font-size: 56px; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--g900); }
+.run-card .run-big small { margin-left: 6px; font-size: 20px; font-weight: 700; }
+.run-state { margin: 0; padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 700; background: var(--g200); color: var(--g700); }
+.run-state[data-state="run"] { background: #0E9F6E; color: #fff; }
+.run-state[data-state="walk"] { background: #FFF1D6; color: #8A5A00; }
+.run-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.run-stats > div { padding: 12px; border-radius: 14px; background: #fff; }
+.run-stats .v { margin: 4px 0 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--g900); }
+.run-stats .v small { font-size: 14px; font-weight: 600; margin-left: 2px; }
+.run-opt { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; color: var(--g800); }
+.run-opt input { width: 22px; height: 22px; accent-color: #0E9F6E; }
+.run-btn { min-height: 60px; font-size: 19px; background: #0E9F6E; }
+.run-btn:hover { background: #0B7A55; }
+.run-btn.is-on { background: var(--g900); }
+.run-status { margin: 0; min-height: 1.4em; font-size: 15px; font-weight: 600; color: var(--g800); }
+.run-rule { margin: 0; }
+@media (max-width: 620px) { .run-card { padding: 18px; } .run-card .run-big { font-size: 46px; } .run-stats { grid-template-columns: 1fr 1fr; } }

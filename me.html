@@ -64,6 +64,27 @@
       <div><p class="k">오늘 도전</p><p class="v" id="stToday">0<small>회</small></p></div>
     </div>
 
+    <!-- 뛰어런: 슬로우 조깅 이상만 걸음으로 센다 (runner.js) -->
+    <div class="h-row"><h2 id="run">뛰어런</h2><span class="dim">땀 나는 걸음만 세요</span></div>
+    <p>모기는 땀과 숨에 끌려요. 그래서 걷기는 빼고 <b>슬로우 조깅 이상</b>으로 뛴 걸음만 세요. 뛰는 동안 화면은 켜 둘게요.</p>
+    <section class="run-card" id="runCard" aria-labelledby="run">
+      <div class="run-top">
+        <div><p class="k">오늘 뛴 걸음</p><p class="run-big"><span id="runSteps">0</span><small>걸음</small></p></div>
+        <p class="run-state" id="runState" data-state="off" aria-live="polite">대기</p>
+      </div>
+      <div class="run-stats">
+        <div><p class="k">발걸음 빠르기</p><p class="v"><span id="runCad">-</span><small>/분</small></p></div>
+        <div><p class="k">뛴 시간</p><p class="v" id="runTime">0분</p></div>
+        <div><p class="k">거리</p><p class="v" id="runKm">0.00km</p></div>
+        <div><p class="k">이번 주</p><p class="v"><span id="runWeek">0</span><small>걸음</small></p></div>
+      </div>
+      <label class="run-opt"><input type="checkbox" id="runGps" checked> 위치(GPS)로 거리 재기 · 자전거·차 거르기 <span class="dim">(이 폰 안에서만 써요)</span></label>
+      <button type="button" class="btn-main run-btn" id="runBtn">뛰기 시작</button>
+      <p class="run-status" id="runStatus" role="status"></p>
+      <p class="dim run-rule" id="runRule"></p>
+      <p class="dim">화면을 끄거나 다른 앱으로 가면 휴대폰이 센서를 멈춰서 그동안은 세지 못해요(돌아오면 이어서 세요). 화면이 꺼져도 세는 기능은 앱 버전에서 준비하고 있어요. 랭킹은 로그인이 열리면 함께 올라가요.</p>
+    </section>
+
     <div class="h-row"><h2 id="badges">배지 9개</h2><a href="index.html#flow">모기 잡으러 가기</a></div>
     <p>누적으로 잡은 수가 기준에 닿으면 받아요. 도전에 실패해도 잡은 수는 그대로 쌓여요.</p>
     <div class="bdg-grid" id="bdgGrid"></div>
@@ -97,6 +118,7 @@
   <script src="auth.js"></script>
   <script src="nav.js"></script>
   <script src="mobile-tabs.js"></script>
+  <script src="runner.js"></script>
   <script src="me.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
