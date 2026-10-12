@@ -1126,3 +1126,28 @@ body.tabs .fab-bite { display: none; }
 .nav-todo { margin: 8px 0 0; padding-left: 18px; font-size: 15px; color: var(--g800); }
 .nav-pin span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #E5484D; color: #fff; font: 700 14px var(--sans); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
 @media (max-width: 900px) { .nav-grid { grid-template-columns: 1fr; } .nav-map { height: 320px; } }
+
+/* 모기 잡기 상점·소리 버튼·무기 효과 (game.js, 2026-10-12) */
+.ghud-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 40px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .16); color: #fff; font: 700 14px var(--sans); cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.ghud-btn:hover { background: rgba(255, 255, 255, .26); }
+.ghud-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.ghud-shop b { font-variant-numeric: tabular-nums; }
+.egg-shop .egg-card { width: min(540px, 100%); max-height: calc(100% - 24px); overflow-y: auto; }
+.shop-list { display: grid; gap: 8px; margin: 12px 0 4px; padding: 0; list-style: none; text-align: left; }
+.shop-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--g50); border: 1.5px solid var(--g200); }
+.shop-item.is-on { border-color: var(--blue); background: var(--blue-50); }
+.shop-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; }
+.shop-txt { display: grid; min-width: 0; color: var(--g900); }
+.shop-txt b { font-size: 16px; } .shop-txt small { font-size: 14px; color: var(--g600); line-height: 1.45; }
+.shop-item .btn-main, .shop-item .btn-sub { min-height: 44px; padding: 0 14px; font-size: 15px; white-space: nowrap; }
+.shop-item .btn-main[disabled] { opacity: .45; cursor: not-allowed; }
+.shop-on { font-size: 14px; font-weight: 700; color: var(--blue-ink); white-space: nowrap; }
+/* 무기별 분사 모양 */
+.puff.w-racket i { background: rgba(255, 230, 90, .95); box-shadow: 0 0 12px rgba(255, 220, 60, .9); }
+.puff.w-laser i { width: 8px; height: 8px; left: -4px; top: -4px; background: rgba(255, 70, 70, .95); box-shadow: 0 0 10px rgba(255, 60, 60, .9); }
+.puff.w-fogger i { width: 20px; height: 20px; left: -10px; top: -10px; background: rgba(200, 255, 230, .8); }
+.puff.w-coil i { background: rgba(220, 220, 220, .85); }
+/* 모기향 연기 */
+.gcoil { position: absolute; z-index: 2; width: calc(var(--r) * 2); height: calc(var(--r) * 2); margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1); border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(230, 230, 230, .45) 0%, rgba(200, 200, 200, .25) 55%, transparent 72%); animation: gcoil var(--ms) ease-out forwards; }
+@keyframes gcoil { 0% { transform: scale(.4); opacity: 0; } 15% { transform: scale(1); opacity: 1; } 80% { opacity: .9; } 100% { transform: scale(1.1); opacity: 0; } }
+@media (max-width: 620px) { .ghud-btn { min-width: 36px; min-height: 36px; font-size: 13px; padding: 0 8px; } .shop-item { grid-template-columns: 40px minmax(0, 1fr); } .shop-item > :last-child { grid-column: 1 / -1; justify-self: end; } }

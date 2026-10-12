@@ -62,6 +62,20 @@ window.MZ_GAME_CONFIG = {
     dart: { minMs: 900, maxMs: 2200, power: 5 },
   },
 
+  // 골드: 잡을 때마다 받고, 상점에서 무기를 산다 (2026-10-12). 엘리트는 10마리 분, 보스는 50마리 분
+  GOLD: { normal: 1, golden: 5, elite: 10, boss: 50, stageClear: 10 },   // stageClear: 도전 성공 시 단계 × 이 값
+
+  // 무기 (상점). range 명중 범위 배율 · cost 한 번 뿌릴 때 통 소모 배율 · refill 통 차는 속도 배율 · sound 소리 종류
+  //   coil(모기향): 누른 자리에 ms 동안 연기, 반경 안에 들어온 모기를 잡는다. cooldownMs 마다 한 번
+  // 랭킹은 '잡은 마리 수'라 무기가 좋아도 서버 검사(분당 상한)는 그대로 적용된다
+  WEAPONS: [
+    { id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, sound: 'spray', text: '기본 무기. 누르면 약이 퍼져요.' },
+    { id: 'racket', name: '전기 모기채', price: 300, range: 1.5, cost: 1.8, refill: 1, sound: 'zap', text: '잡는 범위 1.5배. 대신 전기를 많이 써서 금방 바닥나요.' },
+    { id: 'fogger', name: '대형 분무기', price: 600, range: 1.2, cost: 0.5, refill: 1.6, sound: 'fog', text: '통이 커서 오래 뿌려요. 범위 1.2배.' },
+    { id: 'coil', name: '모기향', price: 1000, range: 1, cost: 1, refill: 1, sound: 'coil', coil: { radius: 110, ms: 3000, cooldownMs: 9000 }, text: '누른 자리에 3초 동안 연기가 퍼져 들어온 모기를 잡아요. 9초마다.' },
+    { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 0.75, cost: 0.35, refill: 2, sound: 'laser', text: '범위는 좁지만 거의 끝없이 쏠 수 있어요.' },
+  ],
+
   // 엘리트 · 보스 모기 (2026-10-08). 이 화면에서 일반 모기를 잡은 수가 기준에 닿으면 나온다
   //   엘리트: eliteEvery 마리마다, 스킬 1개(아래 셋 중 무작위), hp 번 맞혀야 잡힌다
   //   보스:   bossEvery 마리마다(그때는 엘리트 대신), 스킬 3개 모두, 체력이 rageAt 아래로 내려가면 스킬이 빨라진다
