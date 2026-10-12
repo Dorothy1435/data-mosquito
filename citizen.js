@@ -66,19 +66,33 @@
     identify(dataUrl);
   }
 
+  let photoSeq = 0;   // 사진마다 번호. 늦게 끝난 옛 사진 결과가 새 사진 결과를 덮지 않게
   async function identify(dataUrl) {
+    const mine = ++photoSeq;
     const box = $('photoBox');
     box.dataset.state = 'loading';
     $('photoPreview').src = dataUrl;
     box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
+    // 1) 자체 모델(photo-model.js)을 폰 안에서 먼저 돌린다. 사진이 밖으로 나가지 않는다.
+    //    확실하면 그 결과를 보여 주고, '알 수 없음'이면 서버 AI 에 한 번 더 물어본다.
+    let local = null;
+    if (window.MZPhotoModel) {
+      // 처음엔 엔진(약 14MB)을 받느라 느릴 수 있어 20초까지만 기다리고, 넘으면 서버 AI 로 넘어간다
+      const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 20000));
+      try { local = await Promise.race([window.MZPhotoModel.classify(dataUrl), timeout]); } catch (e) { local = null; }
+      if (mine !== photoSeq) return;
+      if (local && local.label !== '알 수 없음') { showResult(local); return; }
+    }
+    // 2) 서버 AI (키가 있을 때). 실패하면 자체 모델의 '알 수 없음' 결과라도 보여 준다
     try {
       const res = await fetch('/api/identify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
       const data = await res.json().catch(() => ({}));
-      if (!data.ok) { showError(data.message || '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
+      if (mine !== photoSeq) return;
+      if (!data.ok) { if (local) showResult(local); else showError(data.message || '지금은 사진을 판별하지 못했어요. 잠시 후 다시 시도해 주세요.'); return; }
       showResult(data);
     } catch (e) {
-      showError('인터넷 연결을 확인하고 다시 시도해 주세요.');
+      if (local) showResult(local); else showError('인터넷 연결을 확인하고 다시 시도해 주세요.');
     }
   }
 
@@ -157,7 +171,7 @@
     const reasons = (r.reasons || []).map((t) => `<li>${escapeHtml(t)}</li>`).join('');
     $('photoBox').dataset.state = 'done';
     $('photoResult').innerHTML = `
-      <p class="pr-k">AI가 본 결과 · 참고용</p>
+      <p class="pr-k">${r.source === 'device' ? '모기제로 AI가 폰 안에서 본 결과 · 참고용' : 'AI가 본 결과 · 참고용'}</p>
       <h3 class="pr-name tone-${info.tone}">${escapeHtml(r.label)}</h3>
       <p class="pr-conf">${conf}</p>
       <p class="pr-what">${info.what}</p>

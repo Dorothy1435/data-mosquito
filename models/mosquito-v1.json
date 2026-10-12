@@ -1,0 +1,26 @@
+{
+ "name": "mosquito-v1",
+ "labels": [
+  "흰줄숲모기",
+  "얼룩날개모기",
+  "집모기류",
+  "모기 아님"
+ ],
+ "size": 224,
+ "mean": [
+  0.485,
+  0.456,
+  0.406
+ ],
+ "std": [
+  0.229,
+  0.224,
+  0.225
+ ],
+ "crop": 0.87,
+ "unsure_below": 0.6,
+ "test_accuracy": 0.8724,
+ "trained": "2026-10-12",
+ "data": "iNaturalist 연구 등급 공개 사진(CC0·CC BY·CC BY-NC), 분류마다 약 600장. 출처 목록 models/mosquito-v1-credits.csv",
+ "note": "작은빨간집모기·빨간집모기는 공개 사진이 부족해 집모기류로 묶었다. 참고용 판별이며 의학적 판단이 아니다."
+}

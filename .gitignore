@@ -16,3 +16,8 @@ __pycache__/
 # 작업용 임시 폴더
 scratchpad/
 scratchpad_inspect.txt
+
+# 사진 판별 모델 학습용 (가상환경·내려받은 사진·학습 중간 결과는 올리지 않음)
+ml/.venv/
+ml/data/
+ml/runs/
