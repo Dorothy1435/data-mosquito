@@ -30,8 +30,10 @@ UA = {'User-Agent': 'mosquito-zero-research/1.0 (Gimhae public health; contact v
 CLASSES = {
     '흰줄숲모기': [('Aedes albopictus', 1.0)],
     '얼룩날개모기': [('Anopheles', 1.0)],
-    '집모기류': [('Culex', 1.0)],
-    '모기아님': [('Tipulidae', 0.5), ('Chironomidae', 0.3), ('Psychodidae', 0.2)],   # 각다귀 · 깔따구 · 나방파리
+    '집모기류': [('1096295', 0.7), ('Culex', 0.3)],   # 빨간집모기 무리 위주 (화면 이름 '빨간집모기 무리')
+    # 모기와 닮은 곤충 + 모기가 아닌 흔한 사진(풀·꽃·다른 벌레). 아무 사진이나 모기라고 하지 않게 (v2, 2026-10-12)
+    '모기아님': [('Tipulidae', 0.25), ('Chironomidae', 0.15), ('Psychodidae', 0.1), ('Muscidae', 0.1), ('Formicidae', 0.08),
+             ('Araneae', 0.08), ('Lepidoptera', 0.06), ('Apidae', 0.06), ('Coleoptera', 0.06), ('Plantae', 0.06)],
 }
 LICENSES = 'cc0,cc-by,cc-by-nc'
 
@@ -43,9 +45,15 @@ def get_json(url):
 
 
 def taxon_id(name):
+    if str(name).isdigit():   # 분류군 번호를 바로 쓴 경우 (예: 1096295 = Culex pipiens complex)
+        return int(name)
     j = get_json('https://api.inaturalist.org/v1/taxa?' + urllib.parse.urlencode({'q': name, 'per_page': 5}))
     for t in j.get('results', []):
         if t.get('name', '').lower() == name.lower():
+            return t['id']
+    # 'Culex pipiens complex' 처럼 이름 뒤에 등급이 붙은 경우
+    for t in j.get('results', []):
+        if name.lower().startswith(t.get('name', '').lower()) and t.get('name'):
             return t['id']
     raise SystemExit(f'분류군을 찾지 못함: {name}')
 
@@ -99,10 +107,14 @@ def download(item, folder):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--per', type=int, default=600, help='분류마다 받을 사진 수')
+    ap.add_argument('--only', default='', help='이 분류만 받기 (쉼표로 여러 개)')
     args = ap.parse_args()
     os.makedirs(DATA, exist_ok=True)
     credits = []
+    only = [x for x in args.only.split(',') if x]
     for label, parts in CLASSES.items():
+        if only and label not in only:
+            continue
         folder = os.path.join(DATA, 'images', label)
         os.makedirs(folder, exist_ok=True)
         items = []
@@ -120,7 +132,14 @@ def main():
                 ok += 1
                 credits.append({'label': label, 'file': os.path.relpath(pth, DATA).replace('\\', '/'), **it})
         print(f'  → {label}: {ok}장 저장', flush=True)
-    with open(os.path.join(DATA, '출처.csv'), 'w', newline='', encoding='utf-8-sig') as f:
+    # 이번에 받은 분류의 출처만 바꾸고 나머지는 그대로 둔다
+    old = []
+    path = os.path.join(DATA, '출처.csv')
+    if only and os.path.exists(path):
+        with open(path, encoding='utf-8-sig') as f:
+            old = [r for r in csv.DictReader(f) if r['label'] not in only]
+    credits = old + credits
+    with open(path, 'w', newline='', encoding='utf-8-sig') as f:
         w = csv.DictWriter(f, fieldnames=['label', 'file', 'obs_id', 'taxon', 'license', 'attribution', 'place', 'url'])
         w.writeheader()
         w.writerows(credits)

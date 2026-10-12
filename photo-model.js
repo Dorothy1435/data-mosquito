@@ -83,11 +83,12 @@
     const [top, ti] = order[0];
     const [second, si] = order[1];
     const pct = (p) => `${Math.round(p * 100)}%`;
+    const show = (l) => (l === '집모기류' ? '빨간집모기 무리' : l);
     const unsure = top < (meta.unsure_below || 0.6);
     return {
       label: unsure ? '알 수 없음' : meta.labels[ti],
       confidence: top >= 0.85 ? '높음' : (top >= 0.6 ? '보통' : '낮음'),
-      reasons: [`가장 가까운 것: ${meta.labels[ti]} ${pct(top)}`, `두 번째 후보: ${meta.labels[si]} ${pct(second)}`],
+      reasons: [`가장 가까운 것: ${show(meta.labels[ti])} ${pct(top)}`, `두 번째 후보: ${show(meta.labels[si])} ${pct(second)}`],
       photoTip: unsure ? '모기가 화면 가운데에 크게, 밝은 곳에서 흔들리지 않게 다시 찍어 주세요.' : '',
       source: 'device',
     };

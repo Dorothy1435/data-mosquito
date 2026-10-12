@@ -27,7 +27,7 @@
   const INFO = {
     '흰줄숲모기': { tone: 'warn', what: '낮에도 무는 모기예요. 풀숲과 공원에 많아요.', disease: '뎅기열 · 지카바이러스를 옮길 수 있어요', todo: '화분 받침 · 폐타이어에 고인 물을 비워 주세요.' },
     '얼룩날개모기': { tone: 'warn', what: '앉을 때 몸을 비스듬히 세우는 모기예요.', disease: '말라리아를 옮길 수 있어요', todo: '물린 뒤 열이 나면 병원에 가서 모기에 물렸다고 알려 주세요.' },
-    '집모기류': { tone: 'info', what: '밤에 집 안으로 들어오는 가장 흔한 갈색 모기예요. 빨간집모기인지 작은빨간집모기인지는 사진으로 구분하기 어려워요.', disease: '작은빨간집모기는 일본뇌염을 옮길 수 있어요', todo: '방충망을 점검하고, 어린이는 일본뇌염 예방접종을 확인하세요.' },
+    '집모기류': { tone: 'info', name: '빨간집모기 무리', what: '집 안에서 흔히 보는 빨간집모기와 같은 집모기 무리예요. 밤에 집 안으로 들어와 물어요.', disease: '빨간집모기는 웨스트나일열, 같은 무리인 작은빨간집모기는 일본뇌염을 옮길 수 있어요', todo: '주둥이 가운데에 흰 띠가 보이면 작은빨간집모기(일본뇌염)예요. 논·축사 근처라면 일본뇌염 예방접종을 확인하고, 방충망을 점검하세요.' },
     '모기 아님': { tone: 'ok', what: '모기가 아닌 곤충으로 보여요. 다리가 아주 긴 큰 곤충(각다귀)은 사람을 물지 않아요.', disease: '', todo: '' },
     '알 수 없음': { tone: 'none', what: '사진으로는 알아보기 어려워요.', disease: '', todo: '' },
   };
@@ -179,7 +179,7 @@
     $('photoBox').dataset.state = 'done';
     $('photoResult').innerHTML = `
       <p class="pr-k">${r.source === 'device' ? '모기제로 AI가 폰 안에서 본 결과 · 참고용' : 'AI가 본 결과 · 참고용'}</p>
-      <h3 class="pr-name tone-${info.tone}">${escapeHtml(r.label)}</h3>
+      <h3 class="pr-name tone-${info.tone}">${escapeHtml(info.name || r.label)}</h3>
       <p class="pr-conf">${conf}</p>
       <p class="pr-what">${info.what}</p>
       ${info.disease ? `<p class="pr-dz">${info.disease}</p>` : ''}

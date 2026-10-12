@@ -1226,3 +1226,10 @@ body.tabs .fab-bite { display: none; }
 }
 .ghud-more { font-style: normal; }
 @media (max-width: 374px) { .ghud-go span { display: none; } .ghud-go { padding: 0 10px; } }   /* 아주 작은 폰: 도전은 아이콘만 */
+
+/* 홈 '챙길 것' 아래 뛰어런 바로가기, 내 기록 화면 맨 위 뛰어런 */
+.run-link { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; min-height: 52px; padding: 0 18px; border-radius: 16px; background: #EEFBF5; border: 1.5px solid #0E9F6E; color: #0B7A55; font-size: 17px; font-weight: 700; text-decoration: none; }
+.run-link small { font-size: 14px; font-weight: 500; color: var(--g700); }
+.run-link:hover { background: #E0F7EC; }
+.run-link:focus-visible { outline: 3px solid #0E9F6E; outline-offset: 2px; }
+.doc .h-row.run-first { margin-top: 8px; }
