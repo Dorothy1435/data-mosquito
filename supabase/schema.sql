@@ -39,6 +39,8 @@ alter table public.reports alter column lng drop not null;
 alter table public.reports add column if not exists precision text not null default 'district' check (precision in ('district', '100m'));
 alter table public.reports add column if not exists bite_when text check (bite_when in ('방금', '1시간 안', '오늘', '어제'));
 alter table public.reports add column if not exists bite_count text check (bite_count in ('1군데', '2~3군데', '4군데 이상'));
+-- 예전 표에 좌표(100m)로 저장된 줄은 저장 방식을 바로잡는다
+update public.reports set precision = '100m' where lat is not null and precision = 'district';
 
 create index if not exists reports_created_idx on public.reports (created_at desc);
 create index if not exists reports_district_idx on public.reports (district, created_at desc);

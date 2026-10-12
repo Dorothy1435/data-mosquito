@@ -22,7 +22,7 @@
       const r = await fetch(`/api/reports-admin?days=${days}`, { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json();
       if (!j.ok) { msg.textContent = j.message || '불러오지 못했어요.'; table.innerHTML = ''; return; }
-      msg.textContent = `최근 ${j.days}일 제보 ${j.total.toLocaleString('ko-KR')}건 (동 단위, 보낸 사람 정보 없음)`;
+      msg.textContent = `최근 ${j.days}일 제보 ${j.total.toLocaleString('ko-KR')}건${j.truncated ? ' (너무 많아 최근 것만 보여요. 기간을 줄여 주세요)' : ''} (동 단위, 보낸 사람 정보 없음)`;
       const rows = Object.entries(j.byDistrict).sort((a, b) => (b[1].bite || 0) - (a[1].bite || 0));
       table.innerHTML = rows.length
         ? `<thead><tr><th>동</th><th>${KIND_KO.bite}</th><th>${KIND_KO.mosquito}</th><th>${KIND_KO.breeding}</th></tr></thead><tbody>${

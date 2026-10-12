@@ -586,10 +586,12 @@
     async function ask(question, fromChip) {
       addMsg('user', question);
 
-      // 인사·감사·도움말 같은 짧은 말만 미리 써 둔 답으로 바로 (나머지는 오늘 화면 정보와 함께 AI 로)
-      if (fromChip || question.length <= 6) {
+      // 추천 버튼: 미리 써 둔 답으로 바로 (AI 호출·한도를 쓰지 않는다). 단 오늘·지금 상황을 묻는 버튼은 화면 값으로 답하게 AI 로.
+      // 직접 입력: 인사·감사·도움말만 미리 써 둔 답, 나머지는 오늘 화면 정보와 함께 AI 로.
+      const needsToday = /오늘|지금|내일|이번\s*주|산책|나들이|외출|공원|위험해|몇\s*시/.test(question);
+      if ((fromChip && !needsToday) || question.length <= 6) {
         const faq = faqAnswer(question);
-        if (faq && /^(안녕|고마|감사|도움|뭐\s*할|ㅎㅇ|하이|hi|hello)/i.test(question.trim())) {
+        if (faq && (fromChip || /^(안녕|고마|감사|도움|뭐\s*할|ㅎㅇ|하이|hi|hello)/i.test(question.trim()))) {
           addMsg('bot', faq.a);
           remember(question, faq.a);
           setSuggest(diversify(faq.f, question));
@@ -598,10 +600,13 @@
         }
       }
       // 반복 질문: 세션 캐시
-      if (apiCache[question]) {
-        addMsg('bot', apiCache[question].answer);
-        remember(question, apiCache[question].answer);
-        setSuggest(diversify(apiCache[question].seed, question));
+      // 같은 질문이라도 보는 곳·점수·시각이 바뀌면 답이 달라지므로 그 값까지 열쇠에 넣는다
+      const pageNow = buildPageContext();
+      const cacheKey = `${question}|${pageNow ? `${pageNow.place}|${pageNow.index}` : ''}|${new Date().getHours()}`;
+      if (apiCache[cacheKey]) {
+        addMsg('bot', apiCache[cacheKey].answer);
+        remember(question, apiCache[cacheKey].answer);
+        setSuggest(diversify(apiCache[cacheKey].seed, question));
         log.scrollTop = log.scrollHeight;
         return;
       }
@@ -622,7 +627,7 @@
             districts: buildDistrictSnapshot(),
             parks: parkHints(),
             today: todayStr(),
-            page: buildPageContext(),
+            page: pageNow,
           }),
         });
         const data = await res.json();
@@ -631,7 +636,7 @@
           const ans = data.answer || '죄송해요, 답을 가져오지 못했어요.';
           loading.textContent = ans;
           remember(question, ans);
-          apiCache[question] = { answer: ans, seed: data.followups };
+          apiCache[cacheKey] = { answer: ans, seed: data.followups };
           setSuggest(diversify(data.followups, question));
         } else {
           // API 실패 → 로컬 FAQ로 폴백(있으면)

@@ -44,7 +44,7 @@
 
   let larvaPoints = [];
   let map = null, layer = null;
-  let start = null;   // { lat, lng, label }
+  let userStart = null;   // 사용자가 고른 출발점 { lat, lng, label }. 비어 있으면 그때그때 1순위 동
 
   function km(a, b) {
     const R = 6371, toR = (d) => (d * Math.PI) / 180;
@@ -141,10 +141,8 @@
     const count = Number($('navCount').value) || 5;
     const { rows, activeHours } = rankDistricts();
     const picked = rows.slice(0, count);
-    if (!start) {
-      const c = M.COORDS[picked[0].district];
-      start = { lat: c[0], lng: c[1], label: `${picked[0].district} 중심` };
-    }
+    const first = M.COORDS[picked[0].district];
+    const start = userStart || { lat: first[0], lng: first[1], label: `${picked[0].district} 중심` };
     const stops = picked.flatMap((r) => stopsIn(r.district));
     const { route, totalKm } = orderStops(stops, start);
     const minutes = Math.round((totalKm / CITY_KMH) * 60);
@@ -171,10 +169,10 @@
       return `<li><span class="nav-no">${i + 1}</span><span class="nav-txt"><b>${esc(s.name)}</b><small>${detail} · 앞 지점에서 ${s.legKm.toFixed(1)}km</small></span><a class="btn-sub nav-go" href="${link}" target="_blank" rel="noopener">길찾기</a></li>`;
     }).join('');
 
-    drawMap(route);
+    drawMap(route, start);
   }
 
-  function drawMap(route) {
+  function drawMap(route, start) {
     if (typeof L === 'undefined' || !$('navMap')) return;
     if (!map) {
       map = L.map('navMap', { scrollWheelZoom: false });
@@ -204,11 +202,11 @@
       if (v === 'gps') {
         if (!navigator.geolocation) { $('navSummary').textContent = '이 기기에서는 위치를 쓸 수 없어요.'; return; }
         $('navSummary').textContent = '위치를 확인하는 중이에요…';
-        navigator.geolocation.getCurrentPosition((p) => { start = { lat: p.coords.latitude, lng: p.coords.longitude, label: '내 위치' }; plan(); },
+        navigator.geolocation.getCurrentPosition((p) => { userStart = { lat: p.coords.latitude, lng: p.coords.longitude, label: '내 위치' }; plan(); },
           () => { $('navSummary').textContent = '위치를 찾지 못했어요. 출발 동을 골라 주세요.'; }, { enableHighAccuracy: true, timeout: 12000 });
         return;
       }
-      if (v) { const c = M.COORDS[v]; start = { lat: c[0], lng: c[1], label: `${v} 중심` }; } else start = null;
+      if (v) { const c = M.COORDS[v]; userStart = { lat: c[0], lng: c[1], label: `${v} 중심` }; } else userStart = null;
       plan();
     });
     $('navCount').addEventListener('change', plan);

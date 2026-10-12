@@ -488,7 +488,7 @@
       });
       // 엘리트·보스·분신 (배열이 바뀌므로 복사본으로 돈다)
       extras.slice().forEach((f) => {
-        if (f.dead) return;
+        if (f.dead || !extras.includes(f)) return;   // 같은 뿌리기에서 먼저 지워진 분신은 건너뛴다
         const d = Math.hypot(px - f.x, py - f.y);
         if (d > hitR * (f.size || 1)) {
           if (d < 200) { const k = (1 - d / 200) * 10; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; }

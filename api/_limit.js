@@ -9,6 +9,10 @@
 const crypto = require('crypto');
 
 const memory = new Map();   // 키 → { n, reset }
+// IP 해시에 섞는 비밀값. 서버 환경변수 LIMIT_SALT 를 넣으면 여러 서버가 같은 키로 함께 센다.
+// 없으면 이 서버가 켜질 때 무작위로 만든다(코드에 적힌 값을 쓰면 해시를 IP 로 되돌릴 수 있어서)
+const SALT = process.env.LIMIT_SALT || crypto.randomBytes(16).toString('hex');
+let dbDownUntil = 0;        // DB 함수가 없거나 실패하면 잠시 DB 를 건너뛴다
 
 function clientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
@@ -19,7 +23,7 @@ function clientIp(req) {
 // IP 를 그대로 두지 않고 '날짜 + 비밀값'과 섞은 해시로 바꾼다 (다음 날이면 다른 값)
 function anonId(req) {
   const day = new Date().toISOString().slice(0, 10);
-  return crypto.createHash('sha256').update(`${day}|${process.env.LIMIT_SALT || 'mosquito-zero'}|${clientIp(req)}`).digest('hex').slice(0, 24);
+  return crypto.createHash('sha256').update(`${day}|${SALT}|${clientIp(req)}`).digest('hex').slice(0, 24);
 }
 
 function memoryHit(key, windowSec, max) {
@@ -35,16 +39,16 @@ function memoryHit(key, windowSec, max) {
 async function dbHit(key, windowSec, max) {
   const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
   const svc = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !svc) return null;
+  if (!url || !svc || Date.now() < dbDownUntil) return null;
   try {
     const r = await fetch(`${url}/rest/v1/rpc/api_limit_hit`, {
       method: 'POST',
       headers: { apikey: svc, Authorization: `Bearer ${svc}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ p_key: key, p_window: windowSec, p_max: max }),
     });
-    if (!r.ok) return null;
+    if (!r.ok) { dbDownUntil = Date.now() + 10 * 60 * 1000; return null; }   // 표·함수가 아직 없으면 10분간 메모리로만
     return (await r.json()) === true;
-  } catch (_) { return null; }
+  } catch (_) { dbDownUntil = Date.now() + 10 * 60 * 1000; return null; }
 }
 
 /**
@@ -58,11 +62,14 @@ async function allow(req, name, rules) {
     [`${name}:d:${id}`, 86400, rules.perDay],
     [`${name}:all`, 86400, rules.allPerDay],
   ].filter((c) => c[2]);
-  const results = await Promise.all(checks.map(async ([key, win, max]) => {
-    const ok = await dbHit(key, win, max);
-    return ok === null ? memoryHit(key, win, max) : ok;
-  }));
-  return results.every(Boolean);
+  // 한 사람 1분 → 한 사람 하루 → 전체 순서로 보고, 막히면 그 뒤 카운터는 올리지 않는다
+  // (한 사람이 수천 번 눌러도 사이트 전체 한도를 다 써 버리지 못하게)
+  for (const [key, win, max] of checks) {
+    const db = await dbHit(key, win, max);
+    const ok = db === null ? memoryHit(key, win, max) : db;
+    if (!ok) return false;
+  }
+  return true;
 }
 
 // 디버그 정보(오류 원문·모델 목록)는 서버 비밀값 DEBUG_TOKEN 을 아는 사람에게만 보여 준다

@@ -56,11 +56,18 @@ module.exports = async function handler(req, res) {
   const days = Math.min(365, Math.max(1, parseInt(q.days, 10) || 30));
   const since = new Date(Date.now() - days * 86400000).toISOString();
   try {
-    const r = await fetch(`${db.url}/rest/v1/reports?select=${COLS.join(',')}&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=${MAX_ROWS}`, {
-      headers: { apikey: db.key, Authorization: `Bearer ${db.key}` },
-    });
-    if (!r.ok) { res.status(200).json({ ok: false, message: '제보를 불러오지 못했어요. (표를 만들었는지 확인해 주세요)' }); return; }
-    const rows = await r.json();
+    // Supabase 는 한 번에 최대 1,000줄을 준다 → 1,000줄씩 나눠서 MAX_ROWS 까지 받는다
+    const rows = [];
+    for (let offset = 0; offset < MAX_ROWS; offset += 1000) {
+      const r = await fetch(`${db.url}/rest/v1/reports?select=${COLS.join(',')}&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000&offset=${offset}`, {
+        headers: { apikey: db.key, Authorization: `Bearer ${db.key}` },
+      });
+      if (!r.ok) { res.status(200).json({ ok: false, message: '제보를 불러오지 못했어요. (표를 만들었는지 확인해 주세요)' }); return; }
+      const page = await r.json();
+      rows.push(...page);
+      if (page.length < 1000) break;
+    }
+    const truncated = rows.length >= MAX_ROWS;
     if (q.format === 'csv') {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="mosquito-reports-${days}d.csv"`);
@@ -73,7 +80,7 @@ module.exports = async function handler(req, res) {
       const d = byDistrict[row.district] || (byDistrict[row.district] = { bite: 0, mosquito: 0, breeding: 0 });
       d[row.kind] = (d[row.kind] || 0) + 1;
     });
-    res.status(200).json({ ok: true, days, total: rows.length, byDistrict, rows: rows.slice(0, 200) });
+    res.status(200).json({ ok: true, days, total: rows.length, truncated, byDistrict, rows: rows.slice(0, 200) });
   } catch (_) {
     res.status(200).json({ ok: false, message: '제보를 불러오지 못했어요.' });
   }
