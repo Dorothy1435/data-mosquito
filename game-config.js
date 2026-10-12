@@ -62,6 +62,24 @@ window.MZ_GAME_CONFIG = {
     dart: { minMs: 900, maxMs: 2200, power: 5 },
   },
 
+  // 엘리트 · 보스 모기 (2026-10-08). 이 화면에서 일반 모기를 잡은 수가 기준에 닿으면 나온다
+  //   엘리트: eliteEvery 마리마다, 스킬 1개(아래 셋 중 무작위), hp 번 맞혀야 잡힌다
+  //   보스:   bossEvery 마리마다(그때는 엘리트 대신), 스킬 3개 모두, 체력이 rageAt 아래로 내려가면 스킬이 빨라진다
+  //   size 크기 배율(명중 범위도 함께 커진다) · speed 속도 배율 · bonusSec 도전 중에 잡으면 늘어나는 시간
+  SPECIAL: {
+    eliteEvery: 10,
+    bossEvery: 50,
+    maxElites: 2,
+    elite: { name: '엘리트 모기', hp: 3, size: 1.3, speed: 1.15, bonusSec: 3 },
+    boss: { name: '보스 모기', hp: 12, size: 2.1, speed: 0.85, bonusSec: 10, rageAt: 0.5, rageFaster: 0.6 },
+    // 스킬: everyMs 엘리트가 쓰는 간격, bossMs 보스가 쓰는 간격, lastMs 효과가 이어지는 시간
+    SKILLS: {
+      blink: { name: '순간이동', everyMs: 2600, bossMs: 2000 },               // 다른 자리로 휙 옮겨 간다
+      cloak: { name: '투명', everyMs: 4200, bossMs: 3600, lastMs: 1400 },     // 잠깐 거의 안 보이고, 그동안은 맞지 않는다
+      decoy: { name: '분신', everyMs: 5200, bossMs: 4400, lastMs: 3500, count: 2 },   // 똑같이 생긴 가짜를 만든다 (가짜는 맞히면 사라짐)
+    },
+  },
+
   // 수집형 배지: 누적으로 잡은 수가 need 에 닿으면 받는다. 알 → 장구벌레 → … → 세계적 모기 순으로 자란다
   BADGES: [
     { id: 'egg', name: '알', need: 10, title: '알 수집가', text: '모기는 고인 물 위에 알을 낳아요. 알 10개 분량, 첫 배지예요.' },

@@ -33,13 +33,15 @@
       // 예전 버전('mz-kills' 에 잡은 수만 저장)에서 이어받는다
       let old = 0;
       try { old = parseInt(localStorage.getItem('mz-kills') || '0', 10) || 0; } catch (e) { old = 0; }
-      s = { kills: Math.max(0, old), bestStage: 0, badges: [], today: { date: todayKey(), runs: 0 }, history: [], pending: [], golden: 0 };
+      s = { kills: Math.max(0, old), bestStage: 0, badges: [], today: { date: todayKey(), runs: 0 }, history: [], pending: [], golden: 0, elites: 0, bosses: 0 };
     }
     if (!s.today || s.today.date !== todayKey()) s.today = { date: todayKey(), runs: 0 };
     s.badges = Array.isArray(s.badges) ? s.badges : [];
     s.history = Array.isArray(s.history) ? s.history : [];
     s.pending = Array.isArray(s.pending) ? s.pending : [];
     s.golden = Number(s.golden) || 0;   // 잡은 황금 모기 수
+    s.elites = Number(s.elites) || 0;   // 잡은 엘리트 모기 수
+    s.bosses = Number(s.bosses) || 0;   // 잡은 보스 모기 수
     return s;
   }
   const state = loadState();
@@ -84,6 +86,10 @@
     let cx = null, cy = null;             // 모기약(마우스) 위치
     let level = null;                     // 오늘 모기지수 단계 (0~4)
     const flies = [];
+    // 엘리트·보스와 그 분신은 일반 모기(flies)와 따로 둔다. 일반 모기 수(setCount)에 섞이지 않게
+    const SP = CFG.SPECIAL || null;
+    const extras = [];
+    let baseKills = 0;   // 이 화면에서 잡은 일반 모기 수 (엘리트·보스 등장 기준)
     card.classList.add('spray');
 
     // 도전 상태
@@ -112,6 +118,11 @@
     tankEl.innerHTML = '<span>모기약</span><i><b></b></i>';
     card.appendChild(tankEl);
     const tankBar = tankEl.querySelector('b');
+    const bossBar = document.createElement('div');
+    bossBar.className = 'gboss';
+    bossBar.hidden = true;
+    bossBar.innerHTML = '<p><b>보스 모기</b><span></span></p><i><b></b></i>';
+    card.appendChild(bossBar);
     const goBtn = hud.querySelector('#gameGo');
     const runBox = hud.querySelector('.ghud-run');
     const stageEl = hud.querySelector('.ghud-stage');
@@ -150,6 +161,7 @@
       const cnt = Math.max(1, Math.round(diff.count * (small ? (CFG.MOBILE_COUNT_SCALE || 0.7) : 1)));
       run.base = cnt; run.needQueen = false; run.swarmUntil = 0; run.swarmCheckAt = run.startAt + 1000;
       combo = 0; tank = 100; tankLockUntil = 0;
+      clearExtras();
       flies.forEach((f) => { f.queen = 0; setLook(f); });
       setCount(cnt);
       goBtn.hidden = true; runBox.hidden = false; if (hint) hint.hidden = true;
@@ -172,6 +184,7 @@
       card.classList.remove('in-run');
       run.needQueen = false; run.swarmUntil = 0;
       flies.forEach((f) => { f.queen = 0; setLook(f); });
+      clearExtras();
       goBtn.hidden = false; runBox.hidden = true;
       if (success) state.bestStage = Math.max(state.bestStage, run.stage);
       const rec = { stage: run.stage, kills: run.caught, ms, ok: !!success, at: new Date().toISOString() };
@@ -276,6 +289,89 @@
       card.appendChild(pop);
       setTimeout(() => pop.remove(), 1200);
     }
+    /* --- 엘리트 · 보스 모기 ---
+       엘리트: 스킬 1개(순간이동·투명·분신 중 무작위), 여러 번 맞혀야 잡힌다
+       보스:   스킬 3개 모두, 체력 막대가 뜨고, 체력이 반 아래로 내려가면 화가 나서 스킬이 빨라진다 */
+    function makeEl() {
+      const el = proto.cloneNode(true);
+      el.removeAttribute('id'); el.hidden = false;
+      card.appendChild(el);
+      return el;
+    }
+    function newFly(el) {
+      return { el, phase: Math.random() * 10, x: 0, y: 0, vx: 0, vy: 0, gx: 0, gy: 0, nextPick: 0, dead: 0, spin: 0, alpha: 1, face: 1, entering: false, golden: false, queen: 0, dartAt: 0 };
+    }
+    function skillInterval(f, key) {
+      const k = SP.SKILLS[key];
+      let ms = f.kind === 'boss' ? k.bossMs : k.everyMs;
+      if (f.rage) ms *= SP.boss.rageFaster || 0.6;
+      return ms;
+    }
+    function addSpecial(kind) {
+      const conf = SP[kind];
+      const now = performance.now();
+      const f = newFly(makeEl());
+      spawn(f, now, true);
+      f.golden = false; f.queen = 0; setLook(f);
+      f.kind = kind; f.hp = conf.hp; f.maxHp = conf.hp; f.size = conf.size; f.rage = false; f.cloakUntil = 0;
+      const keys = Object.keys(SP.SKILLS);
+      f.skills = kind === 'boss' ? keys : [keys[Math.floor(Math.random() * keys.length)]];
+      f.skillAt = {};
+      f.skills.forEach((k) => { f.skillAt[k] = now + skillInterval(f, k) * (0.6 + Math.random() * 0.4); });
+      f.el.classList.add('is-' + kind);
+      extras.push(f);
+      const names = f.skills.map((k) => SP.SKILLS[k].name).join(' · ');
+      banner(`${conf.name} 등장! 스킬: ${names}`);
+      if (kind === 'boss') updateBossBar(f);
+    }
+    function updateBossBar(f) {
+      const boss = f || extras.find((x) => x.kind === 'boss' && !x.dead);
+      bossBar.hidden = !boss;
+      if (!boss) return;
+      bossBar.querySelector('i b').style.width = Math.max(0, (boss.hp / boss.maxHp) * 100).toFixed(0) + '%';
+      bossBar.querySelector('span').textContent = `${boss.hp}/${boss.maxHp}${boss.rage ? ' · 화났어요!' : ''}`;
+      bossBar.classList.toggle('is-rage', Boolean(boss.rage));
+    }
+    function removeExtra(f) {
+      const i = extras.indexOf(f);
+      if (i >= 0) extras.splice(i, 1);
+      f.el.remove();
+    }
+    function clearExtras() {
+      while (extras.length) removeExtra(extras[0]);
+      updateBossBar(null);
+    }
+    // 일반 모기를 잡을 때마다 불러, 기준 수에 닿으면 엘리트나 보스를 내보낸다
+    function maybeSpawnSpecial() {
+      if (!SP) return;
+      const bossOut = extras.some((x) => x.kind === 'boss' && !x.dead);
+      if (baseKills % SP.bossEvery === 0) { if (!bossOut) addSpecial('boss'); return; }
+      const elites = extras.filter((x) => x.kind === 'elite' && !x.dead).length;
+      if (baseKills % SP.eliteEvery === 0 && !bossOut && elites < (SP.maxElites || 2)) addSpecial('elite');
+    }
+    function useSkill(f, key, now) {
+      const W = card.clientWidth, H = card.clientHeight;
+      if (key === 'blink') {
+        puff(f.x, f.y);
+        f.x = W * (0.12 + Math.random() * 0.76); f.y = H * (0.12 + Math.random() * 0.6);
+        f.vx = 0; f.vy = 0; pick(f, now);
+        puff(f.x, f.y);
+      } else if (key === 'cloak') {
+        f.cloakUntil = now + SP.SKILLS.cloak.lastMs;
+      } else if (key === 'decoy') {
+        const n = SP.SKILLS.decoy.count || 2;
+        for (let i = 0; i < n; i++) {
+          const d = newFly(makeEl());
+          d.kind = 'decoy'; d.expire = now + SP.SKILLS.decoy.lastMs; d.size = f.size;
+          d.x = f.x + (Math.random() - 0.5) * 120; d.y = f.y + (Math.random() - 0.5) * 80;
+          d.el.classList.add('is-' + f.kind);   // 진짜와 똑같이 생겼다
+          pick(d, now);
+          extras.push(d);
+        }
+        // 분신을 만들면서 진짜도 자리를 바꾼다 (어느 게 진짜인지 헷갈리게)
+        f.vx += (Math.random() - 0.5) * 20; f.vy += (Math.random() - 0.5) * 20;
+      }
+    }
     function addFly(fromEdge) {
       const el = flies.length ? proto.cloneNode(true) : proto;
       if (el !== proto) { el.removeAttribute('id'); card.appendChild(el); }
@@ -339,6 +435,28 @@
         }
         if (d < 200) { const k = (1 - d / 200) * 14; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; }
       });
+      // 엘리트·보스·분신 (배열이 바뀌므로 복사본으로 돈다)
+      extras.slice().forEach((f) => {
+        if (f.dead) return;
+        const d = Math.hypot(px - f.x, py - f.y);
+        if (d > hitR * (f.size || 1)) {
+          if (d < 200) { const k = (1 - d / 200) * 10; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; }
+          return;
+        }
+        if (f.cloakUntil > now) { popAt(f.x, f.y - 30, '안 보여요!', 'is-empty'); return; }   // 투명할 땐 맞지 않는다
+        if (f.kind === 'decoy') { puff(f.x, f.y); popAt(f.x, f.y - 30, '가짜!', 'is-empty'); removeExtra(f); return; }
+        f.hp -= 1;
+        if (f.hp <= 0) { kill(f); return; }
+        const a = Math.random() * Math.PI * 2;
+        f.vx += Math.cos(a) * 16; f.vy += Math.sin(a) * 16;
+        const conf = SP[f.kind];
+        if (f.kind === 'boss' && !f.rage && f.hp <= f.maxHp * (conf.rageAt || 0.5)) {
+          f.rage = true; f.el.classList.add('is-rage');
+          banner('보스 모기가 화났어요! 스킬이 빨라져요');
+        }
+        popAt(f.x, f.y - 40, `${conf.name} · ${f.hp}번 더`, 'is-' + f.kind);
+        if (f.kind === 'boss') updateBossBar(f);
+      });
     }
     // 누르면 한 번, 꾹 누르고 있으면 0.12초마다 연사. 손가락·마우스를 움직이면 그 자리를 따라간다
     let sprayTimer = null;
@@ -380,10 +498,14 @@
     }
     function kill(f) {
       const now = performance.now();
-      const wasGolden = f.golden, wasQueen = f.queen > 0;
+      const wasGolden = f.golden, wasQueen = f.queen > 0, special = f.kind === 'elite' || f.kind === 'boss' ? f.kind : null;
       f.dead = now; f.queen = 0; f.golden = false; setLook(f);
       state.kills += 1;
       if (wasGolden) state.golden += 1;
+      if (special === 'elite') state.elites += 1;
+      if (special === 'boss') { state.bosses += 1; updateBossBar(null); }
+      // 엘리트·보스가 죽으면 남은 분신도 사라진다
+      if (special) extras.filter((x) => x.kind === 'decoy').forEach((x) => { puff(x.x, x.y); removeExtra(x); });
       // 마지막 한 마리가 여왕 모기일 때는 여왕을 잡아야 도전이 끝난다
       const counts = run.on && run.caught < run.target && (!run.needQueen || wasQueen);
       if (counts) {   // 목표를 채운 뒤 연사로 더 잡힌 건 도전 기록엔 안 넣는다 (서버 검사와 맞춤)
@@ -396,7 +518,12 @@
       lastKillAt = now;
       let text = run.on ? `${run.caught}/${run.target}` : (state.kills === 1 ? '잡았다!' : `잡았다! ${state.kills.toLocaleString('ko-KR')}마리째`);
       let cls = '';
-      if (wasGolden) {
+      if (special) {
+        const conf = SP[special];
+        cls = 'is-' + special;
+        text = `${conf.name} 처치!`;
+        if (run.on && conf.bonusSec) { run.endAt += conf.bonusSec * 1000; text += ` +${conf.bonusSec}초`; }
+      } else if (wasGolden) {
         cls = 'is-golden';
         if (run.on && EV.golden) { run.endAt += EV.golden.bonusSec * 1000; text = `황금 모기! +${EV.golden.bonusSec}초`; }
         else text = '황금 모기를 잡았어요!';
@@ -407,6 +534,7 @@
         if (run.on && EV.combo && combo % EV.combo.every === 0) { run.endAt += EV.combo.bonusSec * 1000; text = `${combo}연속! +${EV.combo.bonusSec}초`; }
       }
       popAt(f.x, f.y - 30, text, cls);
+      if (!special) { baseKills += 1; maybeSpawnSpecial(); }
       // 여왕 등장: 목표까지 한 마리 남으면 살아 있는 모기 하나를 여왕으로 바꾼다
       if (run.on && EV.queen && run.stage >= EV.queen.fromStage && !run.needQueen && run.caught === run.target - 1) {
         run.needQueen = true;
@@ -432,6 +560,46 @@
       if (b) setTimeout(() => showBadge(b), 1500);
     } catch (err) { /* 무시 */ }
 
+
+    // 살아 있는 모기 한 마리를 한 칸 움직이고 그린다 (일반·엘리트·보스·분신 공통)
+    function moveFly(f, now, t, W, H, swarmBoost, dart) {
+      const el = f.el;
+      if (now > f.nextPick) pick(f, now);
+      let fleeing = false;
+      if (cx != null) {
+        const dx = f.x - cx, dy = f.y - cy, d = Math.hypot(dx, dy);
+        if (d < diff.flee && d > 1) {
+          fleeing = true;
+          const k = (1 - d / diff.flee) * diff.push;
+          f.vx += (dx / d) * k; f.vy += (dy / d) * k;
+          if (!f.jinkAt || now > f.jinkAt) { f.jinkAt = now + 400; f.jinkDir = Math.random() < 0.5 ? -1 : 1; }
+          f.vx += (-dy / d) * k * diff.jink * f.jinkDir; f.vy += (dx / d) * k * diff.jink * f.jinkDir;
+          if (f.x < 60) f.vx += 1.2; if (f.x > W - 60) f.vx -= 1.2; if (f.y < 60) f.vy += 1.2; if (f.y > H - 60) f.vy -= 1.2;
+        }
+      }
+      f.vx += (f.gx - f.x) * 0.01; f.vy += (f.gy - f.y) * 0.01;
+      // 갑자기 꺾기: 가끔 휙 다른 방향으로 (손가락이 닿기 전에도 예측하기 어렵게)
+      if (dart && now > f.dartAt) {
+        if (f.dartAt) { const a = Math.random() * Math.PI * 2, pw = dart.power * (diff.jink || 1); f.vx += Math.cos(a) * pw; f.vy += Math.sin(a) * pw; }
+        f.dartAt = now + dart.minMs + Math.random() * (dart.maxMs - dart.minMs);
+      }
+      const speedUp = (f.golden ? ((EV.golden && EV.golden.speed) || 1) : 1) * swarmBoost * (f.queen ? 0.8 : 1)
+        * (f.kind && SP && SP[f.kind] ? SP[f.kind].speed : 1) * (f.rage ? 1.2 : 1);
+      const damp = fleeing ? 0.94 : 0.9, vmax = (fleeing ? diff.vmax : 6) * speedUp;
+      f.vx *= damp; f.vy *= damp;
+      const sp = Math.hypot(f.vx, f.vy);
+      if (sp > vmax) { f.vx *= vmax / sp; f.vy *= vmax / sp; }
+      const tp = t + f.phase;
+      f.x += f.vx + Math.sin(tp * 23) * 1.4 + Math.sin(tp * 7.3) * 0.9;
+      f.y += f.vy + Math.cos(tp * 19) * 1.3 + Math.sin(tp * 5.1) * 1.1;
+      if (f.entering && f.x > 20 && f.x < W - 20) f.entering = false;
+      if (!f.entering) { f.x = Math.max(20, Math.min(W - 20, f.x)); f.y = Math.max(20, Math.min(H - 20, f.y)); }
+      if (Math.abs(f.vx) > 0.4) f.face = f.vx > 0 ? -1 : 1;
+      const tilt = Math.max(-25, Math.min(25, f.vy * 3));
+      el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) scaleX(${f.face}) rotate(${(tilt * -f.face).toFixed(1)}deg)`;
+      // 투명 스킬: 잠깐 거의 안 보인다
+      if (f.kind) el.style.opacity = f.cloakUntil > now ? '0.12' : '1';
+    }
     let lastTick = performance.now();
     function tick(now) {
       const t = (now - t0) / 1000, W = card.clientWidth, H = card.clientHeight;
@@ -470,39 +638,23 @@
           }
           return;
         }
-        if (now > f.nextPick) pick(f, now);
-        let fleeing = false;
-        if (cx != null) {
-          const dx = f.x - cx, dy = f.y - cy, d = Math.hypot(dx, dy);
-          if (d < diff.flee && d > 1) {
-            fleeing = true;
-            const k = (1 - d / diff.flee) * diff.push;
-            f.vx += (dx / d) * k; f.vy += (dy / d) * k;
-            if (!f.jinkAt || now > f.jinkAt) { f.jinkAt = now + 400; f.jinkDir = Math.random() < 0.5 ? -1 : 1; }
-            f.vx += (-dy / d) * k * diff.jink * f.jinkDir; f.vy += (dx / d) * k * diff.jink * f.jinkDir;
-            if (f.x < 60) f.vx += 1.2; if (f.x > W - 60) f.vx -= 1.2; if (f.y < 60) f.vy += 1.2; if (f.y > H - 60) f.vy -= 1.2;
-          }
-        }
-        f.vx += (f.gx - f.x) * 0.01; f.vy += (f.gy - f.y) * 0.01;
-        // 갑자기 꺾기: 가끔 휙 다른 방향으로 (손가락이 닿기 전에도 예측하기 어렵게)
-        if (dart && now > f.dartAt) {
-          if (f.dartAt) { const a = Math.random() * Math.PI * 2, pw = dart.power * (diff.jink || 1); f.vx += Math.cos(a) * pw; f.vy += Math.sin(a) * pw; }
-          f.dartAt = now + dart.minMs + Math.random() * (dart.maxMs - dart.minMs);
-        }
-        const speedUp = (f.golden ? ((EV.golden && EV.golden.speed) || 1) : 1) * swarmBoost * (f.queen ? 0.8 : 1);
-        const damp = fleeing ? 0.94 : 0.9, vmax = (fleeing ? diff.vmax : 6) * speedUp;
-        f.vx *= damp; f.vy *= damp;
-        const sp = Math.hypot(f.vx, f.vy);
-        if (sp > vmax) { f.vx *= vmax / sp; f.vy *= vmax / sp; }
-        const tp = t + f.phase;
-        f.x += f.vx + Math.sin(tp * 23) * 1.4 + Math.sin(tp * 7.3) * 0.9;
-        f.y += f.vy + Math.cos(tp * 19) * 1.3 + Math.sin(tp * 5.1) * 1.1;
-        if (f.entering && f.x > 20 && f.x < W - 20) f.entering = false;
-        if (!f.entering) { f.x = Math.max(20, Math.min(W - 20, f.x)); f.y = Math.max(20, Math.min(H - 20, f.y)); }
-        if (Math.abs(f.vx) > 0.4) f.face = f.vx > 0 ? -1 : 1;
-        const tilt = Math.max(-25, Math.min(25, f.vy * 3));
-        el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) scaleX(${f.face}) rotate(${(tilt * -f.face).toFixed(1)}deg)`;
+        moveFly(f, now, t, W, H, swarmBoost, dart);
       });
+      // 엘리트·보스·분신: 스킬을 쓰고 움직인다. 죽으면 떨어지다 사라지고 다시 나오지 않는다
+      for (let i = extras.length - 1; i >= 0; i--) {
+        const f = extras[i];
+        if (f.dead) {
+          const k = (now - f.dead) / 1000;
+          f.vy += 0.9; f.x += f.vx * 0.3; f.y += f.vy; f.spin += 22;
+          f.el.style.opacity = Math.max(0, 1 - k * 0.9).toFixed(2);
+          f.el.style.transform = `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) translate(-50%, -50%) rotate(${f.spin}deg)`;
+          if (k > 1.3) removeExtra(f);
+          continue;
+        }
+        if (f.kind === 'decoy' && now > f.expire) { puff(f.x, f.y); removeExtra(f); continue; }
+        if (f.skills) f.skills.forEach((key) => { if (now >= f.skillAt[key]) { useSkill(f, key, now); f.skillAt[key] = now + skillInterval(f, key); } });
+        moveFly(f, now, t, W, H, swarmBoost, dart);
+      }
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);

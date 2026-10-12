@@ -1072,8 +1072,29 @@ body.tabs .fab-bite { display: none; }
 .kill-pop.is-queen { background: var(--bite, #E5484D); color: #fff; }
 .kill-pop.is-empty { background: rgba(0, 0, 0, .6); color: #fff; }
 @media (max-width: 620px) {
-  .gtank { right: 12px; top: 104px; font-size: 13px; }
+  .gtank { right: 12px; top: 128px; font-size: 13px; }   /* 보스 체력 막대(top 62px) 아래 */
   .gtank i { width: 56px; }
   .gbanner { font-size: 16px; padding: 10px 18px; }
   .hero-card .flyer.is-queen { width: 150px; height: 100px; }
+}
+
+/* 엘리트 · 보스 모기 (game.js, 2026-10-08)
+   엘리트: 조금 크고 보라빛 · 보스: 아주 크고 검붉은 빛, 화나면 더 붉게 · 분신은 진짜와 같은 모양 */
+.hero-card .flyer.is-elite { width: 182px; height: 122px; filter: hue-rotate(250deg) saturate(3) drop-shadow(0 0 14px rgba(167, 112, 255, .95)); }
+.hero-card .flyer.is-boss { width: 294px; height: 197px; filter: brightness(.55) sepia(1) saturate(6) hue-rotate(-30deg) drop-shadow(0 0 18px rgba(229, 72, 77, .9)); }
+.hero-card .flyer.is-boss.is-rage { filter: brightness(.7) sepia(1) saturate(9) hue-rotate(-35deg) drop-shadow(0 0 26px rgba(255, 40, 40, 1)); }
+.hero-card .flyer.is-elite, .hero-card .flyer.is-boss { transition: opacity .25s; }
+.kill-pop.is-elite { background: #8B5CF6; color: #fff; }
+.kill-pop.is-boss { background: #7F1D1D; color: #fff; }
+/* 보스 체력 막대: 첫 화면 위 가운데 */
+.gboss { position: absolute; left: 50%; top: 22px; z-index: 4; width: min(360px, 46%); padding: 10px 14px; border-radius: 16px; background: rgba(0, 0, 0, .62); color: #fff; pointer-events: none; transform: translateX(-50%); }
+.gboss[hidden] { display: none; }
+.gboss p { display: flex; justify-content: space-between; margin: 0 0 6px; font-size: 14px; }
+.gboss i { display: block; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, .2); overflow: hidden; }
+.gboss i b { display: block; height: 100%; border-radius: 5px; background: #E5484D; transition: width .25s; }
+.gboss.is-rage i b { background: #FF2D2D; }
+@media (max-width: 620px) {
+  .hero-card .flyer.is-elite { width: 130px; height: 86px; }
+  .hero-card .flyer.is-boss { width: 210px; height: 140px; }
+  .gboss { top: 62px; width: calc(100% - 24px); }
 }
