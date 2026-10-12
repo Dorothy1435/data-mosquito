@@ -36,6 +36,57 @@
     }
   }
 
+  // ==== 오늘 화면 정보 (2026-10-12) ====
+  // 홈이 계산을 마치면 'mosquito:updated'·'air:updated' 로 알려 준다. 그 값을 받아 두었다가 질문할 때 함께 보낸다.
+  // 숫자는 화면에 보이는 값 그대로 — 챗봇이 숫자를 지어내지 않고 화면과 같은 답을 하게.
+  let lastPage = null;
+  let lastAir = null;
+  document.addEventListener('mosquito:updated', (e) => { lastPage = e.detail || null; });
+  document.addEventListener('air:updated', (e) => { lastAir = e.detail || null; });
+
+  function hhmm(v) {
+    const d = v ? new Date(v) : null;
+    return d && !Number.isNaN(d.getTime()) ? `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}` : null;
+  }
+  function buildPageContext() {
+    const d = lastPage;
+    if (!d || d.index == null) return null;
+    const w = d.weatherData || {};
+    const p = d.precision || {};
+    const series = (d.series || []).slice(0, 24);
+    const peak = series.length ? series.reduce((a, b) => (b.index > a.index ? b : a)) : null;
+    const low = series.length ? series.reduce((a, b) => (b.index < a.index ? b : a)) : null;
+    const outing = d.outingNow && d.outingNow.available ? d.outingNow : null;
+    const O = window.OutingIndex;
+    const kit = Array.from(document.querySelectorAll('#kitList li.on .nm')).map((el) => el.textContent.trim());
+    const parks = Array.from(document.querySelectorAll('#parksGrid .nm')).map((el) => el.textContent.trim()).slice(0, 3);
+    const days = (d.dailyOutlook || []).slice(0, 5).map((x) => `${x.date.getMonth() + 1}/${x.date.getDate()} ${x.index}점`);
+    return {
+      place: d.district ? `${d.region && d.region.name} ${d.district}` : (d.region && d.region.name),
+      index: Math.round(d.index),
+      grade: d.stage && d.stage.label,
+      range: p.index_range ? `${Math.round(p.index_range.low)}~${Math.round(p.index_range.high)}` : null,
+      rank: p.ranking ? `김해 ${p.ranking.total_districts}개 동 중 ${p.ranking.rank}번째로 높음` : null,
+      model: p.model_version || (d.district ? '김해 발생원 모델(v4, 보조)' : '날씨 기반 추정'),
+      season: p.weather && p.weather.season_phase,
+      // 화면에 보이는 문구 그대로 (일몰·일출 기준, script.js renderActionGuide)
+      active_hours: ((document.getElementById('activeHoursLine') || {}).textContent || '').replace(/^오늘 모기가 가장 많은 때 · /, '') || p.active_hours || null,
+      peak: peak ? `${peak.hourOfDay}시 ${peak.index}점` : null,
+      low: low ? `${low.hourOfDay}시 ${low.index}점` : null,
+      weather: [w.weatherText, w.temperature != null && `${Math.round(w.temperature)}℃`, w.feelsLike != null && `체감 ${Math.round(w.feelsLike)}℃`,
+        w.humidity != null && `습도 ${Math.round(w.humidity)}%`, (w.dailyRainProbability ?? w.precipitationProbability) != null && `비 ${Math.round(w.dailyRainProbability ?? w.precipitationProbability)}%`,
+        w.windSpeed != null && `바람 ${Math.round(w.windSpeed)}m/s`].filter(Boolean).join(', '),
+      sun: [hhmm(w.sunrise) && `일출 ${hhmm(w.sunrise)}`, hhmm(w.sunset) && `일몰 ${hhmm(w.sunset)}`].filter(Boolean).join(', '),
+      outing: outing ? `${outing.score}점 ${outing.grade.label}${outing.capReason ? ` (${outing.capReason})` : ''}` : null,
+      outing_best: O && d.outingBest ? O.formatWindow(d.outingBest) : null,
+      air: lastAir && lastAir.pm10 != null ? `미세먼지 ${lastAir.pm10}, 초미세먼지 ${lastAir.pm25} (㎍/㎥, 예보값)` : null,
+      food: d.food ? `${d.food.label} (자체 산출)` : null,
+      kit: kit.length ? kit.join(', ') : '오늘은 없음',
+      parks: parks.length ? parks.join(', ') : null,
+      days: days.length ? days.join(' / ') : null,
+    };
+  }
+
   function todayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -535,10 +586,10 @@
     async function ask(question, fromChip) {
       addMsg('user', question);
 
-      // 칩 클릭: API 없이 즉답
-      if (fromChip) {
+      // 인사·감사·도움말 같은 짧은 말만 미리 써 둔 답으로 바로 (나머지는 오늘 화면 정보와 함께 AI 로)
+      if (fromChip || question.length <= 6) {
         const faq = faqAnswer(question);
-        if (faq) {
+        if (faq && /^(안녕|고마|감사|도움|뭐\s*할|ㅎㅇ|하이|hi|hello)/i.test(question.trim())) {
           addMsg('bot', faq.a);
           remember(question, faq.a);
           setSuggest(diversify(faq.f, question));
@@ -571,6 +622,7 @@
             districts: buildDistrictSnapshot(),
             parks: parkHints(),
             today: todayStr(),
+            page: buildPageContext(),
           }),
         });
         const data = await res.json();
