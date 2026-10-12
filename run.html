@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>모기제로 | 뛰어런</title>
+  <link rel="canonical" href="https://mosquito-zero.vercel.app/run.html">
+  <meta name="description" content="슬로우 조깅 이상으로 뛴 걸음만 세는 뛰어런.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="assets/brand/logo-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#4A1566">
+  <link rel="apple-touch-icon" href="assets/brand/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="모기제로">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="모기제로">
+  <meta property="og:title" content="모기제로 | 뛰어런">
+  <meta property="og:description" content="슬로우 조깅 이상으로 뛴 걸음만 세는 뛰어런.">
+  <meta property="og:image" content="https://mosquito-zero.vercel.app/assets/brand/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="design.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">본문 바로가기</a>
+  <header class="nav">
+    <div class="nav-in">
+      <a class="brand" href="index.html" aria-label="모기제로 홈"><img src="assets/brand/logo-icon.png" alt=""><span>모기제로</span></a>
+      <nav class="lk" id="primaryNav" aria-label="주요 메뉴">
+        <a href="index.html#flow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>오늘 하루</a>
+        <a href="index.html#kit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg>챙길 것</a>
+        <a href="index.html#town"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>우리 동네</a>
+        <a href="mosquito-info.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg>모기 도감</a>
+        <a href="run.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14.5" cy="4.5" r="2"/><path d="M8 21l3-6 3 2.5V21"/><path d="M6.5 11.5 9 8.5h5l2.5 3.5 3 1"/><path d="M11 15l-1-6.5"/></svg>뛰어런</a>
+        <a href="me.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg>내 기록</a>
+        <a href="gimhae.html" class="lk-pro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>자세히 보기</a>
+        <a href="expert.html" class="lk-pro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6Z"/></svg>전문가용</a>
+      </nav>
+      <button id="menuButton" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">메뉴</button>
+      <a class="me-top" href="run.html" aria-label="뛰어런 (뛴 걸음 세기)" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14.5" cy="4.5" r="2"/><path d="M8 21l3-6 3 2.5V21"/><path d="M6.5 11.5 9 8.5h5l2.5 3.5 3 1"/><path d="M11 15l-1-6.5"/></svg></a>
+      <a class="me-top xp-top" href="expert.html" aria-label="전문가용 (방역 내비게이션)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6Z"/><path d="m9 12 2 2 4-4"/></svg></a>
+      <a class="me-top" href="me.html" aria-label="내 기록 (모기 잡기·배지)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg></a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap doc me">
+    <p class="kicker">땀 나는 걸음만 세요</p>
+    <h1>뛰어런</h1>
+    <p class="lead">모기는 땀과 숨에 끌려요. 그래서 걷기는 빼고 <b>슬로우 조깅 이상</b>으로 뛴 걸음만 세요. 뛰는 동안 화면은 켜 둘게요.</p>
+    <section class="run-card" id="runCard" aria-label="뛰어런 기록">
+      <div class="run-top">
+        <div><p class="k">오늘 뛴 걸음</p><p class="run-big"><span id="runSteps">0</span><small>걸음</small></p></div>
+        <p class="run-state" id="runState" data-state="off" aria-live="polite">대기</p>
+      </div>
+      <div class="run-stats">
+        <div><p class="k">발걸음 빠르기</p><p class="v"><span id="runCad">-</span><small>/분</small></p></div>
+        <div><p class="k">뛴 시간</p><p class="v" id="runTime">0분</p></div>
+        <div><p class="k">거리</p><p class="v" id="runKm">0.00km</p></div>
+        <div><p class="k">이번 주</p><p class="v"><span id="runWeek">0</span><small>걸음</small></p></div>
+      </div>
+      <label class="run-opt"><input type="checkbox" id="runGps" checked> 위치(GPS)로 거리 재기 · 자전거·차 거르기 <span class="dim">(이 폰 안에서만 써요)</span></label>
+      <button type="button" class="btn-main run-btn" id="runBtn">뛰기 시작</button>
+      <p class="run-status" id="runStatus" role="status"></p>
+      <p class="dim run-rule" id="runRule"></p>
+      <p class="dim">화면을 끄거나 다른 앱으로 가면 휴대폰이 센서를 멈춰서 그동안은 세지 못해요(돌아오면 이어서 세요). 화면이 꺼져도 세는 기능은 앱 버전에서 준비하고 있어요. 랭킹은 로그인이 열리면 함께 올라가요.</p>
+    </section>
+
+    <div class="h-row"><h2>모기 잡기·배지</h2><a href="me.html">내 기록 보기</a></div>
+    <p>첫 화면에서 잡은 모기와 배지는 내 기록에 쌓여요.</p>
+  </main>
+
+  <!-- 폰에서만 보이는 아래 탭 바 (mobile-tabs.js) -->
+  <nav class="tabbar" aria-label="화면 이동">
+    <a href="index.html#flow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>오늘</span></a>
+    <a href="index.html#kit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12" rx="2.5"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5"/></svg><span>챙길 것</span></a>
+    <a class="tab-bite" href="index.html#bite"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 18h14v3H5z"/><path d="M12 3v2M4.6 6.1l1.4 1.4M19.4 6.1 18 7.5"/></svg></i><span>물렸어요</span></a>
+    <a href="index.html#town"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 1 0-13 0c0 5.2 6.5 11 6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></svg><span>우리 동네</span></a>
+    <a href="mosquito-info.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h9.5A4.5 4.5 0 0 1 19 9v10.5H9.5A4.5 4.5 0 0 1 5 15Z"/><path d="M9 9h6M9 12.5h4"/></svg><span>도감</span></a>
+  </nav>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p>모기제로 · 참고용 예상값이에요. <a href="privacy.html">개인정보 처리방침</a></p>
+    </div>
+  </footer>
+
+  <script src="game-config.js"></script>
+  <script src="nav.js"></script>
+  <script src="mobile-tabs.js"></script>
+  <script src="runner.js"></script>
+  <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+</body>
+</html>
