@@ -35,8 +35,10 @@ vercel
 * `android/`: 안드로이드 스튜디오 프로젝트. 위치·카메라 권한은 `android/app/src/main/AndroidManifest.xml`
 * Node.js 는 앱을 만들 때만 쓰고(`npx cap ...`), 사이트에는 들어가지 않는다. `.vercelignore` 로 `android/` 는 사이트에 올리지 않는다.
 
+처음 받았을 때(저장소에 없는 파일을 만든다): 저장소 폴더에서 `npm install` → `npx cap sync android`.
 실행: 안드로이드 스튜디오 → Open → `android` 폴더 → 위쪽 기기 선택 → ▶ Run.
 설정을 바꾼 뒤에는 `npx cap sync android` 를 한 번 실행한다.
+뒤로 가기 버튼은 `@capacitor/app` 플러그인이 처리한다(이전 화면으로, 첫 화면이면 앱 종료).
 명령줄 빌드: `cd android && ./gradlew assembleDebug` (결과: `android/app/build/outputs/apk/debug/app-debug.apk`).
 
 ## 화면 디자인 v17 "토스 + 애플" (2026-09-29, 현재)

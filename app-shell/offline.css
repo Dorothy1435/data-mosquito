@@ -1,0 +1,11 @@
+/* 안드로이드 앱 인터넷 끊김 화면 (app-shell/index.html) */
+body {
+  margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  background: #fff; color: #191f28; text-align: center;
+}
+img { width: 72px; height: 72px; border-radius: 18px; }
+h1 { margin: 20px 0 8px; font-size: 22px; }
+p { margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #4e5968; }
+button { min-height: 52px; padding: 0 28px; border: 0; border-radius: 14px; background: #3182f6; color: #fff; font-size: 17px; font-weight: 700; }
+button:focus-visible { outline: 3px solid #191f28; outline-offset: 3px; }
