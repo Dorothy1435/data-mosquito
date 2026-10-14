@@ -1,6 +1,10 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/mosquito_model_portable.py", "destination": "/", "permanent": false },
+    { "source": "/requirements.txt", "destination": "/", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/(.*)",

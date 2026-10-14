@@ -97,7 +97,7 @@ body.citizen-mode [data-audience="expert"] { display: none !important; }
 .score-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--blue); transition: width .8s var(--ease); }
 
 /* ---------- 8) 예보 차트 ---------- */
-.xp-chart { gap: 14px; }
+.xp-chart { gap: 14px; grid-template-columns: minmax(0, 1fr); }   /* 그래프(캔버스 기본 폭 300px)가 좁은 폰에서 칸을 밀어내지 않게 */
 .chart-area { position: relative; height: 320px; }
 .verify-chart-area { height: 300px; margin: 16px 0; }
 
@@ -237,3 +237,4 @@ body.citizen-mode [data-audience="expert"] { display: none !important; }
 /* 구역이 바뀌면 게이지 액자가 잠깐 파랗게 깜빡인다 (제자리 전환 알림) */
 .xp-gauge.flash { animation: gaugeflash 1.2s var(--ease); }
 @keyframes gaugeflash { 0% { box-shadow: 0 0 0 0 rgba(49, 130, 246, .6); } 100% { box-shadow: 0 0 0 18px rgba(49, 130, 246, 0); } }
+.detail-stack { grid-template-columns: minmax(0, 1fr); } .detail-card { min-width: 0; }   /* 검증 그래프가 좁은 폰에서 카드를 밀어내지 않게 */

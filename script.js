@@ -175,6 +175,7 @@ let currentLocationMarker = null;
 let selectedPointMarker = null;
 let outOfRangePopup = null;   // 한국 밖 클릭 시 뜨는 '측정 불가' 빨간 팝업
 let gimhaeSourceLayer = null; // 김해 발생원 히트맵 레이어 (켜면 생성, 끄면 null)
+let mapFitPending = false;    // 지도가 숨어 있을 때 김해 전체 맞추기를 미뤘는지 (fitMapToGimhae)
 let gimhaeLayerWeather = null; // 히트맵용으로 한 번 받아온 김해 날씨 (재사용 캐시)
 let regionData = [];
 let currentRegion = null;
@@ -777,8 +778,11 @@ async function loadWeatherData(lat, lng, fallbackRegion) {
   }
 }
 
+// 점수 → 단계. 단계표는 0~20, 21~40처럼 정수 경계라서 먼저 반올림한다(서버 모델 grade()와 같은 방식).
+// 반올림하지 않으면 20.5 같은 소수가 어느 칸에도 안 걸려 '매우 높음'으로 떨어졌다.
 function getCurrentStage(value) {
-  return stageInfo.find((stage) => value >= stage.min && value <= stage.max) || stageInfo[stageInfo.length - 1];
+  const n = Math.round(Number(value) || 0);
+  return stageInfo.find((stage) => n >= stage.min && n <= stage.max) || stageInfo[n < 0 ? 0 : stageInfo.length - 1];
 }
 
 function clampValue(value, min, max) {
@@ -1914,6 +1918,7 @@ async function loadAndRenderRegion(region, options = {}) {
   if (map) {
     const targetZoom = preserveZoom ? map.getZoom() : (isGps ? 12 : 11);
     map.setView([lat, lng], targetZoom, { animate: true });
+    mapFitPending = false;   // 고른 지역으로 옮겼으니, 탭을 열 때 김해 전체로 되돌리지 않는다
     updateSelectedPointMarker(lat, lng, label, accuracy);
     if (isGps) {
       updateCurrentLocationMarker(lat, lng, accuracy, label);
@@ -2116,7 +2121,6 @@ function buildGimhaeSourceLayer(weatherData) {
 // 지도를 김해 전체에 맞춘다.
 // 폰에서는 '우리 동네' 탭이 숨어 있을 때 지도 크기가 0이라 맞추면 최대 확대(골목 수준)가 된다.
 // 그래서 숨어 있으면 표시만 해 두고, 탭이 보일 때(tab:shown) 다시 맞춘다.
-let mapFitPending = false;
 function fitMapToGimhae() {
   if (!map) return;
   if (!map.getContainer().offsetWidth) { mapFitPending = true; return; }
@@ -2144,6 +2148,7 @@ async function toggleGimhaeHeatmap() {
   if (gimhaeSourceLayer) {
     gimhaeSourceLayer.remove();
     gimhaeSourceLayer = null;
+    mapFitPending = false;
     if (heatmapButton) {
       heatmapButton.textContent = '김해 발생원 히트맵 보기';
       heatmapButton.setAttribute('aria-pressed', 'false');
