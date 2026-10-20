@@ -45,9 +45,14 @@
   </header>
 
   <main id="main" class="wrap doc me">
-    <p class="kicker" id="rkSeason">모기 잡기 · 시즌 랭킹</p>
-    <h1>모기를 가장 많이 잡은 사람</h1>
-    <p class="lead">닉네임만 보여요. 시즌 누적 잡은 수로 순위를 매기고, 12월에 정산해 보상을 드려요.</p>
+    <p class="kicker" id="rkSeason">시즌 랭킹</p>
+    <h1 id="rkTitle">모기를 가장 많이 잡은 사람</h1>
+    <p class="lead" id="rkLead">닉네임만 보여요. 시즌 누적 잡은 수로 순위를 매겨요.</p>
+    <div class="rk-tabs" role="tablist" aria-label="랭킹 종류">
+      <button type="button" role="tab" id="tabGame" aria-selected="true" data-rk="game">모기 잡기</button>
+      <button type="button" role="tab" id="tabWeek" aria-selected="false" data-rk="week">뛰어런 이번 주</button>
+      <button type="button" role="tab" id="tabSeason" aria-selected="false" data-rk="season">뛰어런 시즌</button>
+    </div>
 
     <div class="acct-note" id="rkNote">랭킹을 불러오는 중이에요.</div>
     <ol class="rk" id="rkList" aria-label="랭킹"></ol>

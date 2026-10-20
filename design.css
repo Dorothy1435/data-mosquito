@@ -1301,3 +1301,8 @@ body.tabs .fab-bite { display: none; }
 /* 문장 끝 한두 단어만 다음 줄로 넘어가지 않게 (줄 길이를 고르게) */
 p, li, dd, .lead, .note { text-wrap: pretty; }
 h1, h2, h3 { text-wrap: balance; }
+/* 랭킹 종류 탭 (ranking.html) */
+.rk-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.rk-tabs button { min-height: 44px; padding: 0 16px; border: 1px solid var(--g200); border-radius: 999px; background: #fff; color: var(--g700); font: 600 15px var(--sans); cursor: pointer; }
+.rk-tabs button[aria-selected="true"] { background: var(--g900); border-color: var(--g900); color: #fff; }
+.rk-tabs button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }

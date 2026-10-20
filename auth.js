@@ -220,17 +220,18 @@
   async function exportMyData() {
     needUser();
     const uid = user().id;
-    const [p, scores, runs, badges, consents] = await Promise.all([
+    const [p, scores, runs, badges, consents, jogs] = await Promise.all([
       client.from('profiles').select('nickname, role, created_at, onboarded_at, nickname_changed_at').eq('id', uid).maybeSingle(),
       client.from('game_scores').select('*').eq('user_id', uid),
       client.from('game_runs').select('stage, kills, duration_ms, success, played_at, received_at').eq('user_id', uid).order('played_at', { ascending: false }).limit(5000),
       client.from('user_badges').select('badge_id, earned_at').eq('user_id', uid),
       client.from('consents').select('kind, version, agreed, created_at').eq('user_id', uid).order('created_at'),
+      client.from('run_sessions').select('started_at, duration_s, distance_m, sweat_steps, total_steps, received_at').eq('user_id', uid).order('started_at', { ascending: false }).limit(5000),
     ]);
     return {
       exported_at: new Date().toISOString(),
       account: { email: user().email, login_methods: loginMethods(), created_at: user().created_at },
-      profile: p.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [],
+      profile: p.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [],
     };
   }
 
@@ -259,6 +260,20 @@
   async function ranking(limit) {
     if (!client) return [];
     const { data } = await client.from('ranking_public').select('rank, nickname, total_kills, best_stage, badge_count').eq('season', CFG.SEASON || new Date().getFullYear()).order('rank', { ascending: true }).limit(limit || 100);
+    return data || [];
+  }
+  // 뛰어런: 달리기 요약 보내기 (달린 길 좌표는 보내지 않는다). 서버 함수 submit_run 이 다시 검사한다
+  async function submitRun(row) {
+    if (!client || !user()) return { ok: false, reason: 'no-login' };
+    if (needsOnboarding()) return { ok: false, reason: 'onboarding' };
+    const { data, error } = await client.rpc('submit_run', { p: row });
+    if (error) return { ok: false, reason: koError(error) };
+    return data || { ok: false };
+  }
+  // 뛰어런 랭킹: period = 'week'(이번 주) · 'season'(올해 누적)
+  async function runRanking(period, limit) {
+    if (!client) return [];
+    const { data } = await client.from('run_ranking_public').select('rank, nickname, distance_km, sweat_steps, runs').eq('period', period || 'week').order('rank', { ascending: true }).limit(limit || 100);
     return data || [];
   }
   async function myRank() {
@@ -311,7 +326,7 @@
     signUp, signIn, signInWith, signOut,
     finishOnboarding, needsOnboarding, myConsents, setConsent,
     hasPassword, loginMethods, sendPasswordReset, changePassword, changeNickname, deleteAccount, exportMyData,
-    submitRuns, myScore, myBadges, ranking, myRank,
+    submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking,
     validNickname, checkPassword,
   };
 }());

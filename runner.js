@@ -260,10 +260,21 @@
   // 로그인했으면 서버에 요약만 보낸다(거리·시간·걸음·판정 칸 수). 달린 길 좌표는 보내지 않는다
   function submit(r) {
     const A = window.MZAuth;
-    if (!A || !A.enabled || !A.user() || typeof A.submitRun !== 'function' || !r.gps) return;
+    if (!A || !A.enabled || !A.user() || typeof A.submitRun !== 'function' || !r.gps || r.sec < 60) return;
     A.submitRun({ started_at: new Date(r.start).toISOString(), duration_s: r.sec, distance_m: r.m, sweat_steps: r.sweat, total_steps: r.steps, run_windows: r.count.run, shake_windows: r.count.shake, vehicle_windows: r.count.vehicle })
-      .then((x) => { if (x && x.ok) { r.synced = true; saveRuns(runs); } }).catch(() => { /* 다음에 */ });
+      .then((x) => {
+        // 서버가 받았거나(ok) 검사에서 걸렀으면(이유 있음) 다시 보내지 않는다. 로그인·네트워크 문제면 다음에 다시
+        if (x && (x.ok || (x.reason && !/no-login|onboarding|네트워크|fetch/i.test(x.reason)))) { r.synced = true; r.serverOk = !!x.ok; saveRuns(runs); }
+      }).catch(() => { /* 다음에 */ });
   }
+
+  // 로그인하거나 화면을 열 때: 아직 서버에 안 올린 달리기(48시간 안, GPS 기록)를 올린다
+  function syncPending() {
+    const A = window.MZAuth;
+    if (!A || !A.enabled || !A.user() || (A.needsOnboarding && A.needsOnboarding())) return;
+    runs.filter((r) => r.ver === 2 && r.gps && !r.synced && r.sec >= 60 && Date.now() - r.start < 47 * 3600000).slice(0, 5).forEach(submit);
+  }
+  document.addEventListener('auth:changed', syncPending);
 
   // 끝내기는 길게 눌러야 한다(1.2초) — 뛰다가 실수로 눌러 끝나지 않게
   function holdToStop(btn) {
