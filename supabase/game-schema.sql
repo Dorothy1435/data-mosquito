@@ -28,6 +28,9 @@ create table if not exists public.game_config (
   badge_ids          text[] not null default '{egg,larva,pupa,adult,culex,tritaen,albo,anoph,aegypti}'
 );
 insert into public.game_config (id) values (1) on conflict (id) do nothing;
+-- 브라우저(anon·authenticated)가 규칙 값을 바꾸지 못하게 행 단위 보안을 켠다. 정책이 없으므로 읽기·쓰기 모두 막히고,
+-- 검증 함수(submit_game_runs, security definer)만 이 표를 읽는다.
+alter table public.game_config enable row level security;
 
 -- 1) 프로필: 닉네임과 역할. auth.users 가 생기면 트리거가 한 줄 만든다
 create table if not exists public.profiles (
