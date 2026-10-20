@@ -315,7 +315,8 @@
     }
     const wait = say('위치를 확인하는 중이에요…');
     const mine = report;
-    navigator.geolocation.getCurrentPosition((pos) => {
+    // 몇 초 동안 받아 가장 정확한 위치를 쓴다 (geo.js)
+    (window.MZGeo ? window.MZGeo.best({ good: 25, maxWait: 10000 }) : new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }))).then((pos) => {
       if (report !== mine) return;   // 위치를 찾는 동안 창을 닫았으면 아무것도 보내지 않는다
       wait.remove();
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
@@ -337,7 +338,7 @@
       wait.remove();
       say(err.code === 1 ? '위치 권한이 꺼져 있어요.' : '위치를 찾지 못했어요.');
       pickDistrict();
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    });
   }
 
   function pickDistrict() {

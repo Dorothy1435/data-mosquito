@@ -2239,7 +2239,8 @@ function setupEvents() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    // 몇 초 동안 위치를 받아 가장 정확한 값을 쓴다 (geo.js). 첫 값·예전 값은 오차가 커서 위치가 빗나갔다
+    (window.MZGeo ? window.MZGeo.best({ good: 30, maxWait: 8000 }) : new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }))).then(
       async (position) => {
         const { latitude, longitude } = position.coords;
         const accuracy = position.coords.accuracy;
@@ -2269,7 +2270,6 @@ function setupEvents() {
           loadAndRenderRegion(currentRegion, { isGps: false }).catch(() => {});
         }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 },
     );
   });
 }
@@ -2335,11 +2335,9 @@ async function showInitialLocation() {
   regionSelect.value = fallbackRegion.name;
   const positionPromise = navigator.geolocation
     ? new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 6000,
-          maximumAge: 60000,
-        });
+        // 첫 화면: 기본 지역을 먼저 그린 뒤라 조금 기다려도 된다. 가장 정확한 값을 쓴다 (geo.js)
+        if (window.MZGeo) window.MZGeo.best({ good: 50, maxWait: 7000 }).then(resolve, reject);
+        else navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 });
       })
     : null;
   if (positionPromise) positionPromise.catch(() => {});   // 아래에서 다시 기다리므로 여기서는 조용히 넘긴다

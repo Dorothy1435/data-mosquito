@@ -395,8 +395,8 @@
       if (v === 'gps') {
         if (!navigator.geolocation) { $('navSummary').textContent = '이 기기에서는 위치를 쓸 수 없어요.'; return; }
         $('navSummary').textContent = '위치를 확인하는 중이에요…';
-        navigator.geolocation.getCurrentPosition((p) => { userStart = { lat: p.coords.latitude, lng: p.coords.longitude, label: '내 위치' }; plan(); },
-          () => { $('navSummary').textContent = '위치를 찾지 못했어요. 출발지를 골라 주세요.'; }, { enableHighAccuracy: true, timeout: 12000 });
+        (window.MZGeo ? window.MZGeo.best({ good: 30, maxWait: 10000 }) : new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }))).then((p) => { userStart = { lat: p.coords.latitude, lng: p.coords.longitude, label: '내 위치' }; plan(); },
+          () => { $('navSummary').textContent = '위치를 찾지 못했어요. 출발지를 골라 주세요.'; });
         return;
       }
       if (v === 'hc') userStart = HEALTH_CENTER;
