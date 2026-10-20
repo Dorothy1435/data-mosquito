@@ -13,7 +13,7 @@
 --   · 기록은 한 마리마다가 아니라 도전이 끝날 때 한 번(여러 건 묶어서) 받는다.
 --   · 서버가 검사한다: 하루 도전 횟수, 분당 잡기 상한, 한 마리당 최소 시간, 스테이지 목표 초과, 너무 오래된 기록.
 --     어긋나면 그 기록만 버리고(거절 수만 돌려줌) 나머지는 받는다.
---   · 랭킹은 요청마다 계산하지 않고 ranking_cache 표를 5분마다 다시 만든다 (pg_cron). 브라우저는 그 표(보기)만 읽는다.
+--   · 랭킹은 요청마다 계산하지 않고 ranking_cache 표를 10초마다 다시 만든다 (pg_cron). 브라우저는 그 표(보기)만 읽는다.
 --   · 개인정보 최소화: 이메일은 auth 가 갖고, 공개되는 건 닉네임뿐. IP·기기 저장 안 함.
 --   · 숫자 설정은 game_config 표 한 줄에 둔다. 사이트의 game-config.js 와 값을 맞춘다.
 -- =============================================================
@@ -171,7 +171,7 @@ end $$;
 revoke all on function public.submit_game_runs(jsonb) from public;
 grant execute on function public.submit_game_runs(jsonb) to authenticated;
 
--- 6) 랭킹: 5분마다 만들어 두는 표 + 누구나 읽는 보기
+-- 6) 랭킹: 10초마다 만들어 두는 표 + 누구나 읽는 보기
 create table if not exists public.ranking_cache (
   season       int not null,
   rank         int not null,
@@ -201,8 +201,8 @@ create or replace view public.ranking_public as
   select season, rank, nickname, total_kills, best_stage, badge_count, built_at from public.ranking_cache;
 grant select on public.ranking_public to anon, authenticated;
 
--- 5분마다 랭킹 다시 만들기 (대시보드 → Database → Extensions 에서 pg_cron 을 켠 뒤 실행)
--- select cron.schedule('mz-ranking', '*/5 * * * *', $$select public.rebuild_ranking()$$);
+-- 10초마다 랭킹 다시 만들기 (대시보드 → Database → Extensions 에서 pg_cron 을 켠 뒤 실행). 보는 사람 수와 상관없이 부담이 일정하다
+-- select cron.schedule('mz-ranking', '10 seconds', $$select public.rebuild_ranking()$$);
 
 -- 직원 지정 (대시보드 SQL 에서): update public.profiles set role = 'staff' where nickname = '닉네임';
 

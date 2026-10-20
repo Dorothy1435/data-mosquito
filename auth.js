@@ -255,7 +255,7 @@
     const { data } = await client.from('user_badges').select('badge_id, earned_at').eq('user_id', user().id);
     return data || [];
   }
-  // 랭킹: 공개 보기(닉네임·누적·최고 단계). 서버가 5분마다 만들어 둔 표를 읽는다
+  // 랭킹: 공개 보기(닉네임·누적·최고 단계). 서버가 10초마다 만들어 둔 표를 읽는다
   async function ranking(limit) {
     if (!client) return [];
     const { data } = await client.from('ranking_public').select('rank, nickname, total_kills, best_stage, badge_count').eq('season', CFG.SEASON || new Date().getFullYear()).order('rank', { ascending: true }).limit(limit || 100);

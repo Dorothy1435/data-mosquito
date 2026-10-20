@@ -210,7 +210,7 @@
     </div>`;
   }
   function wireAccount(A) {
-    onSubmit($('nickForm'), null, async (f) => { await A.changeNickname(f.nickname.value); return '닉네임을 바꿨어요. 랭킹에는 5분 안에 반영돼요.'; });
+    onSubmit($('nickForm'), null, async (f) => { await A.changeNickname(f.nickname.value); return '닉네임을 바꿨어요. 랭킹에는 10초 안에 반영돼요.'; });
     if ($('pwForm')) {
       const cap = captcha($('capPw'));
       onSubmit($('pwForm'), cap, async (f, token) => {
