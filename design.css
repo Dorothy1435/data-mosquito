@@ -1362,3 +1362,13 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .pv-btns button { min-height: 40px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
 .pv-msg { margin: 0; min-height: 1.3em; font-size: 14px; color: var(--g700); }
 .pv-empty { padding: 20px; border-radius: 14px; background: var(--g50); color: var(--g600); }
+
+/* 폰 아래 탭: 도감 옆에 뛰어런 (2026-10-20). 위쪽 뛰어런 아이콘은 뺐다 */
+@media (max-width: 900px) {
+  .tabbar { grid-template-columns: repeat(6, 1fr); }
+  .tabbar > * { white-space: nowrap; letter-spacing: -0.02em; }
+}
+/* 직원 버튼(xp-top)이 숨어 있을 때 계정 아이콘이 로고 옆으로 붙지 않게 오른쪽 끝으로 */
+@media (max-width: 900px) {
+  html:not(.is-staff) body.tabs .xp-top + .me-top:not(.where ~ .me-top) { margin-left: auto; }
+}
