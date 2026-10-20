@@ -152,7 +152,7 @@
   // consents: { age14, terms, privacy, location, motion } (true/false). 필수 셋이 모두 true 여야 한다
   function consentItems(consents) {
     const c = consents || {};
-    return ['age14', 'terms', 'privacy', 'location', 'motion'].filter((k) => k in c)
+    return ['age14', 'terms', 'privacy', 'location', 'motion', 'photo_donate'].filter((k) => k in c)
       .map((k) => ({ kind: k, version: POLICY_VERSION, agreed: !!c[k] }));
   }
   async function finishOnboarding(nickname, consents) {
@@ -218,6 +218,12 @@
   // 계정 삭제: 서버의 계정과 모든 기록(게임·배지·동의)을 바로 지운다
   async function deleteAccount() {
     needUser();
+    // 기증한 사진 파일을 먼저 지운다 (Supabase 는 SQL 로 저장소 파일을 지우지 못하게 막아 둠)
+    try {
+      const dir = user().id;
+      const { data: files } = await client.storage.from(PHOTO_BUCKET).list(dir, { limit: 1000 });
+      if (files && files.length) await client.storage.from(PHOTO_BUCKET).remove(files.map((f) => `${dir}/${f.name}`));
+    } catch (e) { /* 사진이 없거나 저장소가 아직 없으면 넘어간다 */ }
     const { error } = await client.rpc('delete_my_account');
     if (error) throw new Error(koError(error));
     try { await client.auth.signOut({ scope: 'local' }); } catch (e) { /* 계정이 이미 없음 */ }
@@ -227,19 +233,65 @@
   async function exportMyData() {
     needUser();
     const uid = user().id;
-    const [p, scores, runs, badges, consents, jogs] = await Promise.all([
+    const [p, scores, runs, badges, consents, jogs, photos] = await Promise.all([
       client.from('profiles').select('nickname, role, created_at, onboarded_at, nickname_changed_at').eq('id', uid).maybeSingle(),
       client.from('game_scores').select('*').eq('user_id', uid),
       client.from('game_runs').select('stage, kills, duration_ms, success, played_at, received_at').eq('user_id', uid).order('played_at', { ascending: false }).limit(5000),
       client.from('user_badges').select('badge_id, earned_at').eq('user_id', uid),
       client.from('consents').select('kind, version, agreed, created_at').eq('user_id', uid).order('created_at'),
       client.from('run_sessions').select('started_at, duration_s, distance_m, sweat_steps, total_steps, received_at').eq('user_id', uid).order('started_at', { ascending: false }).limit(5000),
+      client.from('photo_donations').select('created_at, ai_label, ai_conf, district, review, label').eq('user_id', uid).order('created_at', { ascending: false }).limit(5000),
     ]);
     return {
       exported_at: new Date().toISOString(),
       account: { email: user().email, login_methods: loginMethods(), created_at: user().created_at },
-      profile: p.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [],
+      profile: p.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [], photo_donations: photos.data || [],
     };
+  }
+
+  // ---------- 사진 기증 (AI 학습용, photo-donate.js) ----------
+  const PHOTO_BUCKET = 'photo-donations';
+  // blob: 폰에서 줄이고 위치 정보를 지운 JPEG. meta: { ai_label, ai_conf, phash, width, height, district }
+  async function donatePhoto(blob, meta) {
+    needUser();
+    if (needsOnboarding()) throw new Error('가입 마무리(동의)를 먼저 해 주세요.');
+    const path = `${user().id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const up = await client.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw new Error('사진을 올리지 못했어요. 잠시 뒤 다시 해 주세요.');
+    const { data, error } = await client.rpc('donate_photo', { p: Object.assign({ path }, meta) });
+    if (error || !data || !data.ok) {
+      await client.storage.from(PHOTO_BUCKET).remove([path]).catch(() => {});   // 기록이 안 되면 올린 파일도 지운다
+      const why = (data && data.reason) || '';
+      throw new Error({ consent: '사진 기증에 동의해 주세요.', daily: '오늘은 20장까지 기증할 수 있어요. 내일 다시 해 주세요.', duplicate: '이미 기증한 사진이에요.', label: '모기로 확실히 보이는 사진만 기증할 수 있어요.' }[why] || (error ? koError(error) : '기증하지 못했어요.'));
+    }
+    return data;
+  }
+  // 직원: 확인을 기다리는 기증 사진 (사진 주소는 10분짜리 비밀 주소)
+  async function pendingPhotos(limit) {
+    if (!client || !user()) return [];
+    const { data } = await client.from('photo_donations').select('id, path, ai_label, ai_conf, district, created_at').eq('review', 'pending').order('created_at', { ascending: true }).limit(limit || 30);
+    const rows = data || [];
+    if (!rows.length) return [];
+    const { data: urls } = await client.storage.from(PHOTO_BUCKET).createSignedUrls(rows.map((r) => r.path), 600);
+    const byPath = {}; (urls || []).forEach((u) => { byPath[u.path] = u.signedUrl; });
+    return rows.map((r) => Object.assign({ url: byPath[r.path] || '' }, r));
+  }
+  async function photoCounts() {
+    if (!client || !user()) return null;
+    const q = (review) => client.from('photo_donations').select('id', { count: 'exact', head: true }).eq('review', review);
+    const [a, b, c] = await Promise.all([q('pending'), q('confirmed'), q('rejected')]);
+    return { pending: a.count || 0, confirmed: b.count || 0, rejected: c.count || 0 };
+  }
+  async function reviewPhoto(id, label) {
+    needUser();
+    const { error } = await client.rpc('review_photo', { p_id: id, p_label: label });
+    if (error) throw new Error(koError(error));
+  }
+  async function deletePhoto(id) {
+    needUser();
+    const { data: path, error } = await client.rpc('delete_photo_donation', { p_id: id });
+    if (error) throw new Error(koError(error));
+    if (path) await client.storage.from(PHOTO_BUCKET).remove([path]).catch(() => {});
   }
 
   // ---------- 게임 기록 ----------
@@ -334,6 +386,7 @@
     finishOnboarding, needsOnboarding, myConsents, setConsent,
     hasPassword, loginMethods, sendPasswordReset, changePassword, changeNickname, deleteAccount, exportMyData,
     submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking,
+    donatePhoto, pendingPhotos, photoCounts, reviewPhoto, deletePhoto,
     validNickname, checkPassword,
   };
 }());

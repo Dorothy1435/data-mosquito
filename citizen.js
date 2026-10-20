@@ -69,11 +69,13 @@
   }
 
   let photoSeq = 0;   // 사진마다 번호. 늦게 끝난 옛 사진 결과가 새 사진 결과를 덮지 않게
+  let lastPhoto = '';
   async function identify(dataUrl) {
     const mine = ++photoSeq;
     const box = $('photoBox');
     box.dataset.state = 'loading';
     $('photoPreview').src = dataUrl;
+    lastPhoto = dataUrl;   // 기증할 때 쓰는 원본 (photo-donate.js)
     box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     // 1) 자체 모델(photo-model.js)을 폰 안에서 먼저 돌린다. 사진이 밖으로 나가지 않는다.
@@ -186,6 +188,7 @@
       ${info.todo ? `<p class="pr-todo">${info.todo}</p>` : ''}
       ${reasons ? `<details class="more pr-why"><summary>AI가 본 특징</summary><ul>${reasons}</ul></details>` : ''}
       ${r.photoTip ? `<p class="pr-tip">다시 찍을 때: ${escapeHtml(r.photoTip)}</p>` : ''}`;
+    if (window.MZDonate) window.MZDonate.offer(lastPhoto, r, $('photoResult'));   // AI 학습에 기증하기
   }
 
   function escapeHtml(s) {

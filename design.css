@@ -1340,3 +1340,22 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 /* 첫 화면 지도: 원을 누르면 뜨는 동네 이름·점수 말풍선 (hero-map.js) */
 .hm-tip { position: absolute; z-index: 6; transform: translate(-50%, -100%); padding: 8px 14px; border-radius: 12px; background: rgba(15, 20, 30, .9); color: #fff; font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s; }
 .hm-tip.on { opacity: 1; }
+/* 사진 기증 칸 (photo-donate.js) */
+.dn { display: grid; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--g200); }
+.dn-t { margin: 0; font-size: 16px; font-weight: 700; color: var(--g900); }
+.dn-s { margin: 0; font-size: 14px; line-height: 1.55; color: var(--g600); }
+.dn-btn { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--g900); color: #fff; font: 700 16px var(--sans); text-decoration: none; cursor: pointer; }
+.dn-btn.sub { background: var(--g100); color: var(--g800); }
+.dn-btn:disabled { background: var(--g300); cursor: default; }
+.dn-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.dn-msg { margin: 0; min-height: 1.4em; font-size: 14px; color: #B42318; } .dn-msg.ok { color: #0B7A55; }
+/* 직원: 기증 사진 확인 (photo-review.js) */
+.pv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin: 16px 0; padding: 0; list-style: none; }
+.pv-list > li { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: #fff; border: 1px solid var(--g200); }
+.pv-list > li.done { opacity: .45; }
+.pv-list img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--g100); }
+.pv-ai { margin: 0; font-size: 14px; color: var(--g700); }
+.pv-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-btns button { min-height: 40px; padding: 0 12px; font-size: 14px; border-radius: 10px; }
+.pv-msg { margin: 0; min-height: 1.3em; font-size: 14px; color: var(--g700); }
+.pv-empty { padding: 20px; border-radius: 14px; background: var(--g50); color: var(--g600); }

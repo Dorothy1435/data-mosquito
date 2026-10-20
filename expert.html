@@ -313,6 +313,16 @@
       </div>
     </section>
 
+    <!-- 기증 사진 확인 (직원만, photo-review.js). 직원이 종을 확인한 사진만 AI 학습에 쓴다 -->
+    <section class="s" id="photoReview" hidden aria-labelledby="photoReviewTitle">
+      <div class="wrap">
+        <div class="head"><h2 id="photoReviewTitle">기증 사진 확인</h2><p>시민이 AI 학습에 기증한 모기 사진이에요. 종을 골라 주면 그 사진만 다시 학습에 써요. 모기가 아니거나 이상한 사진은 지워 주세요.</p></div>
+        <p class="dim" id="photoReviewMsg" role="status"></p>
+        <ol class="pv-list" id="photoReviewList"></ol>
+        <button type="button" class="btn-sub" id="photoReviewMore">새로 불러오기</button>
+      </div>
+    </section>
+
     <section class="s gray" data-audience="expert" aria-labelledby="modelNoteTitle">
       <div class="wrap">
         <div class="head rv">
@@ -423,6 +433,7 @@
   <script src="geo.js"></script>
   <script src="control-nav.js"></script>
   <script src="staff-reports.js"></script>
+  <script src="photo-review.js"></script>
   <script src="chat.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>

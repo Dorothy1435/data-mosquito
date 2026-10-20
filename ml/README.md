@@ -33,5 +33,13 @@ ml/.venv/Scripts/python -u ml/03_export.py
 3. 출처·라이선스를 `ml/data/출처.csv`에 함께 적습니다.
 4. 2)·3)을 다시 실행하고, `models/` 파일을 커밋합니다.
 
+## 시민이 기증한 사진으로 다시 학습하기 (2026-10-20)
+1. 사이트의 사진 판별 결과에서 시민이 'AI 학습에 기증하기'를 누르면(로그인·동의, 폰에서 흐림·어두움·같은 사진을 거름) Supabase 비공개 저장소에 쌓인다.
+2. 직원이 전문가용 화면의 '기증 사진 확인'에서 종을 고른다. 확인된 사진만 학습에 쓴다.
+3. 학습 PC 에 환경변수 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`(관리자 키, 코드·저장소에 적지 않음)를 두고
+   `ml/.venv/Scripts/python ml/05_fetch_donations.py --into-v1` → `02_train.py` → `03_export.py`.
+4. 작은빨간집모기처럼 새 분류를 늘릴 때는 `ml/data/donations/<종>/` 사진으로 `02_train.py` 의 LABELS 를 바꾸고, 같은 개체 사진이 학습·시험에 섞이지 않게 나눈다.
+5. 시험 정확도가 지금 모델보다 좋을 때만 `models/` 를 바꾼다.
+
 ## 서버 PC(GPU)에서 할 때
 같은 명령을 서버에서 실행하면 됩니다. GPU가 있으면 `pip install torch torchvision`(CUDA 판)으로 설치하고, `02_train.py`의 바퀴 수(`plan`)를 늘려도 됩니다. 사진 원본은 나스에 두고 학습 전에 서버 SSD로 복사해 쓰는 것을 권합니다.
