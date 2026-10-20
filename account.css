@@ -1,0 +1,103 @@
+/* =============================================================
+   로그인 · 회원가입 · 내 계정 화면 (account.html · account.js)
+   토스 실측 체계를 따른다: 제목 700·자간 -2%, 본문 17px 회색(#4E5968), 회색 단계 #191F28~#F9FAFB, 파랑 #3182F6.
+   상자(테두리·그림자) 없이 좁은 한 줄 기둥에 큰 제목 → 입력칸 → 화면 폭에 꽉 찬 버튼.
+   ============================================================= */
+.ax-page { padding-block: 40px 96px; }
+.ax-wrap { width: min(420px, 100%); margin: 0 auto; padding: 0 var(--gutter, 20px); box-sizing: border-box; }
+.ax-wrap h1 { margin: 0; font-size: 30px; font-weight: 700; line-height: 1.35; letter-spacing: -.02em; color: var(--g900); }
+.ax-lead { margin: 10px 0 0; font-size: 17px; line-height: 1.6; color: var(--g700); }
+#axBody { margin-top: 32px; }
+
+/* 소셜 로그인: 각 회사 버튼 색 그대로 */
+.ax-sns { display: grid; gap: 10px; }
+.ax-sns-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; border-radius: 16px; font: 600 17px var(--sans); cursor: pointer; transition: filter .2s, transform .15s; }
+.ax-sns-btn svg { position: absolute; left: 20px; }
+.ax-sns-btn.kakao { background: #FEE500; color: rgba(0, 0, 0, .85); border: 0; }
+.ax-sns-btn.google { background: #fff; color: var(--g900); border: 1px solid var(--g300); }
+.ax-sns-btn:hover { filter: brightness(.97); } .ax-sns-btn:active { transform: scale(.98); }
+.ax-sns-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.ax-sns-btn:disabled { opacity: .55; cursor: wait; }
+.ax-or { display: flex; align-items: center; gap: 12px; margin: 24px 0; font-size: 14px; color: var(--g500); }
+.ax-or::before, .ax-or::after { content: ""; flex: 1; height: 1px; background: var(--g200); }
+
+/* 입력 */
+.ax-form { display: grid; gap: 20px; }
+.ax-field { display: grid; gap: 8px; }
+.ax-field label { font-size: 15px; font-weight: 600; color: var(--g700); }
+.ax-input { position: relative; }
+.ax-input input { width: 100%; height: 56px; padding: 0 16px; border: 0; border-radius: 14px; background: var(--g100); color: var(--g900); font: 500 17px var(--sans); box-sizing: border-box; transition: background .2s, box-shadow .2s; }
+.ax-input input::placeholder { color: var(--g400); font-weight: 400; }
+.ax-input input:focus { outline: none; background: #fff; box-shadow: 0 0 0 2px var(--blue); }
+.ax-input.has-eye input { padding-right: 52px; }
+.ax-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: var(--g500); cursor: pointer; }
+.ax-eye.on { color: var(--blue); } .ax-eye:focus-visible { outline: 2px solid var(--blue); }
+
+/* 버튼: 화면 폭에 꽉 차게 */
+.ax-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 56px; border: 0; border-radius: 16px; background: var(--blue); color: #fff; font: 700 17px var(--sans); text-decoration: none; cursor: pointer; transition: background .2s, transform .15s; }
+.ax-btn:hover { background: var(--blue-ink); } .ax-btn:active { transform: scale(.98); }
+.ax-btn:focus-visible { outline: 3px solid var(--g900); outline-offset: 2px; }
+.ax-btn:disabled { background: var(--g300); cursor: wait; }
+.ax-btn.sub { background: var(--g100); color: var(--g800); } .ax-btn.sub:hover { background: var(--g200); }
+.ax-btn.danger { background: #E5484D; } .ax-btn.danger:hover { background: #C93A3F; }
+.ax-err { margin: -8px 0 0; min-height: 0; font-size: 15px; color: #D92D20; }
+.ax-err:empty { display: none; }
+.ax-err.ok { color: #0B7A55; }
+.ax-cap:empty { display: none; }
+.ax-links { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 4px 0 0; font-size: 15px; color: var(--g600); }
+.ax-links span { color: var(--g300); }
+.ax-links button { border: 0; background: none; padding: 8px 4px; color: var(--g700); font: 600 15px var(--sans); cursor: pointer; }
+.ax-links button:hover { color: var(--g900); } .ax-links button:focus-visible { outline: 2px solid var(--blue); border-radius: 6px; }
+.ax-note { margin: 0; font-size: 15px; line-height: 1.6; color: var(--g600); }
+.ax-note a { color: var(--g700); }
+
+/* 동의: 전체 동의 한 줄 + 항목 */
+.ax-agree { margin: 8px 0 0; padding: 0; border: 0; }
+.ax-agree ul { display: grid; gap: 14px; margin: 16px 0 0; padding: 16px 0 0; border-top: 1px solid var(--g200); list-style: none; }
+.ax-agree li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ax-check { display: flex; align-items: center; gap: 12px; font-size: 15px; color: var(--g800); cursor: pointer; }
+.ax-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ax-check i { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--g200); color: #fff; transition: background .15s; }
+.ax-check input:checked + i { background: var(--blue); }
+.ax-check input:focus-visible + i { outline: 3px solid var(--blue); outline-offset: 2px; }
+.ax-check.all { font-size: 17px; font-weight: 700; color: var(--g900); }
+.ax-check.all i { width: 26px; height: 26px; }
+.ax-check b { font-weight: 600; } .ax-check b.req { color: var(--blue-ink); } .ax-check b.opt { color: var(--g500); }
+.ax-view { flex: none; font-size: 14px; color: var(--g500); text-decoration: none; padding: 6px 2px; }
+.ax-view::after { content: " ›"; } .ax-view:hover { color: var(--g800); }
+.ax-agree .ax-sum { display: block; margin: -6px 0 0 36px; font-size: 14px; line-height: 1.55; color: var(--g500); }
+
+/* 내 계정 */
+.ax-me { padding-bottom: 24px; }
+.ax-me-name { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.02em; color: var(--g900); }
+.ax-me-sub { margin: 6px 0 0; font-size: 15px; color: var(--g600); word-break: break-all; }
+.ax-go { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 4px; border-top: 1px solid var(--g100); color: var(--g900); text-decoration: none; }
+.ax-go::after, .ax-row > summary::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 2px solid var(--g400); border-bottom: 2px solid var(--g400); transform: rotate(-45deg); margin-right: 6px; transition: transform .2s; }
+.ax-go span, .ax-row > summary span { display: grid; gap: 2px; }
+.ax-go b, .ax-row b { font-size: 17px; font-weight: 600; }
+.ax-go small, .ax-row small { font-size: 14px; color: var(--g500); }
+.ax-go:hover { background: var(--g50); }
+.ax-go:focus-visible, .ax-row > summary:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; border-radius: 10px; }
+.ax-group { margin: 32px 0 4px; font-size: 14px; font-weight: 600; color: var(--g500); }
+.ax-list { border-bottom: 1px solid var(--g100); }
+.ax-row { border-top: 1px solid var(--g100); }
+.ax-row > summary { display: flex; align-items: center; justify-content: space-between; min-height: 64px; padding: 0 4px; cursor: pointer; list-style: none; }
+.ax-row > summary::-webkit-details-marker { display: none; }
+.ax-row > summary::after { transform: rotate(45deg); }
+.ax-row[open] > summary::after { transform: rotate(-135deg); }
+.ax-row-body { padding: 4px 4px 24px; }
+.ax-switch { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.ax-switch span { display: grid; gap: 2px; } .ax-switch b { font-size: 16px; font-weight: 600; } .ax-switch small { font-size: 14px; color: var(--g500); }
+.ax-switch input { flex: none; appearance: none; -webkit-appearance: none; width: 52px; height: 32px; border-radius: 999px; background: var(--g300); position: relative; cursor: pointer; transition: background .2s; margin: 0; }
+.ax-switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 20, 60, .25); transition: transform .2s; }
+.ax-switch input:checked { background: var(--blue); } .ax-switch input:checked::after { transform: translateX(20px); }
+.ax-switch input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.ax-foot { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 24px 0 8px; }
+.ax-text { border: 0; background: none; padding: 10px 4px; color: var(--g600); font: 600 15px var(--sans); cursor: pointer; }
+.ax-text:hover { color: var(--g900); } .ax-text:focus-visible { outline: 2px solid var(--blue); border-radius: 6px; }
+.ax-row.danger { margin-top: 16px; border-top: 0; }
+.ax-row.danger > summary b { color: #D92D20; font-size: 15px; } .ax-row.danger > summary { min-height: 48px; }
+
+@media (min-width: 901px) { .ax-page { padding-block: 72px 120px; } .ax-wrap h1 { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { .ax-btn, .ax-sns-btn, .ax-switch input, .ax-switch input::after { transition: none; } }
+.ax-go.plain { margin-top: 40px; border-top: 1px solid var(--g100); border-bottom: 1px solid var(--g100); }

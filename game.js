@@ -314,12 +314,17 @@
       if (quit) return;
       const next = run.stage + 1, canNext = success && next <= openStages() && STAGES[next - 1];
       if (success) {
-        overlay(`<p class="egg-k">${run.stage}단계 성공</p><p class="egg-n">${run.caught.toLocaleString('ko-KR')}<small>마리</small></p><p class="egg-t">${fmt(ms)} 만에 다 잡았어요</p><p class="egg-p">${canNext ? `다음은 ${next}단계, ${STAGES[next - 1].target.toLocaleString('ko-KR')}마리예요.` : next <= STAGES.length ? '다음 단계는 모기가 더 많은 날 열려요.' : '모든 단계를 깼어요. 전설입니다.'}</p>`,
+        overlay(`<p class="egg-k">${run.stage}단계 성공</p><p class="egg-n">${run.caught.toLocaleString('ko-KR')}<small>마리</small></p><p class="egg-t">${fmt(ms)} 만에 다 잡았어요</p><p class="egg-p">${canNext ? `다음은 ${next}단계, ${STAGES[next - 1].target.toLocaleString('ko-KR')}마리예요.` : next <= STAGES.length ? '다음 단계는 모기가 더 많은 날 열려요.' : '모든 단계를 깼어요. 전설입니다.'}</p>${loginHint()}`,
           canNext ? [[`${next}단계 도전`, () => startRun(next)], ['그만', null]] : [['닫기', null]]);
       } else {
-        overlay(`<p class="egg-k">${run.stage}단계 실패</p><p class="egg-n">${run.caught.toLocaleString('ko-KR')}<small>/${run.target.toLocaleString('ko-KR')}</small></p><p class="egg-t">시간이 다 됐어요</p><p class="egg-p">잡은 ${run.caught}마리는 누적에 남았어요. 지금까지 ${state.kills.toLocaleString('ko-KR')}마리.</p>`,
+        overlay(`<p class="egg-k">${run.stage}단계 실패</p><p class="egg-n">${run.caught.toLocaleString('ko-KR')}<small>/${run.target.toLocaleString('ko-KR')}</small></p><p class="egg-t">시간이 다 됐어요</p><p class="egg-p">잡은 ${run.caught}마리는 누적에 남았어요. 지금까지 ${state.kills.toLocaleString('ko-KR')}마리.</p>${loginHint()}`,
           [['다시 도전', () => startRun(run.stage)], ['그만', null]]);
       }
+    }
+    // 로그인하지 않았으면 결과 카드에 '랭킹 기록에 남지 않아요' 안내
+    function loginHint() {
+      const A = window.MZAuth;
+      return A && A.enabled && !A.user() ? '<p class="egg-p egg-login">로그인하지 않으면 랭킹 기록에 남지 않아요. <a href="account.html?next=index.html">로그인</a></p>' : '';
     }
     // 서버로 보내기: 로그인 상태면 도전 기록을 보낸다. 안 되면 pending 에 남겨 다음에 다시
     async function syncPending() {

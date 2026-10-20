@@ -33,6 +33,13 @@
 
   function emit() {
     markStaffNav();
+    // 직원 계정이면 <html class="is-staff"> — 전문가용 버튼·화면은 이 표시가 있을 때만 보인다 (design.css)
+    // 다른 화면에서도 바로 쓰게 이 기기에 기억한다(mz-staff). 로그아웃·직원 아님이면 지운다
+    if (status !== 'loading') {
+      const staff = !!(profile && profile.role === 'staff');
+      document.documentElement.classList.toggle('is-staff', staff);
+      try { if (staff) localStorage.setItem('mz-staff', '1'); else localStorage.removeItem('mz-staff'); } catch (e) { /* 무시 */ }
+    }
     document.dispatchEvent(new CustomEvent('auth:changed', { detail: { user: user(), profile, status } }));
   }
   // 직원 계정으로 로그인하면 상단 메뉴에 '전문가용' 버튼이 생긴다 (메뉴에 이미 있으면 그대로)

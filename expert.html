@@ -56,7 +56,14 @@
     </div>
   </header>
 
-  <main id="main">
+  <main id="main" data-staff-page>
+    <!-- 직원 계정이 아니면 이 안내만 보인다 (design.css html:not(.is-staff) main[data-staff-page]) -->
+    <section class="staff-gate" aria-labelledby="gateT">
+      <h1 id="gateT">직원 전용 화면이에요</h1>
+      <p>방역 내비게이션과 시민 제보는 보건소 직원 계정으로 로그인해야 볼 수 있어요.</p>
+      <a class="ax-gate-btn" href="account.html?next=expert.html">직원 계정으로 로그인</a>
+      <a class="ax-gate-sub" href="gimhae.html">동네별 자세히 보기로 가기</a>
+    </section>
 
     <!-- 첫 화면: 왼쪽 제목·보기 전환·날씨 상태, 오른쪽 액자에 게이지 -->
     <section class="s g-first xp-first" aria-labelledby="gimhaeTitle">
