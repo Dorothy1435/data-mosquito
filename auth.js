@@ -63,6 +63,10 @@
         }
       }
     } catch (e) { /* 로컬 파일 열기 등: 아래로 */ }
+    // 이 PC에서 시험할 때만(localhost) config.js 를 읽는다. config.js 는 깃에 올리지 않는 파일이라 실제 사이트에는 없다
+    if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !(window.MOSQUITO_CONFIG && window.MOSQUITO_CONFIG.supabase)) {
+      await new Promise((resolve) => { const s = document.createElement('script'); s.src = 'config.js'; s.onload = s.onerror = () => resolve(); document.head.appendChild(s); });
+    }
     const local = window.MOSQUITO_CONFIG && window.MOSQUITO_CONFIG.supabase;
     if (local && local.url && local.anonKey) return { url: local.url, key: local.anonKey, turnstile: local.turnstileSiteKey || '', providers: local.providers || [] };
     return null;
