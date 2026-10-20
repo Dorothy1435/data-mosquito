@@ -43,8 +43,10 @@
     return `<rect class="hm-pill" x="${(x - w / 2).toFixed(1)}" y="${(ly - 19).toFixed(1)}" width="${w}" height="30" rx="15"/>`
       + `<text class="hm-name me" x="${x.toFixed(1)}" y="${(ly + 2).toFixed(1)}" text-anchor="middle">${text}</text>`;
   }
-  function dot(parts, x, y, r, color, me, i, glow) {
-    parts.push(`<g class="hm-node${me ? ' me' : ''}" style="--i:${i}">`);
+  // tip: 원을 눌렀을 때 말풍선에 보일 글 (예: '회현동 · 61점 높음')
+  function dot(parts, x, y, r, color, me, i, glow, tip) {
+    const t = tip ? ` data-tip="${esc(tip)}" data-cx="${x.toFixed(1)}" data-cy="${y.toFixed(1)}" data-r="${r.toFixed(1)}"` : '';
+    parts.push(`<g class="hm-node${me ? ' me' : ''}" style="--i:${i}"${t}>`);
     if (glow) parts.push(`<circle class="hm-glow" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r * 1.6).toFixed(1)}" fill="${color}"/>`);
     parts.push(`<circle class="hm-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}"/>`);
     if (me) parts.push(`<circle class="hm-me" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 9).toFixed(1)}"/>`);
@@ -92,7 +94,8 @@
       const r = idx == null ? 7 : 8 + (idx / 100) * 34;
       const color = d ? d.color : 'rgba(255,255,255,.35)';
       const me = n === active;
-      dot(parts, x, y, r, color, me, i, Boolean(d));
+      const stage = idx == null ? null : (typeof window.getCurrentStage === 'function' ? window.getCurrentStage(idx) : null);
+      dot(parts, x, y, r, color, me, i, Boolean(d), idx == null ? n : `${n} · ${Math.round(idx)}점${stage ? ' ' + stage.label : ''}`);
       const nearest = Math.min(...names.filter((m) => m !== n).map((m) => Math.hypot(pos[m][0] - x, pos[m][1] - y)));
       if (me) parts.push(pillLabel(x, y, r, `${esc(n)} · 내 동네`));
       else if (nearest > 44) parts.push(`<text class="hm-name" x="${x.toFixed(1)}" y="${(y + r + 22).toFixed(1)}" text-anchor="middle">${esc(n)}</text>`);
@@ -124,7 +127,8 @@
       const r = idx == null ? 7 : 7 + (idx / 100) * 26;
       const color = sc ? sc.color : 'rgba(255,255,255,.35)';
       const me = rg.name === active;
-      dot(parts, x, y, r, color, me, i, Boolean(sc));
+      const st = idx == null ? null : (typeof window.getCurrentStage === 'function' ? window.getCurrentStage(idx) : null);
+      dot(parts, x, y, r, color, me, i, Boolean(sc), idx == null ? rg.name : `${rg.name} · ${Math.round(idx)}점${st ? ' ' + st.label : ''}${isK ? '' : ' (날씨 추정)'}`);
       if (isK) parts.push(`<circle class="hm-kim" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r + 16).toFixed(1)}"/>`);   // 정밀 자료가 있는 곳 표시
       const others = regions.filter((o) => o.name !== rg.name);
       const nearest = Math.min(...others.map((o) => Math.hypot(pos[o.name][0] - x, pos[o.name][1] - y)));
@@ -211,8 +215,38 @@
     lastDetail = d;
     draw();
   });
+  // 원을 짧게 톡 누르면 동네 이름·점수 말풍선을 2초 보여 준다.
+  // 지도 위는 모기 잡기 게임 자리라 누르기를 막지 않고(모기약은 그대로 뿌려짐), 끌기(연사)·도전 중에는 띄우지 않는다.
+  function wireTips(svg) {
+    const card = svg.parentElement;
+    let down = null, tipEl = null, hideTimer = null;
+    card.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; }, true);
+    card.addEventListener('pointerup', (e) => {
+      if (!down || document.body.classList.contains('game-run')) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t;
+      down = null;
+      if (moved > 10 || dt > 500) return;
+      const ctm = svg.getScreenCTM(); if (!ctm) return;
+      const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+      let best = null, bestD = Infinity;
+      svg.querySelectorAll('[data-tip]').forEach((g) => {
+        const d = Math.hypot(pt.x - Number(g.dataset.cx), pt.y - Number(g.dataset.cy)) - Number(g.dataset.r);
+        if (d < bestD) { bestD = d; best = g; }
+      });
+      if (!best || bestD > 22) return;
+      if (!tipEl) { tipEl = document.createElement('div'); tipEl.className = 'hm-tip'; tipEl.setAttribute('role', 'status'); card.appendChild(tipEl); }
+      const cr = card.getBoundingClientRect();
+      tipEl.textContent = best.dataset.tip;
+      tipEl.style.left = `${Math.min(Math.max(e.clientX - cr.left, 70), cr.width - 70)}px`;
+      tipEl.style.top = `${Math.max(e.clientY - cr.top - 16, 12)}px`;
+      tipEl.classList.add('on');
+      clearTimeout(hideTimer); hideTimer = setTimeout(() => tipEl.classList.remove('on'), 2000);
+    });
+  }
   document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('heroViewBtn');
     if (btn) btn.addEventListener('click', () => { view = view === 'gn' ? 'local' : 'gn'; draw(); });
+    const svg = document.getElementById('heroMap');
+    if (svg) wireTips(svg);
   });
 })();

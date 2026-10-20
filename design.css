@@ -1337,3 +1337,6 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .ax-gate-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 56px; margin-top: 8px; border-radius: 16px; background: var(--blue); color: #fff; font-weight: 700; font-size: 17px; text-decoration: none; }
 .ax-gate-btn:hover { background: var(--blue-ink); }
 .ax-gate-sub { justify-self: center; padding: 8px; color: var(--g700); font-weight: 600; font-size: 15px; text-decoration: none; }
+/* 첫 화면 지도: 원을 누르면 뜨는 동네 이름·점수 말풍선 (hero-map.js) */
+.hm-tip { position: absolute; z-index: 6; transform: translate(-50%, -100%); padding: 8px 14px; border-radius: 12px; background: rgba(15, 20, 30, .9); color: #fff; font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.hm-tip.on { opacity: 1; }

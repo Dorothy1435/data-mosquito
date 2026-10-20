@@ -274,6 +274,7 @@
     /* --- 도전 시작·끝 --- */
     function startRun(n) {
       const s = STAGES[n - 1]; if (!s) return;
+      document.body.classList.add('game-run');   // 도전 중에는 지도 말풍선을 띄우지 않는다 (hero-map.js)
       run.on = true; run.stage = n; run.target = s.target; run.caught = 0; run.startAt = performance.now(); run.endAt = run.startAt + s.seconds * 1000;
       diff = DIFF[Math.min(n - 1, DIFF.length - 1)];
       const cnt = Math.max(1, Math.round(diff.count * (small ? (CFG.MOBILE_COUNT_SCALE || 0.7) : 1)));
@@ -297,7 +298,7 @@
     function endRun(success, quit) {
       if (!run.on) return;
       clearInterval(run.timer); run.timer = null;
-      run.on = false;
+      run.on = false; document.body.classList.remove('game-run');
       const ms = Math.round(performance.now() - run.startAt);
       card.classList.remove('in-run');
       run.needQueen = false; run.swarmUntil = 0;
