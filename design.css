@@ -1372,3 +1372,15 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 @media (max-width: 900px) {
   html:not(.is-staff) body.tabs .xp-top + .me-top:not(.where ~ .me-top) { margin-left: auto; }
 }
+
+/* 폰: 물렸어요를 탭 칸에서 빼서 아래 탭 바로 위 가운데에 살짝 띄운다 (2026-10-20). 탭은 5칸 */
+@media (max-width: 900px) {
+  .tabbar { grid-template-columns: repeat(5, 1fr); }
+  .tabbar > .tab-bite { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); display: inline-flex; flex-direction: row; align-items: center; gap: 6px; min-height: 48px; padding: 0 20px 0 14px; border-radius: 999px; background: var(--bite); color: #fff; font: 700 16px var(--sans); letter-spacing: -0.02em; box-shadow: 0 8px 20px rgba(229, 72, 77, .35); transition: transform .2s, background .2s; }
+  .tabbar > .tab-bite i { width: auto; height: auto; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; }
+  .tabbar > .tab-bite svg { width: 22px; height: 22px; }
+  .tabbar > .tab-bite:active { transform: translateX(-50%) scale(.97); background: var(--bite-ink); }
+  .tabbar > .tab-bite:focus-visible { outline: 3px solid var(--g900); outline-offset: 3px; border-radius: 999px; }
+  body.tabs { padding-bottom: calc(126px + env(safe-area-inset-bottom)); }
+  body.rn-running .tabbar > .tab-bite { display: none; }
+}
