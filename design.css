@@ -1309,10 +1309,13 @@ h1, h2, h3 { text-wrap: balance; }
 /* 위쪽 메뉴: 메뉴 버튼들을 가운데로 (2026-10-20 요청) + 오른쪽 끝 로그인 버튼 */
 @media (min-width: 901px) {
   .nav-in .lk { margin-left: auto; margin-right: auto; }
-  .login-top { flex: none; display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--g900); color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; white-space: nowrap; }
-  .login-top:hover { background: #000; }
-  .login-top:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
-  .where + .login-top { margin-left: 8px; }
+  /* 로그인: 알약 버튼 대신 메뉴와 같은 글자 링크 + 앞에 얇은 구분선 (2026-10-20 '버튼이 AI 같다') */
+  .login-top { flex: none; position: relative; display: inline-flex; align-items: center; min-height: 40px; padding: 0 4px 0 17px; color: var(--g800); font-size: 15px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: color .2s; }
+  .login-top::before { content: ""; position: absolute; left: 0; top: 50%; width: 1px; height: 14px; margin-top: -7px; background: var(--g300); }
+  .login-top:hover { color: var(--g900); }
+  .login-top[aria-current="page"] { color: var(--g900); font-weight: 700; }
+  .login-top:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; border-radius: 6px; }
+  .where + .login-top { margin-left: 16px; }
 }
 @media (max-width: 900px) { .login-top { display: none; } }
 /* 넓은 화면: 메뉴를 화면 정가운데에 (양옆 버튼 폭과 상관없이) */

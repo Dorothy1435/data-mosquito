@@ -11,7 +11,7 @@
      · 봇·AI 자동 가입 막기: 캡차 키가 있으면 가입·로그인·비밀번호 찾기 때 Cloudflare Turnstile 토큰을 같이 보낸다.
        (토큰 검사는 Supabase 가 한다: 대시보드 → Authentication → Bot and Abuse Protection)
      · 가입 마무리: 필수 동의(만 14세 이상·이용약관·개인정보)와 닉네임을 마쳐야 랭킹에 기록이 올라간다.
-       구글·카카오로 처음 들어온 사람도 이 단계를 거친다.
+       카카오로 처음 들어온 사람도 이 단계를 거친다.
    표·함수 정의: supabase/game-schema.sql, supabase/account-schema.sql
    ============================================================= */
 (function () {
@@ -19,6 +19,7 @@
   const CFG = window.MZ_GAME_CONFIG || {};
   // 약관·처리방침 판. 문서를 크게 고치면 날짜를 바꾸고, 바뀐 판에 다시 동의를 받는다
   const POLICY_VERSION = '2026-10-20';
+  const SOCIAL = ['kakao'];   // 쓰는 소셜 로그인 (2026-10-20: 카카오만)
   // 버전을 정확히 고정하고 무결성 값(SRI)을 붙인다. 외부 서버의 파일이 바뀌면 브라우저가 실행을 거부한다 (2026-10-12 보안 점검)
   // 버전을 올릴 때는 새 파일의 sha384 값을 다시 계산해 SDK_SRI 도 함께 바꾼다
   const SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
@@ -100,6 +101,12 @@
     try {
       await loadSdk();
       client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+      // 소셜 로그인: Supabase 대시보드에서 켠 것만 버튼을 보인다(카카오만 쓴다). 환경변수를 따로 넣지 않아도 된다
+      try {
+        const st = await fetch(`${conf.url}/auth/v1/settings`, { headers: { apikey: conf.key } }).then((r) => r.json());
+        const ext = (st && st.external) || {};
+        conf.providers = SOCIAL.filter((p) => ext[p] || (conf.providers || []).includes(p) && ext[p] !== false);
+      } catch (e) { /* 못 읽으면 버튼을 숨긴다 */ conf.providers = []; }
       client.auth.onAuthStateChange(async (ev, s) => {
         if (ev === 'PASSWORD_RECOVERY') recovering = true;
         session = s; await loadProfile(); emit();
@@ -135,7 +142,7 @@
     if (error) throw new Error(koError(error));
     session = data.session; await loadProfile(); emit();
   }
-  // 구글·카카오: 그 회사 로그인 화면으로 갔다가 돌아온다. 돌아온 주소의 정보는 라이브러리가 읽는다(detectSessionInUrl)
+  // 카카오: 그 회사 로그인 화면으로 갔다가 돌아온다. 돌아온 주소의 정보는 라이브러리가 읽는다(detectSessionInUrl)
   async function signInWith(provider) {
     need();
     if (!(conf.providers || []).includes(provider)) throw new Error('이 로그인 방법은 아직 준비 중이에요.');
@@ -200,7 +207,7 @@
   }
 
   // ---------- 계정 관리 ----------
-  // 이메일·비밀번호로 가입한 계정인지 (구글·카카오만 쓰는 계정은 비밀번호가 없다)
+  // 이메일·비밀번호로 가입한 계정인지 (카카오만 쓰는 계정은 비밀번호가 없다)
   function hasPassword() {
     const u = user(); if (!u) return false;
     const ids = u.identities || [];

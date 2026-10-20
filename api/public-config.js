@@ -10,7 +10,7 @@
 //   TURNSTILE_SITE_KEY: Cloudflare Turnstile 공개 키(봇·AI 자동 가입 막기). 비밀 키는 Supabase 대시보드에만 넣는다.
 //   AUTH_PROVIDERS: 소셜 로그인 버튼 목록. 예) google,kakao  (Supabase 대시보드에서 켠 것만 적는다)
 
-const ALLOWED_PROVIDERS = ['google', 'kakao'];
+const ALLOWED_PROVIDERS = ['kakao'];   // 소셜 로그인은 카카오만 (auth.js 는 Supabase 설정에서 켜진 것을 직접 읽는다)
 
 module.exports = function handler(req, res) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';

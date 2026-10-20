@@ -5,7 +5,7 @@
    로그인은 랭킹 참여와 기록 보관용이다.
    화면은 상태에 따라 바뀐다
      login(로그인) · signup(회원가입) · forgot(비밀번호 찾기) · recover(메일 링크로 새 비밀번호)
-     onboard(가입 마무리: 구글·카카오로 처음 들어왔을 때 닉네임·필수 동의) · account(내 계정)
+     onboard(가입 마무리: 카카오로 처음 들어왔을 때 닉네임·필수 동의) · account(내 계정)
    주소 뒤 ?next=ranking.html 처럼 붙이면 로그인한 뒤 그 화면으로 돌아간다.
    봇·AI 자동 가입 막기: 캡차 키가 있으면 Cloudflare Turnstile 을 붙인다(가입·로그인·비밀번호 찾기·변경).
    ============================================================= */
@@ -16,9 +16,8 @@
   let mode = /(^|[?&])mode=signup/.test(location.search) ? 'signup' : 'login';   // login · signup · forgot
   const NEXT = (() => { const m = location.search.match(/[?&]next=([a-z-]+\.html)/); return m ? m[1] : ''; })();
 
-  // 공식 로고 (카카오 말풍선, 구글 G) — 각 회사 로그인 버튼 가이드의 색을 따른다
+  // 공식 로고 (카카오 말풍선) — 각 회사 로그인 버튼 가이드의 색을 따른다
   const KAKAO_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#000" d="M12 3.2c-5.3 0-9.6 3.4-9.6 7.6 0 2.7 1.8 5.1 4.5 6.4-.2.7-.7 2.6-.8 3-.1.5.2.5.4.3.2-.1 2.6-1.8 3.7-2.5.6.1 1.2.1 1.8.1 5.3 0 9.6-3.4 9.6-7.6S17.3 3.2 12 3.2z"/></svg>';
-  const GOOGLE_SVG = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
   const EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
   const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
 
@@ -58,7 +57,6 @@
     if (!P.length) return '';
     return `<div class="ax-sns">
       ${P.includes('kakao') ? `<button type="button" class="ax-sns-btn kakao" data-oauth="kakao">${KAKAO_SVG}<span>카카오로 계속하기</span></button>` : ''}
-      ${P.includes('google') ? `<button type="button" class="ax-sns-btn google" data-oauth="google">${GOOGLE_SVG}<span>구글로 계속하기</span></button>` : ''}
     </div><p class="ax-or"><span>또는 이메일로</span></p>`;
   }
   // 동의: 토스처럼 '전체 동의' 한 줄 + 항목 목록. 필수 항목의 수집 내용은 항목 바로 아래 회색 글로
@@ -117,7 +115,7 @@
     }),
     forgot: () => ({
       title: '비밀번호 찾기',
-      lead: '가입한 이메일로 비밀번호를 새로 정하는 링크를 보내 드려요. 구글·카카오로 가입했다면 그 계정으로 로그인해 주세요.',
+      lead: '가입한 이메일로 비밀번호를 새로 정하는 링크를 보내 드려요. 카카오로 가입했다면 그 계정으로 로그인해 주세요.',
       body: `<form class="ax-form" id="axForm" novalidate>
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
         <div class="ax-cap" id="capBox"></div>${errLine}
@@ -169,7 +167,7 @@
   /* ---------- 내 계정 (로그인 뒤) ---------- */
   function accountView(A) {
     const p = A.profile() || {}, u = A.user();
-    const methods = A.loginMethods().map((m) => ({ email: '이메일', google: '구글', kakao: '카카오' }[m] || m)).join(' · ') || '이메일';
+    const methods = A.loginMethods().map((m) => ({ email: '이메일', kakao: '카카오' }[m] || m)).join(' · ') || '이메일';
     const next = p.nickname_changed_at ? new Date(new Date(p.nickname_changed_at).getTime() + 30 * 864e5) : null;
     const row = (id, title, sub, inner) => `<details class="ax-row" id="${id}"><summary><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></summary><div class="ax-row-body">${inner}</div></details>`;
     return `<div class="ax-me">
@@ -268,6 +266,12 @@
     }
     if (u && A.needsOnboarding()) {
       paint('거의 다 됐어요', '닉네임과 연락처, 동의만 남았어요. 랭킹에는 닉네임만 보여요.', `<form class="ax-form" id="axForm" novalidate>${field('nickname', '닉네임 (랭킹에 보여요)', 'text', 'maxlength="12" required placeholder="2~12자 한글·영문·숫자"')}${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required placeholder="실명 (상품 받을 때 확인해요)"')}${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required placeholder="010-1234-5678"')}${consents()}${errLine}<button type="submit" class="ax-btn">시작하기</button><p class="ax-links"><button type="button" id="laterBtn">나중에 할게요 (로그아웃)</button></p></form>`);
+      // 카카오가 이름·전화번호를 주면(비즈 앱 검수 후) 미리 채운다. 전화번호는 '+82 10-1234-5678' 꼴로 온다
+      const md = (u.user_metadata) || {};
+      const kname = md.name || md.full_name || '';
+      const kphone = String(md.phone_number || md.phone || '').replace(/^\+82\s?/, '0').replace(/[^0-9]/g, '');
+      if (kname && /^[가-힣A-Za-z ]{2,20}$/.test(kname) && md.phone_number) $('f_real_name').value = kname;
+      if (/^01[016789][0-9]{7,8}$/.test(kphone)) $('f_phone').value = kphone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
       const get = wireConsent($('axBody'));
       $('laterBtn').addEventListener('click', () => A.signOut());
       onSubmit($('axForm'), null, async (f) => {
