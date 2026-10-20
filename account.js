@@ -71,7 +71,7 @@
         ${row('age14', true, '만 14세 이상이에요')}
         ${row('terms', true, '이용약관', 'terms.html')}
         ${row('privacy', true, '개인정보 수집·이용', 'privacy.html#signup')}
-        <li class="ax-sum">이메일·닉네임·모기 잡기와 뛰어런 기록을 로그인과 랭킹에 쓰고, 계정을 지우면 바로 모두 지워요.</li>
+        <li class="ax-sum">이메일·닉네임·이름·휴대폰 번호·모기 잡기와 뛰어런 기록을 로그인, 랭킹, 상품 지급 연락에 쓰고, 계정을 지우면 바로 모두 지워요. 이름·휴대폰은 본인만 볼 수 있어요.</li>
         ${row('location', false, '위치정보 이용 (제보 위치, 뛰어런 거리)', 'privacy.html#location')}
         ${row('motion', false, '움직임 센서 이용 (뛰어런 걸음)')}
       </ul>
@@ -103,7 +103,9 @@
       title: '회원가입',
       lead: '',
       body: `${social()}<form class="ax-form" id="axForm" novalidate>
-        ${field('nickname', '닉네임', 'text', 'maxlength="12" autocomplete="nickname" required placeholder="2~12자 한글·영문·숫자"')}
+        ${field('nickname', '닉네임 (랭킹에 보여요)', 'text', 'maxlength="12" autocomplete="nickname" required placeholder="2~12자 한글·영문·숫자"')}
+        ${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required placeholder="실명 (상품 받을 때 확인해요)"')}
+        ${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required placeholder="010-1234-5678"')}
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
         ${field('password', '비밀번호', 'password', 'autocomplete="new-password" minlength="8" required placeholder="8자 이상, 영문과 숫자"')}
         ${field('password2', '비밀번호 확인', 'password', 'autocomplete="new-password" minlength="8" required')}
@@ -135,6 +137,10 @@
     $('axBody').querySelectorAll('[data-eye]').forEach((b) => b.addEventListener('click', () => {
       const i = $(b.dataset.eye); const show = i.type === 'password';
       i.type = show ? 'text' : 'password'; b.setAttribute('aria-label', show ? '비밀번호 숨기기' : '비밀번호 보기'); b.classList.toggle('on', show);
+    }));
+    $('axBody').querySelectorAll('input[name="phone"]').forEach((i) => i.addEventListener('input', () => {
+      const d = i.value.replace(/[^0-9]/g, '').slice(0, 11);
+      i.value = d.length < 4 ? d : d.length < 8 ? `${d.slice(0, 3)}-${d.slice(3)}` : `${d.slice(0, 3)}-${d.slice(3, d.length - 4)}-${d.slice(-4)}`;
     }));
     $('axBody').querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
     $('axBody').querySelectorAll('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
@@ -176,6 +182,7 @@
       <p class="ax-group">계정 설정</p>
       <div class="ax-list">
         ${row('rowNick', '닉네임 바꾸기', next && next > new Date() ? `${next.toLocaleDateString('ko-KR')}부터 바꿀 수 있어요` : '30일에 한 번', `<form class="ax-form" id="nickForm" novalidate>${field('nickname', '새 닉네임', 'text', `maxlength="12" required value="${esc(p.nickname || '')}"`)}${errLine}<button type="submit" class="ax-btn">바꾸기</button></form>`)}
+        ${row('rowContact', '이름 · 휴대폰', '상품 받을 때 연락처', `<form class="ax-form" id="contactForm" novalidate>${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required')}${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required')}<p class="ax-note">본인만 볼 수 있고, 랭킹에는 보이지 않아요.</p>${errLine}<button type="submit" class="ax-btn">저장</button></form>`)}
         ${A.hasPassword() ? row('rowPw', '비밀번호 바꾸기', '', `<form class="ax-form" id="pwForm" novalidate>${field('current', '지금 비밀번호', 'password', 'autocomplete="current-password" required')}${field('password', '새 비밀번호', 'password', 'autocomplete="new-password" minlength="8" required placeholder="8자 이상, 영문과 숫자"')}${field('password2', '새 비밀번호 확인', 'password', 'autocomplete="new-password" minlength="8" required')}<div class="ax-cap" id="capPw"></div>${errLine}<button type="submit" class="ax-btn">바꾸기</button></form>`) : ''}
         ${row('rowConsent', '선택 동의', '위치정보 · 움직임 센서', `<div class="ax-form"><label class="ax-switch"><span><b>위치정보 이용</b><small>제보 위치, 뛰어런 거리</small></span><input type="checkbox" role="switch" data-consent="location"></label><label class="ax-switch"><span><b>움직임 센서 이용</b><small>뛰어런 걸음 세기</small></span><input type="checkbox" role="switch" data-consent="motion"></label><p class="ax-err" id="consentErr" role="alert"></p><p class="ax-note">끄면 그 기능을 쓸 때 다시 물어봐요. <a href="privacy.html">개인정보 처리방침</a> · <a href="terms.html">이용약관</a></p></div>`)}
         ${row('rowData', '내 정보 내려받기', '서버에 있는 내 정보 전부', `<div class="ax-form"><p class="ax-note">이메일, 닉네임, 모기 잡기·뛰어런 기록, 동의 기록을 파일 하나로 받아요.</p><button type="button" class="ax-btn sub" id="exportBtn">파일로 받기</button>${errLine}</div>`)}
@@ -193,6 +200,14 @@
         </form></div></details>`;
   }
   function wireAccount(A) {
+    // 이름·휴대폰: 저장된 값을 채우고(가려서 보여 줌), 바꾸면 저장
+    A.myContact().then((c) => {
+      const f = $('contactForm'); if (!f) return;
+      if (c) { f.real_name.value = c.real_name; f.phone.value = c.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3'); }
+      const sub = document.querySelector('#rowContact small');
+      if (sub) sub.textContent = c ? `${c.real_name.slice(0, 1)}${'*'.repeat(Math.max(1, c.real_name.length - 1))} · ${c.phone.slice(0, 3)}-****-${c.phone.slice(-4)}${c.verified ? ' · 본인인증 완료' : ''}` : '아직 없어요 · 상품을 받으려면 필요해요';
+    });
+    onSubmit($('contactForm'), null, async (f) => { await A.setContact(f.real_name.value, f.phone.value); return '저장했어요.'; });
     onSubmit($('nickForm'), null, async (f) => { await A.changeNickname(f.nickname.value); return '바꿨어요. 랭킹에는 10초 안에 반영돼요.'; });
     if ($('pwForm')) {
       const cap = captcha($('capPw'));
@@ -252,12 +267,12 @@
       return;
     }
     if (u && A.needsOnboarding()) {
-      paint('거의 다 됐어요', '랭킹에 보일 닉네임과 동의만 남았어요. 구글·카카오의 이름은 랭킹에 쓰지 않아요.', `<form class="ax-form" id="axForm" novalidate>${field('nickname', '닉네임', 'text', 'maxlength="12" required placeholder="2~12자 한글·영문·숫자"')}${consents()}${errLine}<button type="submit" class="ax-btn">시작하기</button><p class="ax-links"><button type="button" id="laterBtn">나중에 할게요 (로그아웃)</button></p></form>`);
+      paint('거의 다 됐어요', '닉네임과 연락처, 동의만 남았어요. 랭킹에는 닉네임만 보여요.', `<form class="ax-form" id="axForm" novalidate>${field('nickname', '닉네임 (랭킹에 보여요)', 'text', 'maxlength="12" required placeholder="2~12자 한글·영문·숫자"')}${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required placeholder="실명 (상품 받을 때 확인해요)"')}${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required placeholder="010-1234-5678"')}${consents()}${errLine}<button type="submit" class="ax-btn">시작하기</button><p class="ax-links"><button type="button" id="laterBtn">나중에 할게요 (로그아웃)</button></p></form>`);
       const get = wireConsent($('axBody'));
       $('laterBtn').addEventListener('click', () => A.signOut());
       onSubmit($('axForm'), null, async (f) => {
         const c = get();
-        await A.finishOnboarding(f.nickname.value, c);
+        await A.finishOnboarding(f.nickname.value, c, f.real_name.value, f.phone.value);
         if (window.MZConsent) { window.MZConsent.set('location', !!c.location, { skipServer: true }); window.MZConsent.set('motion', !!c.motion, { skipServer: true }); }
         goNext();
       });
@@ -279,7 +294,7 @@
         if (f.password.value !== f.password2.value) throw new Error('비밀번호 두 칸이 서로 달라요.');
         const c = get();
         if (!c.age14 || !c.terms || !c.privacy) throw new Error('필수 항목 3가지에 동의해 주세요.');
-        const r = await A.signUp({ email: f.email.value.trim(), password: f.password.value, nickname: f.nickname.value, consents: c, captchaToken: token });
+        const r = await A.signUp({ email: f.email.value.trim(), password: f.password.value, nickname: f.nickname.value, consents: c, captchaToken: token, name: f.real_name.value, phone: f.phone.value });
         if (window.MZConsent) { window.MZConsent.set('location', !!c.location, { skipServer: true }); window.MZConsent.set('motion', !!c.motion, { skipServer: true }); }
         if (r.needsConfirm) { mode = 'login'; return '가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'; }
         goNext();

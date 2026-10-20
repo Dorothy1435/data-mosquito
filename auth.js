@@ -114,16 +114,17 @@
 
   // ---------- 가입 · 로그인 ----------
   // 회원가입: 이메일 + 비밀번호 + 닉네임 + 필수 동의. 이메일 확인은 끈다(대시보드 설정) → 가입하면 바로 로그인된다
-  async function signUp({ email, password, nickname, consents, captchaToken }) {
+  async function signUp({ email, password, nickname, consents, captchaToken, name, phone }) {
     need();
     checkPassword(password);
+    checkContact(name, phone);
     const nick = String(nickname || '').trim();
     if (!validNickname(nick)) throw new Error('닉네임은 2~12자 한글·영문·숫자로 적어 주세요.');
     const { data, error } = await client.auth.signUp({ email, password, options: { data: { nickname: nick }, captchaToken } });
     if (error) throw new Error(koError(error));
     session = data.session || null;
     if (session) {
-      await finishOnboarding(nick, consents);   // 가입과 동시에 동의 기록
+      await finishOnboarding(nick, consents, name, phone);   // 가입과 동시에 동의·이름·휴대폰 기록
     }
     await loadProfile(); emit();
     return { needsConfirm: !data.session };   // 대시보드에서 이메일 확인을 켜 두면 세션이 바로 안 생긴다
@@ -155,11 +156,12 @@
     return ['age14', 'terms', 'privacy', 'location', 'motion', 'photo_donate'].filter((k) => k in c)
       .map((k) => ({ kind: k, version: POLICY_VERSION, agreed: !!c[k] }));
   }
-  async function finishOnboarding(nickname, consents) {
+  async function finishOnboarding(nickname, consents, name, phone) {
     needUser();
     const c = consents || {};
     if (!c.age14 || !c.terms || !c.privacy) throw new Error('필수 항목(만 14세 이상, 이용약관, 개인정보 수집·이용)에 동의해 주세요.');
-    const { error } = await client.rpc('finish_onboarding', { p_nickname: String(nickname || '').trim(), p_items: consentItems(c) });
+    checkContact(name, phone);
+    const { error } = await client.rpc('finish_onboarding', { p_nickname: String(nickname || '').trim(), p_items: consentItems(c), p_name: String(name || '').trim(), p_phone: phoneDigits(phone) });
     if (error) throw new Error(koError(error));
     await loadProfile(); emit();
   }
@@ -175,6 +177,25 @@
     needUser();
     if (['age14', 'terms', 'privacy'].includes(kind)) throw new Error('필수 동의는 철회 대신 계정 삭제로 처리돼요.');
     const { error } = await client.rpc('record_consents', { p_items: [{ kind, version: POLICY_VERSION, agreed: !!agreed }] });
+    if (error) throw new Error(koError(error));
+  }
+
+  // ---------- 이름 · 휴대폰 (상품 지급·본인 확인 연락용, 본인만 볼 수 있음) ----------
+  const phoneDigits = (p) => String(p || '').replace(/[^0-9]/g, '');
+  function checkContact(name, phone) {
+    const nm = String(name || '').trim();
+    if (nm.length < 2 || nm.length > 20 || !/^[가-힣A-Za-z ]+$/.test(nm)) throw new Error('이름을 정확히 적어 주세요 (한글·영문 2~20자).');
+    if (!/^01[016789][0-9]{7,8}$/.test(phoneDigits(phone))) throw new Error('휴대폰 번호를 정확히 적어 주세요 (예: 010-1234-5678).');
+  }
+  async function myContact() {
+    if (!client || !user()) return null;
+    const { data } = await client.from('member_contacts').select('real_name, phone, verified').eq('user_id', user().id).maybeSingle();
+    return data || null;
+  }
+  async function setContact(name, phone) {
+    needUser();
+    checkContact(name, phone);
+    const { error } = await client.rpc('set_contact', { p_name: String(name).trim(), p_phone: phoneDigits(phone) });
     if (error) throw new Error(koError(error));
   }
 
@@ -233,7 +254,7 @@
   async function exportMyData() {
     needUser();
     const uid = user().id;
-    const [p, scores, runs, badges, consents, jogs, photos] = await Promise.all([
+    const [p, scores, runs, badges, consents, jogs, photos, contact] = await Promise.all([
       client.from('profiles').select('nickname, role, created_at, onboarded_at, nickname_changed_at').eq('id', uid).maybeSingle(),
       client.from('game_scores').select('*').eq('user_id', uid),
       client.from('game_runs').select('stage, kills, duration_ms, success, played_at, received_at').eq('user_id', uid).order('played_at', { ascending: false }).limit(5000),
@@ -241,11 +262,12 @@
       client.from('consents').select('kind, version, agreed, created_at').eq('user_id', uid).order('created_at'),
       client.from('run_sessions').select('started_at, duration_s, distance_m, sweat_steps, total_steps, received_at').eq('user_id', uid).order('started_at', { ascending: false }).limit(5000),
       client.from('photo_donations').select('created_at, ai_label, ai_conf, district, review, label').eq('user_id', uid).order('created_at', { ascending: false }).limit(5000),
+      client.from('member_contacts').select('real_name, phone, verified, updated_at').eq('user_id', uid).maybeSingle(),
     ]);
     return {
       exported_at: new Date().toISOString(),
       account: { email: user().email, login_methods: loginMethods(), created_at: user().created_at },
-      profile: p.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [], photo_donations: photos.data || [],
+      profile: p.data || null, contact: contact.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [], photo_donations: photos.data || [],
     };
   }
 
@@ -359,6 +381,9 @@
     if (/same.*password|different from the old/i.test(m)) return '지금 비밀번호와 다른 비밀번호로 정해 주세요.';
     if (/password/i.test(m) && /6|8|short|weak|pwned|leaked/i.test(m)) return '더 안전한 비밀번호로 정해 주세요 (8자 이상, 영문과 숫자).';
     if (/email not confirmed/i.test(m)) return '이메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러 주세요.';
+    if (/phone duplicate/i.test(m)) return '이미 다른 계정에 등록된 휴대폰 번호예요.';
+    if (/phone invalid/i.test(m)) return '휴대폰 번호를 정확히 적어 주세요.';
+    if (/name invalid/i.test(m)) return '이름을 정확히 적어 주세요.';
     if (/nickname duplicate|unique|duplicate/i.test(m)) return '이미 쓰는 닉네임이에요.';
     if (/nickname invalid/i.test(m)) return '닉네임은 2~12자 한글·영문·숫자로, 운영자로 보이는 이름은 쓸 수 없어요.';
     if (/nickname cooldown/i.test(m)) return '닉네임은 30일에 한 번만 바꿀 수 있어요.';
@@ -384,7 +409,7 @@
     accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signInWith, signOut,
     finishOnboarding, needsOnboarding, myConsents, setConsent,
-    hasPassword, loginMethods, sendPasswordReset, changePassword, changeNickname, deleteAccount, exportMyData,
+    hasPassword, loginMethods, myContact, setContact, sendPasswordReset, changePassword, changeNickname, deleteAccount, exportMyData,
     submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking,
     donatePhoto, pendingPhotos, photoCounts, reviewPhoto, deletePhoto,
     validNickname, checkPassword,
