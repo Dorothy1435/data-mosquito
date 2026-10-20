@@ -101,7 +101,7 @@
     }),
     signup: () => ({
       title: '회원가입',
-      lead: '이름·전화번호는 받지 않아요. 랭킹에는 닉네임만 보여요.',
+      lead: '',
       body: `${social()}<form class="ax-form" id="axForm" novalidate>
         ${field('nickname', '닉네임', 'text', 'maxlength="12" autocomplete="nickname" required placeholder="2~12자 한글·영문·숫자"')}
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
@@ -128,6 +128,7 @@
   function paint(title, lead, body) {
     $('axTitle').textContent = title;
     $('axLead').textContent = lead;
+    $('axLead').hidden = !lead;   // 설명이 없는 화면은 빈 줄을 남기지 않는다
     $('axBody').innerHTML = body;
     document.title = `모기제로 | ${title}`;
     // 비밀번호 보기 버튼
