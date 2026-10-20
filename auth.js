@@ -101,12 +101,14 @@
     try {
       await loadSdk();
       client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-      // 소셜 로그인: Supabase 대시보드에서 켠 것만 버튼을 보인다(카카오만 쓴다). 환경변수를 따로 넣지 않아도 된다
+      // 소셜 로그인 버튼은 항상 보인다(카카오만). Supabase 에서 켜졌는지는 conf.enabled 에 따로 적어 둔다
+      conf.providers = SOCIAL.slice();
+      conf.enabled = [];
       try {
         const st = await fetch(`${conf.url}/auth/v1/settings`, { headers: { apikey: conf.key } }).then((r) => r.json());
         const ext = (st && st.external) || {};
-        conf.providers = SOCIAL.filter((p) => ext[p] || (conf.providers || []).includes(p) && ext[p] !== false);
-      } catch (e) { /* 못 읽으면 버튼을 숨긴다 */ conf.providers = []; }
+        conf.enabled = SOCIAL.filter((p) => ext[p]);
+      } catch (e) { /* 못 읽으면 일단 눌러 보게 둔다 */ conf.enabled = SOCIAL.slice(); }
       client.auth.onAuthStateChange(async (ev, s) => {
         if (ev === 'PASSWORD_RECOVERY') recovering = true;
         session = s; await loadProfile(); emit();
@@ -145,7 +147,7 @@
   // 카카오: 그 회사 로그인 화면으로 갔다가 돌아온다. 돌아온 주소의 정보는 라이브러리가 읽는다(detectSessionInUrl)
   async function signInWith(provider) {
     need();
-    if (!(conf.providers || []).includes(provider)) throw new Error('이 로그인 방법은 아직 준비 중이에요.');
+    if (!(conf.enabled || []).includes(provider)) throw new Error('카카오 로그인은 곧 열려요. 지금은 이메일로 가입해 주세요.');
     const back = location.origin + location.pathname;
     const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: back } });
     if (error) throw new Error(koError(error));
