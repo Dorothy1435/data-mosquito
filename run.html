@@ -22,6 +22,8 @@
   <meta property="og:image:height" content="630">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="design.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="run.css">
 </head>
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -45,30 +47,81 @@
     </div>
   </header>
 
-  <main id="main" class="wrap doc me">
-    <p class="kicker">땀 나는 걸음만 세요</p>
-    <h1>뛰어런</h1>
-    <p class="lead">모기는 땀과 숨에 끌려요. <b>슬로우 조깅 이상</b>으로 뛴 걸음만 세요.</p>
-    <section class="run-card" id="runCard" aria-label="뛰어런 기록">
-      <div class="run-top">
-        <div><p class="k">오늘 뛴 걸음</p><p class="run-big"><span id="runSteps">0</span><small>걸음</small></p></div>
-        <p class="run-state" id="runState" data-state="off" aria-live="polite">대기</p>
+  <!-- 뛰어런 (runner.js, run.css) — 나이키 런 클럽 방식: 시작 → 뛰는 중 → 요약 → 기록 -->
+  <main id="main" class="wrap doc run-app">
+    <!-- 1) 시작 화면 -->
+    <section id="vHome" aria-labelledby="runT">
+      <p class="kicker">땀 나는 걸음만 세요</p>
+      <h1 id="runT">뛰어런</h1>
+      <p class="lead">모기는 땀에 끌려요. <b>뛴 걸음</b>만 세요.</p>
+
+      <div class="rn-week" aria-label="이번 주 기록">
+        <div class="rn-week-main"><p class="k">이번 주</p><p class="rn-big"><span id="wkKm">0.0</span><small>km</small></p></div>
+        <div class="rn-week-sub">
+          <div><p class="k">달린 횟수</p><p class="v" id="wkRuns">0회</p></div>
+          <div><p class="k">시간</p><p class="v" id="wkTime">0분</p></div>
+          <div><p class="k">땀 걸음</p><p class="v" id="wkSteps">0</p></div>
+        </div>
       </div>
-      <div class="run-stats">
-        <div><p class="k">발걸음 빠르기</p><p class="v"><span id="runCad">-</span><small>/분</small></p></div>
-        <div><p class="k">뛴 시간</p><p class="v" id="runTime">0분</p></div>
-        <div><p class="k">거리</p><p class="v" id="runKm">0.00km</p></div>
-        <div><p class="k">이번 주</p><p class="v"><span id="runWeek">0</span><small>걸음</small></p></div>
+
+      <div class="rn-start-wrap">
+        <button type="button" class="rn-start" id="runStart" aria-describedby="runHint">시작</button>
+        <p class="rn-hint" id="runHint">폰을 손에 들거나 주머니에 넣고 뛰어요. 뛰는 동안 화면은 켜 둘게요.</p>
       </div>
-      <label class="run-opt"><input type="checkbox" id="runGps" checked> 위치(GPS)로 거리 재기 · 자전거·차 거르기 <span class="dim">(이 폰 안에서만 써요)</span></label>
-      <button type="button" class="btn-main run-btn" id="runBtn">뛰기 시작</button>
-      <p class="run-status" id="runStatus" role="status"></p>
-      <p class="dim run-rule" id="runRule"></p>
-      <p class="dim">화면을 끄거나 다른 앱으로 가면 휴대폰이 센서를 멈춰서 그동안은 세지 못해요(돌아오면 이어서 세요). 화면이 꺼져도 세는 기능은 앱 버전에서 준비하고 있어요. 랭킹은 로그인이 열리면 함께 올라가요.</p>
+
+      <div class="rn-opts">
+        <label class="rn-sw"><input type="checkbox" id="optGps" checked><span><b>GPS로 거리·지도 기록</b><small>달린 길은 이 폰에만 남아요</small></span></label>
+        <label class="rn-sw"><input type="checkbox" id="optVoice" checked><span><b>음성 안내</b><small>1km마다 거리·페이스를 알려 줘요</small></span></label>
+      </div>
+
+      <div class="h-row"><h2 id="bestT">내 최고 기록</h2></div>
+      <div class="rn-best" aria-labelledby="bestT">
+        <div><p class="k">가장 긴 거리</p><p class="v" id="bestKm">-</p></div>
+        <div><p class="k">가장 빠른 1km</p><p class="v" id="bestPace">-</p></div>
+        <div><p class="k">누적 거리</p><p class="v" id="allKm">0.0km</p></div>
+      </div>
+
+      <div class="h-row"><h2 id="histT">지난 달리기</h2></div>
+      <ol class="rn-list" id="runList" aria-labelledby="histT"></ol>
+      <p class="note" id="runRule"></p>
     </section>
 
-    <div class="h-row"><h2>모기 잡기·배지</h2><a href="me.html">내 기록 보기</a></div>
-    <p>첫 화면에서 잡은 모기와 배지는 내 기록에 쌓여요.</p>
+    <!-- 2) 뛰는 중 (화면 전체) -->
+    <section id="vLive" class="rn-live" hidden aria-label="뛰는 중">
+      <p class="rn-state" id="lvState" data-state="wait" aria-live="polite">준비</p>
+      <p class="rn-km"><span id="lvKm">0.00</span><small>킬로미터</small></p>
+      <div class="rn-stats">
+        <div><p class="v" id="lvPace">-'--"</p><p class="k">평균 페이스</p></div>
+        <div><p class="v" id="lvTime">0:00</p><p class="k">시간</p></div>
+        <div><p class="v" id="lvSteps">0</p><p class="k">땀 걸음</p></div>
+      </div>
+      <p class="rn-sub" id="lvSub" aria-live="polite">발걸음 빠르기 -/분</p>
+      <div class="rn-ctrl">
+        <button type="button" class="rn-btn pause" id="lvPause" aria-label="일시정지">일시정지</button>
+        <button type="button" class="rn-btn stop" id="lvStop" aria-label="길게 눌러 끝내기"><span class="ring" aria-hidden="true"></span>끝내기<small>길게 누르기</small></button>
+      </div>
+      <p class="rn-warn" id="lvWarn" aria-live="polite"></p>
+    </section>
+
+    <!-- 3) 끝난 뒤 요약 -->
+    <section id="vSum" hidden aria-labelledby="sumT">
+      <p class="kicker" id="sumDate"></p>
+      <h1 id="sumT"><span id="sumKm">0.00</span><small> km</small></h1>
+      <div class="rn-best">
+        <div><p class="k">시간</p><p class="v" id="sumTime">0:00</p></div>
+        <div><p class="k">평균 페이스</p><p class="v" id="sumPace">-</p></div>
+        <div><p class="k">땀 걸음</p><p class="v" id="sumSteps">0</p></div>
+      </div>
+      <p class="rn-story" id="sumStory"></p>
+      <div class="rn-map" id="sumMap" aria-label="달린 길 지도"></div>
+      <div class="h-row"><h2 id="splitT">구간 기록</h2></div>
+      <ol class="rn-splits" id="sumSplits" aria-labelledby="splitT"></ol>
+      <p class="note" id="sumNote"></p>
+      <div class="rn-sum-btns">
+        <button type="button" class="btn-main" id="sumDone">확인</button>
+        <button type="button" class="btn-sub" id="sumDelete">이 기록 지우기</button>
+      </div>
+    </section>
   </main>
 
   <!-- 폰에서만 보이는 아래 탭 바 (mobile-tabs.js) -->
@@ -91,6 +144,8 @@
   <script src="mobile-tabs.js"></script>
   <script src="auth.js"></script>
   <script src="consent.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="geo.js"></script>
   <script src="runner.js"></script>
   <script>/* 앱 설치·오프라인용 서비스 워커 등록 */ if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>

@@ -1,0 +1,101 @@
+/* =============================================================
+   뛰어런 화면 (run.html · runner.js) — 나이키 런 클럽처럼 숫자를 크게, 뛰는 중 화면은 어둡게 꽉 차게
+   design.css 의 색 변수(--g*, --blue)를 그대로 쓴다. 뛰는 중 화면의 강조색은 형광 연두(--run-volt).
+   ============================================================= */
+:root { --run-bg: #0E1116; --run-fg: #F5F7FA; --run-dim: #9AA4B2; --run-volt: #CFF54A; --run-green: #0E9F6E; }
+
+.run-app .k { margin: 0; font-size: 14px; font-weight: 600; color: var(--g600); }
+.run-app .v { margin: 4px 0 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--g900); }
+
+/* 이번 주 */
+.rn-week { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: end; margin-top: 24px; padding: 24px; border-radius: 24px; background: var(--g50); }
+.run-app .rn-big { margin: 4px 0 0; font-size: 64px; font-weight: 800; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--g900); }
+.rn-big small { margin-left: 6px; font-size: 22px; font-weight: 700; color: var(--g600); }
+.rn-week-sub { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rn-week-sub > div { padding: 12px; border-radius: 14px; background: #fff; }
+.rn-week-sub .v { font-size: 19px; }
+
+/* 시작 버튼 */
+.rn-start-wrap { display: grid; justify-items: center; gap: 12px; margin: 32px 0 8px; }
+.rn-start { width: 168px; height: 168px; border: 0; border-radius: 50%; background: var(--run-green); color: #fff; font: 800 30px var(--sans); letter-spacing: .02em; cursor: pointer; box-shadow: 0 16px 40px -14px rgba(14, 159, 110, .7); transition: transform .15s; }
+.rn-start:hover { background: #0B7A55; } .rn-start:active { transform: scale(.96); }
+.rn-start:focus-visible { outline: 4px solid var(--g900); outline-offset: 4px; }
+.run-app .rn-hint { margin: 0; max-width: 32em; text-align: center; font-size: 15px; color: var(--g600); }
+
+/* 설정 스위치 */
+.rn-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.rn-sw { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 16px; border-radius: 16px; border: 1px solid var(--g200); background: #fff; cursor: pointer; }
+.rn-sw input { flex: none; width: 22px; height: 22px; accent-color: var(--run-green); }
+.rn-sw span { display: grid; gap: 2px; } .rn-sw b { font-size: 16px; } .rn-sw small { font-size: 14px; color: var(--g600); }
+
+/* 최고 기록·요약 숫자 3칸 */
+.rn-best { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.rn-best > div { padding: 16px; border-radius: 16px; background: var(--g50); }
+
+/* 지난 달리기 */
+.rn-list { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.rn-list button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; width: 100%; padding: 16px; border: 1px solid var(--g200); border-radius: 16px; background: #fff; text-align: left; font: inherit; cursor: pointer; }
+.rn-list button:hover { border-color: var(--g300); background: var(--g50); }
+.rn-list button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.rn-list .d { font-size: 14px; color: var(--g600); }
+.rn-list .km { grid-row: span 2; align-self: center; font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--g900); }
+.rn-list .km small { margin-left: 2px; font-size: 15px; font-weight: 700; color: var(--g600); }
+.rn-list .s { font-size: 15px; color: var(--g800); font-variant-numeric: tabular-nums; }
+.rn-list .empty { padding: 20px; border-radius: 16px; background: var(--g50); font-size: 15px; color: var(--g600); }
+
+/* 뛰는 중: 화면 전체를 덮는 어두운 화면 */
+body.rn-running { overflow: hidden; }
+body.rn-running .tabbar, body.rn-running .nav, body.rn-running .mz-chat { display: none !important; }
+.rn-live { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-rows: auto 1fr auto auto auto auto; justify-items: center; gap: 16px; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--run-bg); color: var(--run-fg); text-align: center; overflow-y: auto; }
+.rn-live[hidden] { display: none; }
+.run-app .rn-state { margin: 0; padding: 8px 16px; border-radius: 999px; font-size: 16px; font-weight: 700; background: #222832; color: var(--run-dim); }
+.run-app .rn-state[data-state="run"] { background: var(--run-volt); color: #111; }
+.run-app .rn-state[data-state="warm"] { background: #2C3A12; color: var(--run-volt); }
+.run-app .rn-state[data-state="walk"] { background: #2A2F38; color: #D0D6DE; }
+.run-app .rn-state[data-state="bad"] { background: #3A1E1E; color: #FFB4AB; }
+.run-app .rn-state[data-state="pause"] { background: #3A3218; color: #FFD66B; }
+.run-app .rn-km { align-self: center; margin: 0; display: grid; justify-items: center; font-size: clamp(88px, 30vw, 168px); font-weight: 800; line-height: .95; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--run-fg); }
+.run-app .rn-km small { margin-top: 8px; font-size: 18px; font-weight: 600; letter-spacing: 0; color: var(--run-dim); }
+.rn-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; max-width: 520px; }
+.rn-stats .v { margin: 0; font-size: clamp(26px, 8vw, 38px); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--run-fg); }
+.rn-stats .k { margin: 4px 0 0; font-size: 14px; font-weight: 500; color: var(--run-dim); }
+.run-app .rn-sub { margin: 0; font-size: 15px; color: var(--run-dim); font-variant-numeric: tabular-nums; }
+.rn-ctrl { display: flex; gap: 20px; justify-content: center; margin-top: 8px; }
+.rn-btn { position: relative; display: grid; place-items: center; align-content: center; width: 104px; height: 104px; border: 0; border-radius: 50%; font: 800 18px var(--sans); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.rn-btn:focus-visible { outline: 3px solid var(--run-volt); outline-offset: 4px; }
+.rn-btn.pause { background: var(--run-volt); color: #111; }
+.rn-btn.pause.resume { background: var(--run-green); color: #fff; }
+.rn-btn.stop { background: #2A2F38; color: #fff; overflow: hidden; }
+.rn-btn.stop small { font-size: 13px; font-weight: 600; color: var(--run-dim); }
+.rn-btn.stop .ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#E5484D var(--p, 0%), transparent 0); opacity: .9; z-index: -1; }
+.rn-btn.stop { z-index: 0; }
+.rn-btn.stop.holding .ring { animation: rnhold 1.2s linear forwards; }
+@property --p { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@keyframes rnhold { to { --p: 100%; } }
+.run-app .rn-warn { margin: 0; min-height: 1.4em; font-size: 14px; color: #FFD66B; }
+
+/* 요약 */
+#vSum h1 { font-size: 72px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+#vSum h1 small { font-size: 26px; font-weight: 700; color: var(--g600); }
+.run-app .rn-story { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: #EEFBF5; color: #0B5E43; font-size: 15px; }
+.rn-map { height: 300px; margin-top: 16px; border-radius: 20px; overflow: hidden; background: var(--g100); }
+.rn-map[hidden] { display: none; }
+.rn-splits { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.rn-splits li { display: grid; grid-template-columns: 52px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rn-splits .bar { height: 12px; border-radius: 6px; background: var(--g100); overflow: hidden; }
+.rn-splits .bar i { display: block; height: 100%; border-radius: 6px; background: var(--g400); }
+.rn-splits li.best .bar i { background: var(--run-green); }
+.rn-splits .v { text-align: right; font-weight: 700; }
+.rn-splits .empty { display: block; padding: 14px 16px; border-radius: 14px; background: var(--g50); color: var(--g600); }
+.rn-sum-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+
+@media (max-width: 620px) {
+  .rn-week { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .rn-big { font-size: 56px; }
+  .rn-opts { grid-template-columns: minmax(0, 1fr); }
+  .rn-best > div { padding: 12px; } .rn-best .v { font-size: 18px; }
+  #vSum h1 { font-size: 60px; }
+  .rn-btn { width: 96px; height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .rn-start { transition: none; } }
+.run-app #runRule { margin-top: 16px; }

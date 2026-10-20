@@ -1,61 +1,94 @@
 /* =============================================================
-   뛰어런 (runner.js) — 슬로우 조깅 이상만 걸음으로 센다
+   뛰어런 (runner.js) — 나이키 런 클럽 방식, 슬로우 조깅 이상만 '땀 걸음'으로 센다
    -------------------------------------------------------------
    모기는 땀과 숨(이산화탄소)에 끌린다. 그래서 '땀 나는 활동'만 세는 것이 이 기능의 규칙이다.
+   화면: 시작(이번 주·최고 기록·지난 달리기) → 뛰는 중(큰 거리·페이스·시간) → 요약(달린 길 지도·구간 기록)
+
+   판정 (숫자는 game-config.js 의 RUN)
      · 걸음: 휴대폰 흔들림 센서(DeviceMotion)에서 큰 흔들림의 꼭대기를 한 걸음으로 센다.
-     · 뛰는 중: 최근 10초 발걸음 빠르기가 분당 140걸음 이상. 이 상태가 30초 넘게 이어져야 그동안의 걸음을 인정한다.
-       (슬로우 조깅은 걷는 속도와 비슷해서 속도가 아니라 발걸음 빠르기로 가른다. 걷기는 보통 분당 100~120)
-     · GPS(선택): 속도가 시속 20km 를 넘으면(자전거·차) 세지 않고, 뛴 거리를 보여 준다. 위치는 이 폰 안에서만 쓰고 보내지 않는다.
-     · 화면: 뛰는 동안 화면이 꺼지지 않게 잡아 둔다(Wake Lock). 웹은 화면이 꺼지거나 다른 앱으로 가면
-       휴대폰이 센서를 멈추므로 그동안은 세지 못한다(앱 버전에서 해결 예정). 돌아오면 이어서 센다.
-     · 저장: 이 기기(localStorage 'mz-run')에 날짜별 걸음·뛴 시간·거리. 로그인 서버가 켜지면 랭킹에 올린다.
-   숫자는 game-config.js 의 RUN.
+     · 10초를 한 칸으로 묶는다: 칸마다 걸음 수 → 분당 걸음, GPS 거리 → 속도·보폭(거리 ÷ 걸음).
+         뛴 칸   : 분당 145~220걸음, (GPS 가 있으면) 시속 4~15km, 보폭 0.5~1.6m
+         흔들기  : 걸음은 많은데 거의 움직이지 않음(보폭이 너무 짧음)
+         탈것    : 시속 20km 넘음 (거리도 더하지 않음)
+     · 뛴 칸이 6개(1분) 이상 이어지면 그 칸들의 걸음을 '땀 걸음'으로 인정한다. 중간에 2칸(20초)까지는 쉬어도 이어진다.
+     · GPS 를 끄면 걸음만 세고, 그 기록은 이 기기 기록으로만 남는다(랭킹에는 GPS 기록만).
+   거리: GPS 오차가 30m 넘는 값, 한 번에 너무 멀리 튄 값은 쓰지 않는다. 일시정지 동안은 더하지 않는다.
+   저장: 이 기기(localStorage 'mz-runs')에 달리기마다. 달린 길(좌표)은 이 폰에만 남기고 서버로 보내지 않는다.
+   화면이 꺼지거나 다른 앱으로 가면 휴대폰이 센서를 멈춘다(웹의 한계). 화면이 꺼져도 세는 것은 앱 버전에서.
    ============================================================= */
 (function () {
   'use strict';
-  const C = Object.assign({ minCadence: 140, sustainSec: 30, maxCadence: 230, maxKmh: 20, dailyCap: 30000, stepThreshold: 2.2, minStepMs: 260 },
-    (window.MZ_GAME_CONFIG || {}).RUN || {});
-  const KEY = 'mz-run';
+  const C = Object.assign({
+    windowSec: 10, minCadence: 145, maxCadence: 220, minKmh: 4, maxRunKmh: 15, vehicleKmh: 20,
+    strideMin: 0.5, strideMax: 1.6, sustainWindows: 6, graceWindows: 2, gpsMaxAccuracy: 30,
+    dailyCap: 30000, stepThreshold: 2.2, minStepMs: 250,
+  }, (window.MZ_GAME_CONFIG || {}).RUN || {});
+  const KEY = 'mz-runs', OLD_KEY = 'mz-run', OPT_KEY = 'mz-run-opt';
   const $ = (id) => document.getElementById(id);
-  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const n = (v) => Math.round(Number(v) || 0).toLocaleString('ko-KR');
 
-  /* ---------- 기록 ---------- */
-  function load() {
-    let s = null;
-    try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
-    if (!s || typeof s !== 'object' || !s.days) s = { days: {} };
-    return s;
+  /* ---------- 저장 ---------- */
+  function readJSON(k, d) { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } }
+  function writeJSON(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  function loadRuns() { const r = readJSON(KEY, []); return Array.isArray(r) ? r : []; }
+  function saveRuns(list) {
+    // 오래된 달리기는 지도 좌표를 지워 용량을 줄인다(최근 20개만 지도 보관, 최대 200개)
+    const trimmed = list.slice(0, 200).map((r, i) => (i < 20 ? r : Object.assign({}, r, { route: [] })));
+    if (!writeJSON(KEY, trimmed)) writeJSON(KEY, trimmed.map((r, i) => (i < 5 ? r : Object.assign({}, r, { route: [] }))));
   }
-  const rec = load();
-  function day(d) { return rec.days[d || today()] || (rec.days[d || today()] = { steps: 0, sec: 0, km: 0 }); }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch (e) { /* 저장 못 해도 센다 */ } }
-  function weekSteps() {
-    let n = 0;
-    for (let i = 0; i < 7; i++) { const d = new Date(Date.now() - i * 86400000); const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; n += (rec.days[k] || {}).steps || 0; }
-    return n;
+  let runs = loadRuns();
+  // 예전 판(날짜별 합계 'mz-run')은 지난 기록으로 한 번만 옮긴다
+  (function migrate() {
+    const old = readJSON(OLD_KEY, null);
+    if (!old || !old.days) return;
+    Object.entries(old.days).forEach(([d, v]) => {
+      if (!v || !(v.steps || v.km)) return;
+      runs.push({ id: 'old-' + d, start: new Date(d + 'T12:00:00').getTime(), sec: v.sec || 0, m: Math.round((v.km || 0) * 1000), sweat: v.steps || 0, steps: v.steps || 0, splits: [], route: [], gps: (v.km || 0) > 0, old: true });
+    });
+    runs.sort((a, b) => b.start - a.start);
+    saveRuns(runs);
+    try { localStorage.removeItem(OLD_KEY); } catch (e) { /* 무시 */ }
+  }());
+  const opts = Object.assign({ gps: true, voice: true }, readJSON(OPT_KEY, {}));
+
+  /* ---------- 숫자 모양 ---------- */
+  function hms(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+  }
+  function pace(secPerKm) {
+    if (!isFinite(secPerKm) || secPerKm <= 0 || secPerKm > 60 * 60) return `-'--"`;
+    const m = Math.floor(secPerKm / 60), s = Math.round(secPerKm % 60);
+    return `${m}'${String(s === 60 ? 59 : s).padStart(2, '0')}"`;
+  }
+  function paceWords(secPerKm) { const m = Math.floor(secPerKm / 60), s = Math.round(secPerKm % 60); return `${m}분 ${s}초`; }
+  const kmText = (m) => (m / 1000).toFixed(2);
+  function distM(a, b) {
+    const R = 6371000, r = (x) => (x * Math.PI) / 180;
+    const h = Math.sin(r(b[0] - a[0]) / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(r(b[1] - a[1]) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
   }
 
-  /* ---------- 상태 ---------- */
-  let on = false;
-  let wakeLock = null;
-  let geoId = null;
-  let lastFix = null;          // 마지막 GPS { lat, lng, t }
-  let kmh = 0;                 // 최근 GPS 속도
+  /* ---------- 달리기 상태 ---------- */
+  let S = null;               // 지금 달리기
+  let wakeLock = null, geoId = null, tick = null;
+  // 걸음 감지
   let smooth = 9.8, base = 9.8, above = false, lastStepAt = 0;
-  const stepTimes = [];        // 최근 걸음 시각 (빠르기 계산용)
-  let pending = 0;             // '뛰는 중'이 30초 이어지기 전까지 모아 두는 걸음
-  let runSince = 0;            // '뛰는 중'이 시작된 시각
-  let pendingSec = 0;
-  let ticker = null;
 
-  function cadence(now) {
-    while (stepTimes.length && now - stepTimes[0] > 10000) stepTimes.shift();
-    return stepTimes.length * 6;   // 10초 걸음 × 6 = 분당
+  function newRun() {
+    return {
+      start: Date.now(), sec: 0, m: 0, steps: 0, sweat: 0, paused: false,
+      splits: [], route: [], gps: opts.gps,
+      win: { steps: 0, m: 0, sec: 0 },          // 지금 채우는 10초 칸
+      seg: { runWins: 0, steps: 0, gap: 0 },     // 지금 이어지는 '뛰는 구간'
+      count: { run: 0, walk: 0, shake: 0, vehicle: 0, still: 0 },
+      lastFix: null, lastKmMark: 0, recentCad: 0, recentKmh: 0, stateText: '준비',
+    };
   }
 
-  // 센서 값이 올 때마다: 흔들림 크기를 부드럽게 만든 뒤, 기준선보다 크게 솟는 꼭대기를 한 걸음으로
   function onMotion(e) {
-    if (!on) return;
+    if (!S || S.paused) return;
     const a = e.accelerationIncludingGravity || e.acceleration;
     if (!a || a.x == null) return;
     const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
@@ -64,137 +97,292 @@
     const now = performance.now();
     if (!above && smooth - base > C.stepThreshold) {
       above = true;
-      if (now - lastStepAt >= C.minStepMs) { lastStepAt = now; onStep(now); }
+      if (now - lastStepAt >= C.minStepMs) { lastStepAt = now; S.steps += 1; S.win.steps += 1; }
     } else if (above && smooth - base < C.stepThreshold * 0.4) {
       above = false;
     }
   }
 
-  function onStep(now) {
-    stepTimes.push(now);
-    const cad = cadence(now);
-    const running = cad >= C.minCadence && cad <= C.maxCadence && kmh <= C.maxKmh;
-    if (!running) return;
-    if (!runSince) runSince = now;
-    pending += 1;
-  }
-
-  // 1초마다: 뛰는 중인지 판단하고, 30초 넘게 이어졌으면 모아 둔 걸음을 인정한다
-  function everySecond() {
-    const now = performance.now();
-    const cad = cadence(now);
-    const running = cad >= C.minCadence && cad <= C.maxCadence && kmh <= C.maxKmh;
-    const d = day();
-    if (running && runSince) {
-      pendingSec += 1;
-      if ((now - runSince) / 1000 >= C.sustainSec) {
-        const room = Math.max(0, C.dailyCap - d.steps);
-        d.steps += Math.min(room, pending);
-        d.sec += pendingSec;
-        pending = 0; pendingSec = 0;
-        save();
+  // GPS: 오차가 크거나 튄 값은 버리고, 3m 넘게 움직였을 때만 거리를 더한다
+  function onFix(p) {
+    if (!S || S.paused) return;
+    const c = p.coords;
+    if (/GPS/.test($('lvWarn').textContent)) $('lvWarn').textContent = '';   // 위치가 다시 들어오면 안내를 지운다
+    if (c.accuracy > C.gpsMaxAccuracy) return;
+    const pt = [c.latitude, c.longitude], t = Date.now();
+    if (S.lastFix) {
+      const d = distM(S.lastFix.pt, pt), dt = (t - S.lastFix.t) / 1000;
+      if (dt <= 0) return;
+      const kmh = (d / dt) * 3.6;
+      if (kmh > 45) { S.lastFix = { pt, t }; return; }      // 튄 값
+      if (d < 3) return;                                     // 제자리 흔들림
+      S.lastFix = { pt, t };
+      if (kmh > C.vehicleKmh) return;                        // 탈것 구간은 거리에 넣지 않는다
+      S.m += d; S.win.m += d;
+      const last = S.route[S.route.length - 1];
+      if (!last || distM(last, pt) >= 8) S.route.push([+pt[0].toFixed(6), +pt[1].toFixed(6)]);
+      // 1km 마다 구간 기록·음성 안내
+      while (S.m >= (S.lastKmMark + 1) * 1000) {
+        S.lastKmMark += 1;
+        const prev = S.splits.reduce((x, y) => x + y, 0);
+        S.splits.push(Math.round(S.sec - prev));
+        say(`${S.lastKmMark}킬로미터. 이번 구간 페이스 ${paceWords(S.splits[S.splits.length - 1])}.`);
       }
     } else {
-      // 30초를 못 채우고 멈추면 모아 둔 걸음은 버린다 (잠깐 뛴 건 안 셈)
-      if (runSince && (now - runSince) / 1000 < C.sustainSec) { pending = 0; pendingSec = 0; }
-      runSince = running ? runSince : 0;
+      S.lastFix = { pt, t };
+      S.route.push([+pt[0].toFixed(6), +pt[1].toFixed(6)]);
     }
-    draw(cad, running);
   }
 
-  /* ---------- GPS (선택) ---------- */
-  function km(a, b) {
-    const R = 6371, r = (x) => (x * Math.PI) / 180;
-    const h = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lng - a.lng) / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(h));
+  // 1초마다: 시간 더하기, 10초가 차면 그 칸을 판정
+  function everySecond() {
+    if (!S) return;
+    if (!S.paused) {
+      S.sec += 1; S.win.sec += 1;
+      if (S.win.sec >= C.windowSec) closeWindow();
+    }
+    drawLive();
   }
-  function startGps() {
-    if (!navigator.geolocation) return;
-    geoId = navigator.geolocation.watchPosition((p) => {
-      const fix = { lat: p.coords.latitude, lng: p.coords.longitude, t: Date.now(), acc: p.coords.accuracy };
-      if (typeof p.coords.speed === 'number' && p.coords.speed >= 0) kmh = p.coords.speed * 3.6;
-      if (lastFix && fix.acc < 50) {
-        const dKm = km(lastFix, fix), hrs = (fix.t - lastFix.t) / 3600000;
-        if (typeof p.coords.speed !== 'number' && hrs > 0) kmh = dKm / hrs;
-        // 뛰는 중일 때만 거리를 더한다 (GPS 튐 방지: 한 번에 200m 이상은 무시)
-        if (runSince && dKm < 0.2 && kmh <= C.maxKmh) { day().km = Math.round((day().km + dKm) * 1000) / 1000; save(); }
-      }
-      lastFix = fix;
-    }, () => { /* 위치를 안 줘도 걸음은 센다 */ }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
+
+  function classify(w) {
+    const cad = (w.steps / w.sec) * 60;
+    const kmh = (w.m / w.sec) * 3.6;
+    S.recentCad = cad; S.recentKmh = kmh;
+    if (cad < 60) return 'still';
+    if (S.gps && kmh > C.vehicleKmh) return 'vehicle';
+    if (cad < C.minCadence) return 'walk';
+    if (cad > C.maxCadence) return 'shake';
+    if (!S.gps) return 'run';   // GPS 없이: 발걸음 빠르기로만 (개인 기록)
+    const stride = w.steps ? w.m / w.steps : 0;
+    if (kmh < 1.5 || stride < C.strideMin * 0.6) return 'shake';      // 걸음은 빠른데 거의 안 움직임
+    if (kmh < C.minKmh || kmh > C.maxRunKmh || stride < C.strideMin || stride > C.strideMax) return 'walk';
+    return 'run';
+  }
+
+  function closeWindow() {
+    const w = S.win;
+    const kind = classify(w);
+    S.count[kind] += 1;
+    const sg = S.seg;
+    if (kind === 'run') {
+      sg.runWins += 1; sg.steps += w.steps; sg.gap = 0;
+    } else if (sg.runWins) {
+      sg.gap += 1;
+      if (sg.gap > C.graceWindows) endSegment();
+    }
+    // 이어진 지 1분이 넘으면 바로 인정해 화면 숫자를 올린다(그 뒤로는 칸마다 바로 더한다)
+    if (sg.runWins >= C.sustainWindows && sg.steps) { creditSweat(sg.steps); sg.steps = 0; }
+    S.stateText = kind === 'run' ? (sg.runWins >= C.sustainWindows ? '뛰는 중' : `뛰는 중 · ${Math.max(0, C.sustainWindows - sg.runWins) * C.windowSec}초 더 뛰면 세요`)
+      : kind === 'walk' ? '걷는 중 (안 세요)' : kind === 'shake' ? '흔들림으로 보여요 (안 세요)' : kind === 'vehicle' ? '탈것으로 보여요 (안 세요)' : '멈춤';
+    S.win = { steps: 0, m: 0, sec: 0 };
+  }
+  function endSegment() {
+    const sg = S.seg;
+    if (sg.runWins >= C.sustainWindows && sg.steps) creditSweat(sg.steps);   // 남은 것(이미 인정된 구간의 마지막 칸들)
+    S.seg = { runWins: 0, steps: 0, gap: 0 };   // 1분이 안 된 구간의 걸음은 버린다
+  }
+  function creditSweat(k) {
+    const todayUsed = runs.filter((r) => sameDay(r.start, Date.now())).reduce((x, r) => x + (r.sweat || 0), 0);
+    S.sweat += Math.max(0, Math.min(k, C.dailyCap - todayUsed - S.sweat));
+  }
+  const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+
+  /* ---------- 음성 안내 ---------- */
+  function say(text) {
+    if (!opts.voice || !('speechSynthesis' in window)) return;
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR'; u.rate = 1; window.speechSynthesis.speak(u); } catch (e) { /* 무시 */ }
   }
 
   /* ---------- 화면 꺼짐 막기 ---------- */
-  async function holdScreen() {
-    try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch (e) { wakeLock = null; }
-  }
+  async function holdScreen() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; } }
   document.addEventListener('visibilitychange', () => {
-    if (!on) return;
-    if (document.visibilityState === 'visible') { holdScreen(); setStatus('다시 세는 중이에요'); }
-    else { runSince = 0; pending = 0; pendingSec = 0; }   // 안 보이는 동안엔 센서가 멈추므로 끊는다
+    if (!S) return;
+    if (document.visibilityState === 'visible') { holdScreen(); $('lvWarn').textContent = '화면이 꺼진 동안은 세지 못했어요. 다시 세는 중이에요.'; }
+    else { S.seg = { runWins: 0, steps: 0, gap: 0 }; S.win = { steps: 0, m: 0, sec: 0 }; S.lastFix = null; }
   });
 
-  /* ---------- 시작·멈춤 ---------- */
+  /* ---------- 시작 · 일시정지 · 끝 ---------- */
   async function start() {
-    // 아이폰은 흔들림 센서를 쓰려면 허락 창이 필요하다 (버튼을 누른 순간에만 물어볼 수 있다)
+    // 아이폰은 흔들림 센서 허락 창이 필요하다 (버튼을 누른 순간에만 물어볼 수 있다)
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-      try { if ((await DeviceMotionEvent.requestPermission()) !== 'granted') { setStatus('움직임 센서 사용을 허락해야 걸음을 셀 수 있어요.'); return; } }
-      catch (e) { setStatus('움직임 센서를 쓸 수 없어요.'); return; }
+      try { if ((await DeviceMotionEvent.requestPermission()) !== 'granted') { hint('움직임 센서 사용을 허락해야 걸음을 셀 수 있어요.'); return; } }
+      catch (e) { hint('움직임 센서를 쓸 수 없어요.'); return; }
     }
-    if (typeof DeviceMotionEvent === 'undefined') { setStatus('이 기기에는 움직임 센서가 없어요. 휴대폰에서 열어 주세요.'); return; }
-    // 동의 받기 (consent.js): 움직임 센서는 필수, GPS 는 선택. 아이폰 허락 창(위)을 먼저 띄워야 해서 그 뒤에 묻는다
+    if (typeof DeviceMotionEvent === 'undefined') { hint('이 기기에는 움직임 센서가 없어요. 휴대폰에서 열어 주세요.'); return; }
+    // 동의 (consent.js): 움직임 센서는 필수, GPS 는 선택
     if (window.MZConsent) {
-      if (!(await window.MZConsent.ensure('motion', { purpose: '뛰어런: 슬로우 조깅 이상으로 뛴 걸음 세기' }))) { setStatus('움직임 센서 이용에 동의해야 걸음을 셀 수 있어요.'); return; }
-      if ($('runGps').checked && !(await window.MZConsent.ensure('location', { purpose: '뛰어런: 뛴 거리 재기, 자전거·차 거르기' }))) { $('runGps').checked = false; }
+      if (!(await window.MZConsent.ensure('motion', { purpose: '뛰어런: 슬로우 조깅 이상으로 뛴 걸음 세기' }))) { hint('움직임 센서 이용에 동의해야 걸음을 셀 수 있어요.'); return; }
+      if (opts.gps && !(await window.MZConsent.ensure('location', { purpose: '뛰어런: 뛴 거리·달린 길 지도, 자전거·차 거르기' }))) { opts.gps = false; $('optGps').checked = false; saveOpts(); }
     }
-    on = true;
+    S = newRun();
+    smooth = base = 9.8; above = false; lastStepAt = 0;
     window.addEventListener('devicemotion', onMotion);
-    holdScreen();   // 기다리지 않는다 (응답이 늦거나 없는 기기에서도 바로 센다)
-    if ($('runGps').checked) startGps();
-    ticker = setInterval(everySecond, 1000);
-    $('runBtn').textContent = '멈추기';
-    $('runBtn').classList.add('is-on');
-    $('runCard').classList.add('is-on');
-    setStatus('폰을 주머니나 손에 들고 뛰어 보세요. 화면은 켜 둘게요.');
-    // 잠깐 기다려도 센서 값이 안 오면 (PC 등) 알려 준다
-    setTimeout(() => { if (on && !stepTimes.length && smooth === 9.8) setStatus('움직임 센서 값이 오지 않아요. 휴대폰에서 열어 주세요.'); }, 4000);
+    if (S.gps && navigator.geolocation) {
+      geoId = navigator.geolocation.watchPosition(onFix, (err) => { $('lvWarn').textContent = err.code === 1 ? '위치 권한이 꺼져 있어요. 거리 없이 걸음만 세요.' : 'GPS 신호가 약해요. 걸음은 계속 세요.'; }, { enableHighAccuracy: true, maximumAge: 0 });
+    }
+    holdScreen();
+    tick = setInterval(everySecond, 1000);
+    show('vLive');
+    $('lvWarn').textContent = '';
+    say('뛰어런을 시작해요.');
+    setTimeout(() => { if (S && !S.steps) $('lvWarn').textContent = '움직임 센서 값이 오지 않아요. 휴대폰에서 열어 주세요.'; }, 5000);
   }
-  function stop() {
-    on = false;
+  function togglePause() {
+    if (!S) return;
+    S.paused = !S.paused;
+    if (S.paused) { S.seg.gap = C.graceWindows; S.lastFix = null; say('일시정지'); }   // 쉬는 동안은 이어진 것으로 보지 않는다
+    else say('다시 시작해요');
+    $('lvPause').textContent = S.paused ? '이어하기' : '일시정지';
+    $('lvPause').classList.toggle('resume', S.paused);
+    drawLive();
+  }
+  function finish() {
+    if (!S) return;
+    clearInterval(tick); tick = null;
     window.removeEventListener('devicemotion', onMotion);
     if (geoId != null) { navigator.geolocation.clearWatch(geoId); geoId = null; }
     if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-    clearInterval(ticker); ticker = null;
-    runSince = 0; pending = 0; pendingSec = 0; lastFix = null; kmh = 0;
-    $('runBtn').textContent = '뛰기 시작';
-    $('runBtn').classList.remove('is-on');
-    $('runCard').classList.remove('is-on');
-    save(); draw(0, false);
-    setStatus('멈췄어요. 오늘 기록은 이 기기에 저장됐어요.');
+    if (S.win.sec >= 5) closeWindow();
+    endSegment();
+    const r = {
+      id: String(S.start), start: S.start, sec: S.sec, m: Math.round(S.m), sweat: S.sweat, steps: S.steps,
+      splits: S.splits, route: S.route, gps: S.gps, count: S.count, ver: 2,
+    };
+    S = null;
+    say(`수고했어요. ${kmText(r.m)}킬로미터, 땀 걸음 ${n(r.sweat)}.`);
+    if (r.sec >= 30 || r.sweat > 0) {
+      runs.unshift(r); saveRuns(runs);
+      document.dispatchEvent(new CustomEvent('run:saved', { detail: r }));
+      submit(r);
+    }
+    showSummary(r);
+  }
+  // 로그인했으면 서버에 요약만 보낸다(거리·시간·걸음·판정 칸 수). 달린 길 좌표는 보내지 않는다
+  function submit(r) {
+    const A = window.MZAuth;
+    if (!A || !A.enabled || !A.user() || typeof A.submitRun !== 'function' || !r.gps) return;
+    A.submitRun({ started_at: new Date(r.start).toISOString(), duration_s: r.sec, distance_m: r.m, sweat_steps: r.sweat, total_steps: r.steps, run_windows: r.count.run, shake_windows: r.count.shake, vehicle_windows: r.count.vehicle })
+      .then((x) => { if (x && x.ok) { r.synced = true; saveRuns(runs); } }).catch(() => { /* 다음에 */ });
   }
 
-  /* ---------- 그리기 ---------- */
-  function setStatus(t) { const el = $('runStatus'); if (el) el.textContent = t; }
-  function draw(cad, running) {
-    const d = day();
-    $('runSteps').textContent = d.steps.toLocaleString('ko-KR');
-    $('runTime').textContent = `${Math.floor(d.sec / 60)}분`;
-    $('runKm').textContent = `${d.km.toFixed(2)}km`;
-    $('runWeek').textContent = weekSteps().toLocaleString('ko-KR');
-    const cadEl = $('runCad');
-    if (cadEl) cadEl.textContent = on ? `${cad}` : '-';
-    const st = $('runState');
-    if (st) {
-      st.textContent = !on ? '대기' : running ? (runSince && (performance.now() - runSince) / 1000 < C.sustainSec ? `뛰는 중 · ${Math.ceil(C.sustainSec - (performance.now() - runSince) / 1000)}초 뒤부터 셈` : '뛰는 중 · 세는 중') : (cad > 0 ? '걷는 중 · 안 셈' : '멈춤');
-      st.dataset.state = !on ? 'off' : running ? 'run' : 'walk';
+  // 끝내기는 길게 눌러야 한다(1.2초) — 뛰다가 실수로 눌러 끝나지 않게
+  function holdToStop(btn) {
+    let timer = null;
+    const down = (e) => { e.preventDefault(); btn.classList.add('holding'); timer = setTimeout(() => { btn.classList.remove('holding'); finish(); }, 1200); };
+    const up = () => { clearTimeout(timer); btn.classList.remove('holding'); };
+    btn.addEventListener('pointerdown', down);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, up));
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!timer || !btn.classList.contains('holding')) down(e); } });
+    btn.addEventListener('keyup', up);
+    btn.addEventListener('click', (e) => e.preventDefault());
+  }
+
+  /* ---------- 화면 ---------- */
+  function show(id) {
+    ['vHome', 'vLive', 'vSum'].forEach((v) => { $(v).hidden = v !== id; });
+    document.body.classList.toggle('rn-running', id === 'vLive');
+    window.scrollTo(0, 0);
+  }
+  function hint(t) { $('runHint').textContent = t; }
+
+  function drawLive() {
+    if (!S) return;
+    $('lvKm').textContent = kmText(S.m);
+    $('lvTime').textContent = hms(S.sec);
+    $('lvPace').textContent = S.m >= 50 ? pace(S.sec / (S.m / 1000)) : `-'--"`;
+    $('lvSteps').textContent = n(S.sweat);
+    const st = S.paused ? '일시정지' : S.stateText;
+    const el = $('lvState');
+    el.textContent = st;
+    el.dataset.state = S.paused ? 'pause' : /^뛰는 중$/.test(st) ? 'run' : /뛰는 중/.test(st) ? 'warm' : /걷는/.test(st) ? 'walk' : /흔들|탈것/.test(st) ? 'bad' : 'wait';
+    $('lvSub').textContent = `발걸음 빠르기 ${S.recentCad ? Math.round(S.recentCad) : '-'}/분${S.gps ? ` · 속도 ${S.recentKmh ? S.recentKmh.toFixed(1) : '-'}km/h` : ' · GPS 끔(거리 없이 걸음만)'}`;
+  }
+
+  function weekStart() { const d = new Date(); d.setHours(0, 0, 0, 0); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return d.getTime(); }
+  function drawHome() {
+    const ws = weekStart();
+    const wk = runs.filter((r) => r.start >= ws);
+    $('wkKm').textContent = (wk.reduce((x, r) => x + r.m, 0) / 1000).toFixed(1);
+    $('wkRuns').textContent = `${wk.filter((r) => !r.old).length}회`;
+    $('wkTime').textContent = `${Math.round(wk.reduce((x, r) => x + r.sec, 0) / 60)}분`;
+    $('wkSteps').textContent = n(wk.reduce((x, r) => x + (r.sweat || 0), 0));
+    const longest = runs.reduce((x, r) => Math.max(x, r.m), 0);
+    const fastest = runs.flatMap((r) => r.splits || []).filter((s) => s > 120).reduce((x, s) => Math.min(x, s), Infinity);
+    $('bestKm').textContent = longest ? `${kmText(longest)}km` : '-';
+    $('bestPace').textContent = isFinite(fastest) ? pace(fastest) : '-';
+    $('allKm').textContent = `${(runs.reduce((x, r) => x + r.m, 0) / 1000).toFixed(1)}km`;
+    const list = $('runList');
+    list.innerHTML = runs.length ? runs.slice(0, 30).map((r) => {
+      const d = new Date(r.start);
+      const when = `${d.getMonth() + 1}월 ${d.getDate()}일 ${r.old ? '' : `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`}`;
+      return `<li><button type="button" data-run="${r.id}"><span class="d">${when}${r.old ? ' · 이전 기록' : ''}</span><span class="km">${kmText(r.m)}<small>km</small></span><span class="s">${hms(r.sec)} · ${r.m >= 50 ? pace(r.sec / (r.m / 1000)) : `-'--"`} · 땀 걸음 ${n(r.sweat)}</span></button></li>`;
+    }).join('') : '<li class="empty">아직 기록이 없어요. 위의 시작을 눌러 첫 달리기를 해 보세요.</li>';
+    list.querySelectorAll('[data-run]').forEach((b) => b.addEventListener('click', () => { const r = runs.find((x) => x.id === b.dataset.run); if (r) showSummary(r); }));
+    $('runRule').textContent = `땀 걸음은 분당 ${C.minCadence}걸음 이상으로 1분 넘게 뛴 걸음만 세요(신호등에서 20초까지는 쉬어도 이어져요). GPS 를 켜면 보폭과 속도로 흔들기·자전거·차를 걸러요. 하루 최대 ${n(C.dailyCap)}걸음. 화면을 끄거나 다른 앱으로 가면 그동안은 세지 못해요.`;
+  }
+
+  let sumMap = null, shown = null;
+  function showSummary(r) {
+    shown = r;
+    show('vSum');
+    const d = new Date(r.start);
+    $('sumDate').textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${['일', '월', '화', '수', '목', '금', '토'][d.getDay()]}요일${r.old ? '' : ` ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`}`;
+    $('sumKm').textContent = kmText(r.m);
+    $('sumTime').textContent = hms(r.sec);
+    $('sumPace').textContent = r.m >= 50 ? pace(r.sec / (r.m / 1000)) : '-';
+    $('sumSteps').textContent = n(r.sweat);
+    $('sumStory').textContent = r.sweat > 0
+      ? `땀 걸음 ${n(r.sweat)}걸음! 땀과 숨이 모기를 부르니, 뛰고 나면 바로 씻고 기피제를 다시 발라 주세요.`
+      : '이번에는 땀 걸음이 없어요. 분당 145걸음 이상으로 1분 넘게 뛰면 세요.';
+    // 구간 기록
+    const sp = r.splits || [];
+    const best = sp.length ? Math.min(...sp) : 0;
+    $('sumSplits').innerHTML = sp.length ? sp.map((s, i) => `<li${s === best ? ' class="best"' : ''}><span class="k">${i + 1}km</span><span class="bar"><i style="width:${Math.max(18, Math.min(100, (best / s) * 100))}%"></i></span><span class="v">${pace(s)}</span></li>`).join('')
+      : '<li class="empty">1km 를 넘게 달리면 구간마다 페이스가 나와요.</li>';
+    const c = r.count || {};
+    $('sumNote').textContent = r.old ? '이전 판에서 옮겨 온 기록이에요.' : `판정: 뛴 ${c.run || 0}칸 · 걷기 ${c.walk || 0}칸 · 흔들림 ${c.shake || 0}칸 · 탈것 ${c.vehicle || 0}칸 (한 칸 = ${C.windowSec}초)${r.gps ? '' : ' · GPS 없이 기록해 랭킹에는 올라가지 않아요'}`;
+    // 지도
+    const box = $('sumMap');
+    const pts = r.route || [];
+    box.hidden = pts.length < 2 || !window.L;
+    if (!box.hidden) {
+      if (sumMap) { sumMap.remove(); sumMap = null; }
+      sumMap = window.L.map(box, { zoomControl: false, attributionControl: true, dragging: true, scrollWheelZoom: false });
+      window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(sumMap);
+      const line = window.L.polyline(pts, { color: '#0E9F6E', weight: 5, opacity: 0.9 }).addTo(sumMap);
+      window.L.circleMarker(pts[0], { radius: 6, color: '#fff', weight: 2, fillColor: '#3182F6', fillOpacity: 1 }).addTo(sumMap);
+      window.L.circleMarker(pts[pts.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#E5484D', fillOpacity: 1 }).addTo(sumMap);
+      setTimeout(() => { sumMap.invalidateSize(); sumMap.fitBounds(line.getBounds(), { padding: [24, 24] }); }, 50);
     }
   }
 
+  function saveOpts() { writeJSON(OPT_KEY, opts); }
+
   document.addEventListener('DOMContentLoaded', () => {
-    if (!$('runCard')) return;
-    $('runRule').textContent = `분당 ${C.minCadence}걸음 이상으로 ${C.sustainSec}초 넘게 뛰면 그때부터 세요. 시속 ${C.maxKmh}km 를 넘으면(자전거·차) 세지 않아요. 하루 최대 ${C.dailyCap.toLocaleString('ko-KR')}걸음.`;
-    $('runBtn').addEventListener('click', () => (on ? stop() : start()));
-    draw(0, false);
+    if (!$('vHome')) return;
+    $('optGps').checked = opts.gps; $('optVoice').checked = opts.voice;
+    $('optGps').addEventListener('change', (e) => { opts.gps = e.target.checked; saveOpts(); });
+    $('optVoice').addEventListener('change', (e) => { opts.voice = e.target.checked; saveOpts(); });
+    $('runStart').addEventListener('click', start);
+    $('lvPause').addEventListener('click', togglePause);
+    holdToStop($('lvStop'));
+    $('sumDone').addEventListener('click', () => { drawHome(); show('vHome'); });
+    $('sumDelete').addEventListener('click', () => {
+      if (!shown) return;
+      const b = $('sumDelete');
+      if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '한 번 더 누르면 지워요'; setTimeout(() => { b.dataset.sure = ''; b.textContent = '이 기록 지우기'; }, 3000); return; }
+      runs = runs.filter((r) => r.id !== shown.id); saveRuns(runs);
+      b.dataset.sure = ''; b.textContent = '이 기록 지우기';
+      drawHome(); show('vHome');
+    });
+    // 뛰는 중에 페이지를 떠나려 하면 묻는다
+    window.addEventListener('beforeunload', (e) => { if (S) { e.preventDefault(); e.returnValue = ''; } });
+    drawHome();
   });
 
-  window.MZRun = { today: () => Object.assign({}, day()), week: weekSteps, days: () => JSON.parse(JSON.stringify(rec.days)) };
+  // 다른 화면(내 기록 등)에서 쓰는 요약
+  window.MZRun = {
+    runs: () => runs.slice(),
+    week: () => { const ws = weekStart(); return runs.filter((r) => r.start >= ws).reduce((x, r) => ({ m: x.m + r.m, sweat: x.sweat + (r.sweat || 0), sec: x.sec + r.sec }), { m: 0, sweat: 0, sec: 0 }); },
+  };
 }());
