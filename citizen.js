@@ -307,8 +307,12 @@
     ]);
   }
 
-  function useGps() {
+  async function useGps() {
     if (!navigator.geolocation) { say('이 기기에서는 위치를 쓸 수 없어요.'); pickDistrict(); return; }
+    // 위치정보 이용 동의 (consent.js). 거부하면 동네 고르기로
+    if (window.MZConsent && !(await window.MZConsent.ensure('location', { purpose: '모기 제보: 지금 있는 곳을 지도에 표시 (저장은 동네 이름만)' }))) {
+      say('위치 대신 동네를 골라 주세요.'); pickDistrict(); return;
+    }
     const wait = say('위치를 확인하는 중이에요…');
     const mine = report;
     navigator.geolocation.getCurrentPosition((pos) => {

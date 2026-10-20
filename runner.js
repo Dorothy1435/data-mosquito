@@ -141,6 +141,11 @@
       catch (e) { setStatus('움직임 센서를 쓸 수 없어요.'); return; }
     }
     if (typeof DeviceMotionEvent === 'undefined') { setStatus('이 기기에는 움직임 센서가 없어요. 휴대폰에서 열어 주세요.'); return; }
+    // 동의 받기 (consent.js): 움직임 센서는 필수, GPS 는 선택. 아이폰 허락 창(위)을 먼저 띄워야 해서 그 뒤에 묻는다
+    if (window.MZConsent) {
+      if (!(await window.MZConsent.ensure('motion', { purpose: '뛰어런: 슬로우 조깅 이상으로 뛴 걸음 세기' }))) { setStatus('움직임 센서 이용에 동의해야 걸음을 셀 수 있어요.'); return; }
+      if ($('runGps').checked && !(await window.MZConsent.ensure('location', { purpose: '뛰어런: 뛴 거리 재기, 자전거·차 거르기' }))) { $('runGps').checked = false; }
+    }
     on = true;
     window.addEventListener('devicemotion', onMotion);
     holdScreen();   // 기다리지 않는다 (응답이 늦거나 없는 기기에서도 바로 센다)

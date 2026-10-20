@@ -1246,3 +1246,51 @@ body.tabs .fab-bite { display: none; }
   body.tabs .where { padding-left: 8px; }
   body.tabs .place-select { max-width: 84px; text-overflow: ellipsis; }
 }
+
+/* ===== 계정: 소셜 로그인 · 동의 · 계정 관리 (me.js) · 기능별 동의 창 (consent.js) — 2026-10-20 ===== */
+.sns { display: grid; gap: 8px; margin-bottom: 4px; }
+.sns-btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 12px; font: 700 16px var(--sans); cursor: pointer; border: 0; }
+.sns-btn.kakao { background: #FEE500; color: rgba(0, 0, 0, .85); }
+.sns-btn.google { background: #fff; color: #1F1F1F; border: 1px solid #747775; }
+.sns-btn .g { font-weight: 800; color: #4285F4; }
+.sns-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.sns-btn:disabled { opacity: .6; cursor: wait; }
+.sns-or { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: 14px; color: var(--g600); }
+.sns-or::before, .sns-or::after { content: ""; flex: 1; height: 1px; background: var(--g200); }
+.agree { display: grid; gap: 10px; margin: 4px 0 0; padding: 16px; border: 1px solid var(--g200); border-radius: 14px; background: var(--g50); }
+.agree label { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; font-weight: 500; color: var(--g800); line-height: 1.5; }
+.agree input[type="checkbox"], .frm .sw input { flex: none; width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--blue); }
+.agree .agree-all { padding-bottom: 10px; border-bottom: 1px solid var(--g200); font-size: 16px; }
+.agree .agree-all small { color: var(--g600); font-weight: 500; font-size: 14px; }
+.agree em { font-style: normal; font-weight: 700; color: var(--blue-ink); } .agree em.opt { color: var(--g600); }
+.agree-sum { margin: 0 0 0 32px; padding: 10px 12px; border-radius: 10px; background: #fff; font-size: 14px; color: var(--g700); }
+.agree-sum p { margin: 2px 0; } .agree-sum b { display: inline-block; min-width: 4.5em; color: var(--g900); }
+.agree-note { margin: 0; font-size: 14px; color: var(--g600); }
+.cap:empty { display: none; }
+.frm-err.ok { color: #0B7A55; }
+.acct-grid { display: grid; gap: 10px; }
+.acct-sec { border: 1px solid var(--g200); border-radius: 14px; background: #fff; }
+.acct-sec > summary { min-height: 52px; display: flex; align-items: center; padding: 0 16px; font-size: 16px; font-weight: 700; cursor: pointer; list-style: none; }
+.acct-sec > summary::-webkit-details-marker { display: none; }
+.acct-sec > summary::after { content: "＋"; margin-left: auto; color: var(--g500); }
+.acct-sec[open] > summary::after { content: "－"; }
+.acct-sec > summary:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; border-radius: 14px; }
+.acct-sec > .frm, .acct-sec > div { padding: 0 16px 16px; }
+.frm .sw { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 500; color: var(--g800); }
+.frm.danger { margin-top: 8px; padding: 16px; border-radius: 12px; background: #FEF3F2; }
+.frm.danger p { margin: 0; font-size: 15px; color: #7A271A; }
+.btn-danger { background: #D92D20; } .btn-danger:hover { background: #B42318; }
+.consent-dlg { width: min(440px, calc(100% - 32px)); padding: 0; border: 0; border-radius: 20px; box-shadow: 0 24px 64px -12px rgba(0, 0, 0, .35); }
+.consent-dlg::backdrop { background: rgba(0, 10, 30, .45); }
+.consent-card { display: grid; gap: 12px; padding: 24px; }
+.consent-card h2 { margin: 0; font-size: 20px; }
+.consent-card dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 0; font-size: 15px; }
+.consent-card dt { font-weight: 700; color: var(--g700); white-space: nowrap; } .consent-card dd { margin: 0; color: var(--g800); }
+.consent-deny { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--g50); font-size: 14px; color: var(--g700); }
+.consent-more { margin: 0; font-size: 14px; color: var(--g600); }
+.consent-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.consent-btns .btn-main, .consent-btns .btn-sub { min-height: 52px; padding: 0 12px; font-size: 16px; }
+/* 처리방침·약관 표: 좁은 폰에서는 표 안에서만 옆으로 밀어 본다 */
+.doc .tbl-wrap { overflow-x: auto; margin-top: 12px; }
+.doc .tbl-wrap .rwd { min-width: 520px; margin-top: 0; }
+.doc .tbl-wrap .rwd td { vertical-align: top; }
