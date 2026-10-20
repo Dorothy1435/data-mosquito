@@ -40,6 +40,7 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
+drop policy if exists "내 프로필만 읽기" on public.profiles;
 create policy "내 프로필만 읽기" on public.profiles for select to authenticated using (auth.uid() = id);
 -- 닉네임 바꾸기는 지금은 막아 둔다(랭킹 혼동 방지). 필요하면 update 정책을 추가한다.
 
@@ -73,6 +74,7 @@ create table if not exists public.game_runs (
 );
 create index if not exists game_runs_user_day_idx on public.game_runs (user_id, received_at desc);
 alter table public.game_runs enable row level security;
+drop policy if exists "내 기록만 읽기" on public.game_runs;
 create policy "내 기록만 읽기" on public.game_runs for select to authenticated using (auth.uid() = user_id);
 
 -- 3) 시즌 누적 (사용자당 시즌당 한 줄). 함수가 더해 나간다
@@ -86,6 +88,7 @@ create table if not exists public.game_scores (
   primary key (user_id, season)
 );
 alter table public.game_scores enable row level security;
+drop policy if exists "내 누적만 읽기" on public.game_scores;
 create policy "내 누적만 읽기" on public.game_scores for select to authenticated using (auth.uid() = user_id);
 
 -- 4) 배지 (받은 것만 한 줄씩)
@@ -96,6 +99,7 @@ create table if not exists public.user_badges (
   primary key (user_id, badge_id)
 );
 alter table public.user_badges enable row level security;
+drop policy if exists "내 배지만 읽기" on public.user_badges;
 create policy "내 배지만 읽기" on public.user_badges for select to authenticated using (auth.uid() = user_id);
 
 -- 5) 기록 보내기 함수. 브라우저(auth.js submitRuns)가 호출한다. 돌려주는 값:
@@ -176,6 +180,7 @@ create table if not exists public.ranking_cache (
   primary key (season, rank)
 );
 alter table public.ranking_cache enable row level security;
+drop policy if exists "랭킹은 누구나" on public.ranking_cache;
 create policy "랭킹은 누구나" on public.ranking_cache for select to anon, authenticated using (true);
 
 create or replace function public.rebuild_ranking()
