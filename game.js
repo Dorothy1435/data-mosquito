@@ -327,6 +327,21 @@
       const A = window.MZAuth;
       return A && A.enabled && !A.user() ? '<p class="egg-p egg-login">로그인하지 않으면 랭킹 기록에 남지 않아요. <a href="account.html?next=index.html">로그인</a></p>' : '';
     }
+    // 그냥 잡기(도전 밖): 잡은 수를 모았다가 20초마다 또는 40마리마다 한 묶음(stage 0)으로 보낸다
+    //   걸린 시간도 같이 보내서 서버가 '사람이 잡을 수 있는 속도'(분당 상한)와 하루 상한으로 다시 자른다
+    let freeK = 0, freeStart = 0;
+    function addFree() {
+      if (!freeK) freeStart = Date.now();
+      freeK += 1;
+      if (freeK >= 40) flushFree();
+    }
+    function flushFree() {
+      if (!freeK) return;
+      state.pending.push({ stage: 0, kills: freeK, ms: Math.max(Date.now() - freeStart, 1000), ok: false, at: new Date().toISOString() });
+      freeK = 0; save(); syncPending();
+    }
+    setInterval(flushFree, 20000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushFree(); });
     // 서버로 보내기: 로그인 상태면 도전 기록을 보낸다. 안 되면 pending 에 남겨 다음에 다시
     async function syncPending() {
       const A = window.MZAuth;
@@ -709,6 +724,7 @@
       const wasGolden = f.golden, wasQueen = f.queen > 0, special = f.kind === 'elite' || f.kind === 'boss' ? f.kind : null;
       f.dead = now; f.queen = 0; f.golden = false; setLook(f);
       state.kills += 1;
+      if (!run.on) addFree();   // 도전 밖에서 그냥 잡은 것도 랭킹에 (서버가 분당·하루 상한으로 자른다)
       if (wasGolden) state.golden += 1;
       if (special === 'elite') state.elites += 1;
       if (special === 'boss') { state.bosses += 1; updateBossBar(null); }
@@ -873,6 +889,16 @@
     requestAnimationFrame(tick);
     // 로그인돼 있으면 밀린 기록을 보낸다
     setTimeout(syncPending, 3000);
+    // 시험용 골드 (직원 계정만): 주소 뒤에 ?testgold=10000 → 이 기기에 골드를 더한다
+    //   골드는 이 기기에만 있고 랭킹(잡은 수)과는 상관없다
+    (function testGold() {
+      const m = location.search.match(/[?&]testgold=(\d{1,6})/);
+      if (!m) return;
+      let staff = false;
+      try { staff = localStorage.getItem('mz-staff') === '1'; } catch (e) { /* 무시 */ }
+      if (staff) { addGold(Number(m[1])); save(); }
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* 무시 */ }
+    }());
   }
 
   // 다른 화면에서 쓰는 공개 함수
