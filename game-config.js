@@ -68,13 +68,12 @@ window.MZ_GAME_CONFIG = {
   // 무기 (상점). range 명중 범위 배율 · cost 한 번 뿌릴 때 통 소모 배율 · refill 통 차는 속도 배율 · sound 소리 종류
   //   coil(모기향): 누른 자리에 ms 동안 연기, 반경 안에 들어온 모기를 잡는다. cooldownMs 마다 한 번
   // 랭킹은 '잡은 마리 수'라 무기가 좋아도 서버 검사(분당 상한)는 그대로 적용된다
-  // 무기 (2026-10-21 다시 맞춤): 비쌀수록 모든 면에서 좋다
+  // 무기 (2026-10-21 다시 맞춤): 비쌀수록 모든 면에서 좋다. 대형 분무기는 장점이 없어 뺐다(가진 사람은 골드로 돌려줌, game.js)
   //   range 잡는 범위 · cost 한 번 뿌릴 때 약 소모(작을수록 좋음) · refill 통 채우는 속도 · power 엘리트·보스에게 주는 피해
   //   hitWord 잡았을 때 뜨는 말 · killSound 잡았을 때 소리
   WEAPONS: [
     { id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, power: 1, sound: 'spray', killSound: 'kill', hitWord: '잡았다!', text: '기본 무기. 누르면 약이 퍼져요.' },
     { id: 'racket', name: '전기 모기채', price: 300, range: 1.3, cost: 0.9, refill: 1.1, power: 1, sound: 'zap', killSound: 'killZap', hitWord: '지지직!', text: '전기 그물로 넓게 잡아요.' },
-    { id: 'fogger', name: '대형 분무기', price: 600, range: 1.6, cost: 0.75, refill: 1.3, power: 2, sound: 'fog', killSound: 'killFog', hitWord: '퍼엉!', text: '큰 구름으로 한꺼번에. 엘리트·보스에게 2배.' },
     { id: 'coil', name: '모기향', price: 1000, range: 1.7, cost: 0.65, refill: 1.5, power: 2, sound: 'coil', killSound: 'killCoil', hitWord: '스르륵…', coil: { radius: 120, ms: 3500, cooldownMs: 7000 }, text: '누른 자리에 연기가 남아 들어온 모기도 잡아요.' },
     { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 2, cost: 0.45, refill: 2, power: 3, sound: 'laser', killSound: 'killLaser', hitWord: '치익!', text: '가장 넓고 오래 쏴요. 엘리트·보스에게 3배.' },
   ],

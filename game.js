@@ -47,7 +47,16 @@
     s.gold = Number(s.gold) || 0;       // 골드 (상점에서 무기 사기)
     s.weapons = Array.isArray(s.weapons) && s.weapons.length ? s.weapons : ['spray'];   // 가진 무기
     if (!s.weapons.includes(s.weapon)) s.weapon = 'spray';                              // 들고 있는 무기
-    s.weaponLv = s.weaponLv && typeof s.weaponLv === 'object' ? s.weaponLv : {};          // 무기 강화 단계 { 무기: 1~5 }
+    s.weaponLv = s.weaponLv && typeof s.weaponLv === 'object' ? s.weaponLv : {};
+    // 없앤 무기는 가지고 있었으면 산 값을 골드로 돌려준다 (2026-10-21 대형 분무기)
+    const RETIRED = { fogger: 600 };
+    Object.keys(RETIRED).forEach((id) => {
+      if (!s.weapons.includes(id)) return;
+      s.weapons = s.weapons.filter((x) => x !== id);
+      s.gold = (Number(s.gold) || 0) + RETIRED[id];
+      delete s.weaponLv[id];
+      if (s.weapon === id) s.weapon = 'spray';
+    });          // 무기 강화 단계 { 무기: 1~5 }
     return s;
   }
   const state = loadState();
@@ -74,6 +83,8 @@
     if (why === 'link' || why === 'switch' || why === 'logout') { state.pending = []; state.today = { date: todayKey(), runs: 0 }; }
     const w = Array.isArray(d.weapons) ? d.weapons.filter((x) => typeof x === 'string') : [];
     state.weapons = merge ? Array.from(new Set(state.weapons.concat(w))) : w.slice();
+    const known = (CFG.WEAPONS || []).map((x) => x.id);
+    if (known.length) state.weapons = state.weapons.filter((x) => known.includes(x));   // 없앤 무기는 빼기
     if (!state.weapons.includes('spray')) state.weapons.unshift('spray');
     if (!merge && typeof d.weapon === 'string') state.weapon = d.weapon;
     if (!state.weapons.includes(state.weapon)) state.weapon = 'spray';
