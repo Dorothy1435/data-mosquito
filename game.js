@@ -252,12 +252,33 @@
     let baseKills = 0;   // 이 화면에서 잡은 일반 모기 수 (엘리트·보스 등장 기준)
     card.classList.add('spray');
     // 들고 있는 무기 모양을 마우스 커서로 (PC). 폰은 커서가 없어 누를 때 무기별 효과로 구분한다
+    // 레이저 총: 카드 아래 가운데에 두고, 누르는 쪽으로 돌아가 총구에서 빔이 나간다
+    const gun = document.createElement('div');
+    gun.className = 'laser-gun'; gun.hidden = true; gun.setAttribute('aria-hidden', 'true');
+    gun.innerHTML = '<svg viewBox="0 0 64 24" width="86" height="32"><rect x="0" y="5" width="40" height="14" rx="5" fill="#6B21A8" stroke="#fff" stroke-width="1.5"/><rect x="38" y="8" width="20" height="8" rx="3" fill="#4C1D95" stroke="#fff" stroke-width="1.2"/><circle cx="60" cy="12" r="3.2" fill="#FF6B6B"/><rect x="8" y="9" width="14" height="6" rx="2" fill="#C4B5FD"/></svg>';
+    card.appendChild(gun);
+    const GUN_LEN = 84;   // 총 끝(총구)까지 거리
+    // 총 자리: 카드 오른쪽 아래 (아래 요약 카드·버튼에 가리지 않게 조금 위)
+    function gunOrigin() { return { x: card.clientWidth - 90, y: card.clientHeight - 120 }; }
+    function aimGun(x, y) {
+      const o = gunOrigin();
+      let ang = Math.atan2(y - o.y, x - o.x) * 180 / Math.PI;
+      if (ang > -5) ang = ang > 90 ? -175 : -5;   // 아래쪽은 못 쏜다
+      gun.style.left = o.x + 'px'; gun.style.top = o.y + 'px';
+      gun.style.transform = `translate(0, -50%) rotate(${ang}deg)`;
+      return ang;
+    }
     function setCursor() {
       const id = (WEAPONS.find((w) => w.id === state.weapon) || WEAPONS[0]).id;
+      const isGun = !!(WEAPONS.find((w) => w.id === id) || {}).beam;
       const svg = (WEAPON_ICON[id] || '').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
-      card.style.cursor = svg ? `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 20 20, crosshair` : '';
+      card.style.cursor = isGun ? 'crosshair' : svg ? `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 20 20, crosshair` : '';
       card.dataset.weapon = id;
+      gun.hidden = !isGun;
+      if (isGun) aimGun(card.clientWidth / 2, card.clientHeight / 3);
     }
+    card.addEventListener('pointermove', (e) => { if (!gun.hidden) { const r = card.getBoundingClientRect(); aimGun(e.clientX - r.left, e.clientY - r.top); } });
+    window.addEventListener('resize', () => { if (!gun.hidden) aimGun(card.clientWidth / 2, card.clientHeight / 3); });
     setCursor();
     document.addEventListener('game:changed', (e) => { if (e.detail && e.detail.synced) setCursor(); });
 
@@ -732,9 +753,23 @@
       // 모기향: 누른 자리에 연기 (쿨타임마다 한 번)
       if (w.coil && now >= coilReadyAt) { coilReadyAt = now + w.coil.cooldownMs; dropCoil(px, py, w.coil, now); }
       const hitR = BASE_HIT * (diff.hit || 1) * (w.range || 1);
+      // 레이저: 카드 아래 가운데에서 누른 쪽으로 빔을 끝까지 쏜다. 빔 가까이(굵기 안)에 있는 모기는 모두 맞는다
+      let beamDist = null;
+      if (w.beam) {
+        const W = card.clientWidth, H = card.clientHeight;
+        const ang = aimGun(px, py) * Math.PI / 180, g = gunOrigin();
+        let dx = Math.cos(ang), dy = Math.sin(ang);
+        const ox = g.x + dx * GUN_LEN, oy = g.y + dy * GUN_LEN;   // 총구
+        const tx = dx > 0 ? (W - ox) / dx : dx < 0 ? -ox / dx : Infinity, ty = dy < 0 ? -oy / dy : Infinity;
+        const t = Math.min(tx, ty);
+        beamDist = (x, y) => { const u = Math.max(0, Math.min(t, (x - ox) * dx + (y - oy) * dy)); return Math.hypot(x - (ox + dx * u), y - (oy + dy * u)); };
+      }
+      const distOf = (f) => (beamDist ? beamDist(f.x, f.y) : Math.hypot(px - f.x, py - f.y));
+      const beamR = hitR * 0.4;   // 빔 굵기 (반지름). 끝까지 꿰뚫는 대신 가늘다
       flies.forEach((f) => {
         if (f.dead) return;
-        const d = Math.hypot(px - f.x, py - f.y);
+        const d = distOf(f);
+        if (beamDist) { if (d <= beamR * (f.queen ? 1.4 : 1)) { if (f.queen > 1) { f.queen -= 1; popAt(f.x, f.y - 30, `여왕 모기 · ${f.queen}번 더`, 'is-queen'); return; } kill(f); } return; }
         if (d <= hitR * (f.queen ? 1.4 : 1)) {
           // 여왕 모기는 여러 번 맞혀야 한다. 맞을 때마다 멀리 튕겨 나간다
           if (f.queen > 1) {
@@ -751,8 +786,9 @@
       // 엘리트·보스·분신 (배열이 바뀌므로 복사본으로 돈다)
       extras.slice().forEach((f) => {
         if (f.dead || !extras.includes(f)) return;   // 같은 뿌리기에서 먼저 지워진 분신은 건너뛴다
-        const d = Math.hypot(px - f.x, py - f.y);
-        if (d > hitR * (f.size || 1)) {
+        const d = distOf(f);
+        if (d > (beamDist ? beamR : hitR) * (f.size || 1)) {
+          if (beamDist) return;
           if (d < 200) { const k = (1 - d / 200) * 10; f.vx += ((f.x - px) / d) * k; f.vy += ((f.y - py) / d) * k; }
           return;
         }
@@ -798,18 +834,26 @@
 
     // 모기향 연기: r 안에 들어온 모기를 0.3초마다 잡는다(엘리트·보스는 1초마다 1번 맞음)
     function dropCoil(x, y, conf, now) {
+      // 동시에 놓을 수 있는 개수를 넘으면 가장 오래된 것부터 치운다
+      while (coils.length >= (conf.max || 2)) { const old = coils.shift(); old.el.remove(); }
       const el = document.createElement('div');
       el.className = 'gcoil';
       el.style.left = x + 'px'; el.style.top = y + 'px';
       el.style.setProperty('--r', conf.radius + 'px');
       el.style.setProperty('--ms', conf.ms + 'ms');
       card.appendChild(el);
-      coils.push({ x, y, r: conf.radius, until: now + conf.ms, el, nextAt: now, bigAt: now });
+      coils.push({ x, y, r: conf.radius, pull: conf.pull || 0, until: now + conf.ms, el, nextAt: now, bigAt: now });
     }
     function tickCoils(now) {
       for (let i = coils.length - 1; i >= 0; i--) {
         const z = coils[i];
         if (now > z.until) { z.el.remove(); coils.splice(i, 1); continue; }
+        // 끌어당기기: 연기 둘레 밖 pull 거리 안의 모기를 가운데로 (모기향 냄새에 홀린 듯)
+        if (z.pull) flies.forEach((f) => {
+          if (f.dead) return;
+          const dx = z.x - f.x, dy = z.y - f.y, d = Math.hypot(dx, dy);
+          if (d > z.r * 0.6 && d < z.r + z.pull) { const k = 0.9 * (1 - d / (z.r + z.pull)) + 0.25; f.vx += (dx / d) * k; f.vy += (dy / d) * k; }
+        });
         if (now >= z.nextAt) {
           z.nextAt = now + 300;
           flies.forEach((f) => { if (!f.dead && Math.hypot(f.x - z.x, f.y - z.y) <= z.r) kill(f); });
@@ -842,16 +886,21 @@
       }
       if (wid === 'laser') {
         // 레이저: 카드 오른쪽 아래(퇴치기 자리)에서 누른 곳까지 빔 + 맞은 자리 빨간 점
-        const W = card.clientWidth, H = card.clientHeight, ox = W - 24, oy = H - 24;
-        const len = Math.hypot(px - ox, py - oy), ang = Math.atan2(py - oy, px - ox) * 180 / Math.PI;
+        const W = card.clientWidth;
+        const ang = aimGun(px, py), g = gunOrigin(), rad = ang * Math.PI / 180;
+        const dx = Math.cos(rad), dy = Math.sin(rad);
+        const ox = g.x + dx * GUN_LEN, oy = g.y + dy * GUN_LEN;   // 총구에서 나간다
+        const tx = dx > 0 ? (W - ox) / dx : dx < 0 ? -ox / dx : Infinity, ty = dy < 0 ? -oy / dy : Infinity;
+        const len = Math.min(tx, ty);
+        gun.classList.remove('kick'); void gun.offsetWidth; gun.classList.add('kick');   // 반동
         const beam = document.createElement('div');
         beam.className = 'fx fx-beam'; beam.style.left = ox + 'px'; beam.style.top = oy + 'px';
         beam.style.width = len + 'px'; beam.style.transform = `rotate(${ang}deg)`;
-        const dot = document.createElement('div');
-        dot.className = 'fx fx-laserdot'; dot.style.left = px + 'px'; dot.style.top = py + 'px';
-        dot.style.setProperty('--r', R * 2 + 'px');
-        card.appendChild(beam); card.appendChild(dot);
-        setTimeout(() => { beam.remove(); dot.remove(); }, 320); return;
+        beam.style.setProperty('--w', Math.max(6, Math.round(R * 0.4)) + 'px');   // 빛줄기 (판정은 이보다 조금 넓다)
+        const muzzle = document.createElement('div');
+        muzzle.className = 'fx fx-muzzle'; muzzle.style.left = ox + 'px'; muzzle.style.top = oy + 'px';
+        card.appendChild(beam); card.appendChild(muzzle);
+        setTimeout(() => { beam.remove(); muzzle.remove(); }, 340); return;
       }
       if (wid === 'fogger') {
         // 대형 분무기: 범위만 한 초록빛 구름이 크게 퍼진다

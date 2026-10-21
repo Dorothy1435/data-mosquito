@@ -74,8 +74,8 @@ window.MZ_GAME_CONFIG = {
   WEAPONS: [
     { id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, power: 1, sound: 'spray', killSound: 'kill', hitWord: '잡았다!', text: '기본 무기. 누르면 약이 퍼져요.' },
     { id: 'racket', name: '전기 모기채', price: 300, range: 1.3, cost: 0.9, refill: 1.1, power: 1, sound: 'zap', killSound: 'killZap', hitWord: '지지직!', text: '전기 그물로 넓게 잡아요.' },
-    { id: 'coil', name: '모기향', price: 1000, range: 1.7, cost: 0.65, refill: 1.5, power: 2, sound: 'coil', killSound: 'killCoil', hitWord: '스르륵…', coil: { radius: 120, ms: 3500, cooldownMs: 7000 }, text: '누른 자리에 연기가 남아 들어온 모기도 잡아요.' },
-    { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 2, cost: 0.45, refill: 2, power: 3, sound: 'laser', killSound: 'killLaser', hitWord: '치익!', text: '가장 넓고 오래 쏴요. 엘리트·보스에게 3배.' },
+    { id: 'coil', name: '모기향', price: 1000, range: 1.7, cost: 0.65, refill: 1.5, power: 2, sound: 'coil', killSound: 'killCoil', hitWord: '스르륵…', coil: { radius: 150, ms: 10000, cooldownMs: 4000, pull: 300, max: 2 }, text: '놓아두면 10초 동안 주변 모기를 끌어당겨 저절로 잡아요. 누르지 않아도 계속 잡혀요(2개까지).' },
+    { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 1.2, cost: 0.45, refill: 2, power: 3, beam: true, sound: 'laser', killSound: 'killLaser', hitWord: '치익!', text: '누른 쪽으로 빔을 쏴서 줄에 걸린 모기를 끝까지 모두 잡아요. 엘리트·보스에게 3배.' },
   ],
 
   // 무기 강화 (2026-10-21): 가진 무기를 골드로 Lv.1 → Lv.5 까지 올린다. 한 단계마다 아래만큼 좋아진다
