@@ -247,8 +247,17 @@
   // 비밀번호를 잊었을 때: 재설정 메일 보내기 → 메일 링크로 돌아오면 recovering=true → updatePassword
   async function sendPasswordReset(email, captchaToken) {
     need();
-    const { error } = await client.auth.resetPasswordForEmail(String(email || '').trim(), { redirectTo: location.origin + '/me.html', captchaToken });
+    const { error } = await client.auth.resetPasswordForEmail(String(email || '').trim(), { redirectTo: location.origin + '/account.html', captchaToken });
     if (error) throw new Error(koError(error));
+  }
+  // 아이디(이메일) 찾기: 가입 때 적은 이름 + 휴대폰 번호가 맞으면 가린 이메일(ab***@gmail.com)과 가입 방법을 알려 준다
+  //   서버 함수 find_my_login (supabase/contact-schema.sql). 없는 계정이면 null
+  async function findLogin(name, phone) {
+    need();
+    checkContact(name, phone);
+    const { data, error } = await client.rpc('find_my_login', { p_name: String(name).trim(), p_phone: String(phone).replace(/[^0-9]/g, '') });
+    if (error) throw new Error(/too many/i.test(error.message) ? '너무 여러 번 찾았어요. 1시간 뒤에 다시 해 주세요.' : koError(error));
+    return data || null;
   }
   // 비밀번호 바꾸기. 로그인 상태에서 바꿀 때는 지금 비밀번호를 한 번 더 확인한다(남이 잠깐 폰을 잡았을 때 대비)
   async function changePassword(currentPassword, newPassword, captchaToken) {
@@ -444,7 +453,7 @@
     accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signInWith, signOut,
     finishOnboarding, needsOnboarding, myConsents, setConsent,
-    hasPassword, loginMethods, myContact, setContact, sendPasswordReset, changePassword, changeNickname, deleteAccount, exportMyData,
+    hasPassword, loginMethods, myContact, setContact, sendPasswordReset, findLogin, changePassword, changeNickname, deleteAccount, exportMyData,
     submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking,
     donatePhoto, pendingPhotos, photoCounts, reviewPhoto, deletePhoto,
     validNickname, checkPassword,

@@ -403,6 +403,41 @@ drop function if exists public.finish_onboarding(text, jsonb);
 revoke all on function public.finish_onboarding(text, jsonb, text, text) from public, anon;
 grant execute on function public.finish_onboarding(text, jsonb, text, text) to authenticated;
 
+-- 아이디(이메일) 찾기: 이름 + 휴대폰 번호가 맞으면 가린 이메일(ab***@gmail.com)과 가입 방법만 돌려준다 (2026-10-21)
+--   · 로그인 전에 쓰므로 anon 도 부를 수 있다. 같은 번호로는 1시간에 5번까지만 (남의 번호로 계속 찔러 보는 것 막기)
+create table if not exists public.find_login_attempts (
+  phone text not null,
+  at    timestamptz not null default now()
+);
+create index if not exists find_login_attempts_phone_at on public.find_login_attempts (phone, at);
+alter table public.find_login_attempts enable row level security;   -- 정책 없음 = 화면에서 직접 못 읽고 못 씀
+
+create or replace function public.find_my_login(p_name text, p_phone text)
+returns jsonb language plpgsql security definer set search_path = public, auth as $$
+declare
+  nm text := trim(coalesce(p_name, ''));
+  ph text := regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g');
+  em text; prov jsonb; id_part text;
+begin
+  if ph !~ '^01[016789][0-9]{7,8}$' then raise exception 'phone invalid'; end if;
+  if (select count(*) from public.find_login_attempts where phone = ph and at > now() - interval '1 hour') >= 5 then
+    raise exception 'too many attempts';
+  end if;
+  insert into public.find_login_attempts (phone) values (ph);
+  delete from public.find_login_attempts where at < now() - interval '1 day';
+  select u.email, coalesce(u.raw_app_meta_data -> 'providers', '[]'::jsonb) into em, prov
+    from public.member_contacts c join auth.users u on u.id = c.user_id
+   where c.phone = ph and c.real_name = nm;
+  if not found then return null; end if;
+  id_part := split_part(coalesce(em, ''), '@', 1);
+  return jsonb_build_object(
+    'email', case when em is null or em = '' then null
+                  else left(id_part, 2) || repeat('*', greatest(char_length(id_part) - 2, 2)) || '@' || split_part(em, '@', 2) end,
+    'providers', prov);
+end $$;
+revoke all on function public.find_my_login(text, text) from public;
+grant execute on function public.find_my_login(text, text) to anon, authenticated;
+
 -- ======================= schema.sql =======================
 -- =============================================================
 -- 모기제로 시민 제보 저장소 (Supabase / PostgreSQL)

@@ -124,7 +124,7 @@
         <div class="ax-keep"><label class="ax-check sm"><input type="checkbox" name="saveId"><i>${CHECK}</i><span>아이디 저장</span></label><label class="ax-check sm"><input type="checkbox" name="autoLogin" checked><i>${CHECK}</i><span>자동 로그인</span></label></div>
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">로그인</button>
-        <p class="ax-links"><button type="button" data-mode="forgot">비밀번호 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="signup">회원가입</button></p>
+        <p class="ax-links"><button type="button" data-mode="findId">아이디 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="forgot">비밀번호 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="signup">회원가입</button></p>
       </form>
       <p class="ax-back"><button type="button" data-mode="login">다른 방법으로 로그인</button></p>`,
     }),
@@ -142,6 +142,18 @@
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">가입하기</button>
         <p class="ax-links"><button type="button" data-mode="signup">다른 방법으로 가입</button></p>
+      </form>`,
+    }),
+    // 아이디 찾기: 이름 + 휴대폰 번호 → 가린 이메일
+    findId: () => ({
+      title: '아이디 찾기',
+      lead: '가입할 때 적은 이름과 휴대폰 번호를 넣어 주세요.',
+      body: `<form class="ax-form" id="axForm" novalidate>
+        ${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required')}
+        ${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required placeholder="010-1234-5678"')}
+        ${errLine}
+        <button type="submit" class="ax-btn">찾기</button>
+        <p class="ax-links"><button type="button" data-mode="forgot">비밀번호 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="email">로그인</button></p>
       </form>`,
     }),
     forgot: () => ({
@@ -336,6 +348,15 @@
         if (r.needsConfirm) { mode = 'email'; return '가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'; }
         goNext();
         return '';
+      });
+    } else if (mode === 'findId') {
+      onSubmit($('axForm'), null, async (f) => {
+        const r = await A.findLogin(f.real_name.value, f.phone.value);
+        if (!r) throw new Error('이 이름·휴대폰 번호로 가입한 계정이 없어요.');
+        const prov = Array.isArray(r.providers) ? r.providers : [];
+        const kakao = prov.includes('kakao'), mail = prov.includes('email');
+        if (kakao && !mail) return '카카오로 가입한 계정이에요. 카카오로 로그인해 주세요.';
+        return `가입한 이메일은 ${r.email} 이에요.${kakao ? ' (카카오 로그인도 돼요)' : ''}`;
       });
     } else if (mode === 'forgot') {
       onSubmit($('axForm'), cap, async (f, token) => { await A.sendPasswordReset(f.email.value, token); return '메일을 보냈어요. 받은 편지함(스팸함도)을 확인해 주세요.'; });

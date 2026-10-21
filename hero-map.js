@@ -217,30 +217,53 @@
   });
   // 원을 짧게 톡 누르면 동네 이름·점수 말풍선을 2초 보여 준다.
   // 지도 위는 모기 잡기 게임 자리라 누르기를 막지 않고(모기약은 그대로 뿌려짐), 끌기(연사)·도전 중에는 띄우지 않는다.
+  // 동네 원 이름·점수 말풍선
+  //   마우스(PC): 원 위에 올리면 바로 뜨고, 벗어나면 사라진다
+  //   손가락(폰): 톡 누르면 2초 동안 뜬다 (끌기·길게 누르기는 무시)
+  //   모기 잡기 도전 중(body.game-run)에는 뜨지 않는다
   function wireTips(svg) {
     const card = svg.parentElement;
-    let down = null, tipEl = null, hideTimer = null;
-    card.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; }, true);
-    card.addEventListener('pointerup', (e) => {
-      if (!down || document.body.classList.contains('game-run')) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t;
-      down = null;
-      if (moved > 10 || dt > 500) return;
-      const ctm = svg.getScreenCTM(); if (!ctm) return;
-      const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    let down = null, tipEl = null, hideTimer = null, shown = null;
+    const gameOn = () => document.body.classList.contains('game-run');
+    // 화면 좌표에서 가장 가까운 원 (원 가장자리에서 22 이내)
+    function nearest(x, y) {
+      const ctm = svg.getScreenCTM(); if (!ctm) return null;
+      const pt = new DOMPoint(x, y).matrixTransform(ctm.inverse());
       let best = null, bestD = Infinity;
       svg.querySelectorAll('[data-tip]').forEach((g) => {
         const d = Math.hypot(pt.x - Number(g.dataset.cx), pt.y - Number(g.dataset.cy)) - Number(g.dataset.r);
         if (d < bestD) { bestD = d; best = g; }
       });
-      if (!best || bestD > 22) return;
+      return best && bestD <= 22 ? best : null;
+    }
+    function show(g, x, y) {
       if (!tipEl) { tipEl = document.createElement('div'); tipEl.className = 'hm-tip'; tipEl.setAttribute('role', 'status'); card.appendChild(tipEl); }
       const cr = card.getBoundingClientRect();
-      tipEl.textContent = best.dataset.tip;
-      tipEl.style.left = `${Math.min(Math.max(e.clientX - cr.left, 70), cr.width - 70)}px`;
-      tipEl.style.top = `${Math.max(e.clientY - cr.top - 16, 12)}px`;
+      tipEl.textContent = g.dataset.tip;
+      tipEl.style.left = `${Math.min(Math.max(x - cr.left, 70), cr.width - 70)}px`;
+      tipEl.style.top = `${Math.max(y - cr.top - 16, 12)}px`;
       tipEl.classList.add('on');
-      clearTimeout(hideTimer); hideTimer = setTimeout(() => tipEl.classList.remove('on'), 2000);
+      shown = g;
+    }
+    function hide() { clearTimeout(hideTimer); if (tipEl) tipEl.classList.remove('on'); shown = null; }
+    // 마우스: 올리면 보이기
+    card.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const g = gameOn() ? null : nearest(e.clientX, e.clientY);
+      if (g) { clearTimeout(hideTimer); show(g, e.clientX, e.clientY); } else if (shown) hide();
+    });
+    card.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
+    // 손가락: 톡 누르면 2초
+    card.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; }, true);
+    card.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse' || !down || gameOn()) { down = null; return; }
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t;
+      down = null;
+      if (moved > 10 || dt > 500) return;
+      const g = nearest(e.clientX, e.clientY);
+      if (!g) return;
+      show(g, e.clientX, e.clientY);
+      clearTimeout(hideTimer); hideTimer = setTimeout(hide, 2000);
     });
   }
   document.addEventListener('DOMContentLoaded', () => {
