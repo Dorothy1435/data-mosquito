@@ -329,7 +329,7 @@
       return `<li><button type="button" data-run="${r.id}"><span class="d">${when}${r.old ? ' · 이전 기록' : ''}</span><span class="km">${kmText(r.m)}<small>km</small></span><span class="s">${hms(r.sec)} · ${r.m >= 50 ? pace(r.sec / (r.m / 1000)) : `-'--"`} · 땀 걸음 ${n(r.sweat)}</span></button></li>`;
     }).join('') : '<li class="empty">아직 기록이 없어요. 위의 시작을 눌러 첫 달리기를 해 보세요.</li>';
     list.querySelectorAll('[data-run]').forEach((b) => b.addEventListener('click', () => { const r = runs.find((x) => x.id === b.dataset.run); if (r) showSummary(r); }));
-    $('runRule').textContent = `땀 걸음은 분당 ${C.minCadence}걸음 이상으로 1분 넘게 뛴 걸음만 세요(신호등에서 20초까지는 쉬어도 이어져요). GPS 를 켜면 보폭과 속도로 흔들기·자전거·차를 걸러요. 하루 최대 ${n(C.dailyCap)}걸음. 화면을 끄거나 다른 앱으로 가면 그동안은 세지 못해요.`;
+    $('runRule').textContent = `1분 넘게 뛴 걸음만 세요. 화면을 끄면 그동안은 세지 못해요.`;
   }
 
   let sumMap = null, shown = null;

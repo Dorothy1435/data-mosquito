@@ -1318,6 +1318,7 @@ function confidenceLevelClass(koreanLabel) {
 function updateDataBadges(weatherData, isGps, precision) {
   if (!weatherSourceBadge || !locationSourceBadge) return;
   weatherSourceBadge.textContent = weatherData.isLive ? '실제 날씨' : '샘플 날씨';
+  weatherSourceBadge.hidden = weatherData.isLive;   // 실제 날씨면 굳이 적지 않는다. 샘플일 때만 '샘플 날씨'를 보인다
   locationSourceBadge.textContent = isGps ? 'GPS 위치' : '지역 선택';
 
   // 신뢰도 배지 (높음/보통/낮음)와 근거를 표시한다.

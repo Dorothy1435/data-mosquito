@@ -1400,3 +1400,18 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .rk li.empty { background: var(--g50); border-style: dashed; }
 .rk li.empty .who, .rk li.empty .sc { color: var(--g500); font-weight: 500; }
 .rk li.empty .rk-crown { opacity: .45; }
+
+/* 폰 화면 다듬기 (2026-10-21) */
+/* 첫 화면: 모기지수 아래 기술 정보(위도·경도, 위치 출처, 신뢰도)는 숨긴다. 참고용 표시와 갱신 시각만 */
+.meta #locationText, .meta #locationSourceBadge, .meta #confidenceBadge { display: none; }
+.eyebrow .src[hidden] { display: none; }
+@media (max-width: 900px) {
+  /* 지도 위 날씨 줄: 원·경계선과 겹쳐도 읽히게 반투명 바탕 */
+  .hero .eyebrow { display: inline-flex; width: fit-content; max-width: 100%; align-self: flex-start; padding: 6px 12px; border-radius: 999px; background: rgba(20, 28, 45, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  /* 질문 버튼: 물렸어요 버튼과 같은 높이 줄에 맞춘다 */
+  body.tabs .mz-chat { bottom: calc(72px + env(safe-area-inset-bottom)) !important; right: 16px !important; }
+  body.tabs .mz-chat-fab { width: 48px; height: 48px; padding: 0; justify-content: center; }
+  body.tabs .mz-chat-fab::before { animation: none; }
+}
+/* 폰: 일반 화면(랭킹·내 기록·뛰어런·도감 등) 위 빈 공간 줄이기 */
+@media (max-width: 900px) { .doc { padding-top: 24px; } }

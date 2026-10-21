@@ -111,3 +111,9 @@ body.rn-running .tabbar, body.rn-running .nav, body.rn-running .mz-chat { displa
 .run-app .rn-top-km { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
 .run-app .rn-top-km small { margin-left: 2px; font-size: 14px; font-weight: 600; color: var(--g500); }
 .run-app .rn-top li.rn-top-msg { justify-content: center; font-size: 15px; color: var(--g600); }
+
+/* 폰: 위 빈 공간 줄이기, 로그인 안내 한 줄로 (2026-10-21) */
+@media (max-width: 900px) {
+  .run-app.doc { padding-top: 20px; }
+  .run-app .login-note { margin-top: 16px; padding: 12px 14px; font-size: 14px; }
+}

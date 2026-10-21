@@ -52,10 +52,14 @@
   <main id="main" class="wrap doc run-app">
     <!-- 1) 시작 화면 -->
     <section id="vHome" aria-labelledby="runT">
-      <p class="kicker">땀 나는 걸음만 세요</p>
       <h1 id="runT">뛰어런</h1>
       <p class="lead">모기는 땀에 끌려요. <b>뛴 걸음</b>만 세요.</p>
       <p class="login-note" data-login-note hidden></p>
+
+      <div class="rn-start-wrap">
+        <button type="button" class="rn-start" id="runStart" aria-describedby="runHint">시작</button>
+        <p class="rn-hint" id="runHint">폰을 손에 들거나 주머니에 넣고 뛰어요. 뛰는 동안 화면은 켜 둘게요.</p>
+      </div>
 
       <div class="rn-week" aria-label="이번 주 기록">
         <div class="rn-week-main"><p class="k">이번 주</p><p class="rn-big"><span id="wkKm">0.0</span><small>km</small></p></div>
@@ -64,11 +68,6 @@
           <div><p class="k">시간</p><p class="v" id="wkTime">0분</p></div>
           <div><p class="k">땀 걸음</p><p class="v" id="wkSteps">0</p></div>
         </div>
-      </div>
-
-      <div class="rn-start-wrap">
-        <button type="button" class="rn-start" id="runStart" aria-describedby="runHint">시작</button>
-        <p class="rn-hint" id="runHint">폰을 손에 들거나 주머니에 넣고 뛰어요. 뛰는 동안 화면은 켜 둘게요.</p>
       </div>
 
       <div class="rn-opts">

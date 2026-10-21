@@ -115,7 +115,7 @@
     // 로그인 안내 줄: data-login-note 가 있는 곳에 '로그인하지 않으면 기록에 남지 않아요'
     document.querySelectorAll('[data-login-note]').forEach((el) => {
       el.hidden = on;
-      if (!on) el.innerHTML = '로그인하지 않으면 랭킹 기록에 남지 않아요. 지금 기록은 이 기기에만 저장돼요. <a href="account.html?next=' + encodeURIComponent((location.pathname.split('/').pop() || 'index.html').replace(/^$/, 'index.html')) + '">로그인</a>';
+      if (!on) el.innerHTML = '로그인해야 랭킹에 올라가요. <a href="account.html?next=' + encodeURIComponent((location.pathname.split('/').pop() || 'index.html').replace(/^$/, 'index.html')) + '">로그인</a>';
     });
   }
   document.addEventListener('DOMContentLoaded', draw);
