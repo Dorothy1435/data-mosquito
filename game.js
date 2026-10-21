@@ -889,14 +889,12 @@
     requestAnimationFrame(tick);
     // 로그인돼 있으면 밀린 기록을 보낸다
     setTimeout(syncPending, 3000);
-    // 시험용 골드 (직원 계정만): 주소 뒤에 ?testgold=10000 → 이 기기에 골드를 더한다
+    // 시험용 골드: 주소 뒤에 ?testgold=10000 → 이 기기에 골드를 더한다 (한 번 쓰면 주소에서 지운다)
     //   골드는 이 기기에만 있고 랭킹(잡은 수)과는 상관없다
     (function testGold() {
       const m = location.search.match(/[?&]testgold=(\d{1,6})/);
       if (!m) return;
-      let staff = false;
-      try { staff = localStorage.getItem('mz-staff') === '1'; } catch (e) { /* 무시 */ }
-      if (staff) { addGold(Number(m[1])); save(); }
+      addGold(Number(m[1])); save();
       try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { /* 무시 */ }
     }());
   }
