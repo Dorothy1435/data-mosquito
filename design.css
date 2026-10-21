@@ -1513,3 +1513,5 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .rk-board .rk-crown { width: 24px; height: 24px; }
 main.doc.me:has(.rk3) { max-width: 1180px; }
 @media (min-width: 1000px) { .rk3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } }
+/* 도감: '모기 찍기' 버튼이 물렸어요 버튼과 겹치지 않게 그 위 왼쪽으로 (폰) */
+@media (max-width: 900px) { body.tabs .fab-cam { left: 16px; bottom: calc(132px + env(safe-area-inset-bottom)); min-height: 48px; } }
