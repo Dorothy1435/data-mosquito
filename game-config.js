@@ -68,17 +68,21 @@ window.MZ_GAME_CONFIG = {
   // 무기 (상점). range 명중 범위 배율 · cost 한 번 뿌릴 때 통 소모 배율 · refill 통 차는 속도 배율 · sound 소리 종류
   //   coil(모기향): 누른 자리에 ms 동안 연기, 반경 안에 들어온 모기를 잡는다. cooldownMs 마다 한 번
   // 랭킹은 '잡은 마리 수'라 무기가 좋아도 서버 검사(분당 상한)는 그대로 적용된다
+  // 무기 (2026-10-21 다시 맞춤): 비쌀수록 모든 면에서 좋다
+  //   range 잡는 범위 · cost 한 번 뿌릴 때 약 소모(작을수록 좋음) · refill 통 채우는 속도 · power 엘리트·보스에게 주는 피해
+  //   hitWord 잡았을 때 뜨는 말 · killSound 잡았을 때 소리
   WEAPONS: [
-    { id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, sound: 'spray', text: '기본 무기. 누르면 약이 퍼져요.' },
-    { id: 'racket', name: '전기 모기채', price: 300, range: 1.5, cost: 1.8, refill: 1, sound: 'zap', text: '잡는 범위 1.5배. 대신 전기를 많이 써서 금방 바닥나요.' },
-    { id: 'fogger', name: '대형 분무기', price: 600, range: 1.2, cost: 0.5, refill: 1.6, sound: 'fog', text: '통이 커서 오래 뿌려요. 범위 1.2배.' },
-    { id: 'coil', name: '모기향', price: 1000, range: 1, cost: 1, refill: 1, sound: 'coil', coil: { radius: 110, ms: 3000, cooldownMs: 9000 }, text: '누른 자리에 3초 동안 연기가 퍼져 들어온 모기를 잡아요. 9초마다.' },
-    { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 0.75, cost: 0.35, refill: 2, sound: 'laser', text: '범위는 좁지만 거의 끝없이 쏠 수 있어요.' },
+    { id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, power: 1, sound: 'spray', killSound: 'kill', hitWord: '잡았다!', text: '기본 무기. 누르면 약이 퍼져요.' },
+    { id: 'racket', name: '전기 모기채', price: 300, range: 1.3, cost: 0.9, refill: 1.1, power: 1, sound: 'zap', killSound: 'killZap', hitWord: '지지직!', text: '전기 그물로 넓게 잡아요.' },
+    { id: 'fogger', name: '대형 분무기', price: 600, range: 1.6, cost: 0.75, refill: 1.3, power: 2, sound: 'fog', killSound: 'killFog', hitWord: '퍼엉!', text: '큰 구름으로 한꺼번에. 엘리트·보스에게 2배.' },
+    { id: 'coil', name: '모기향', price: 1000, range: 1.7, cost: 0.65, refill: 1.5, power: 2, sound: 'coil', killSound: 'killCoil', hitWord: '스르륵…', coil: { radius: 120, ms: 3500, cooldownMs: 7000 }, text: '누른 자리에 연기가 남아 들어온 모기도 잡아요.' },
+    { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 2, cost: 0.45, refill: 2, power: 3, sound: 'laser', killSound: 'killLaser', hitWord: '치익!', text: '가장 넓고 오래 쏴요. 엘리트·보스에게 3배.' },
   ],
 
   // 무기 강화 (2026-10-21): 가진 무기를 골드로 Lv.1 → Lv.5 까지 올린다. 한 단계마다 아래만큼 좋아진다
   //   비용 = max(무기 값, 200) × 0.5 × 지금 단계 (예: 스프레이 100·200·300·400, 레이저 1000·2000·3000·4000)
-  UPGRADE: { maxLv: 5, costRate: 0.5, minBase: 200, range: 0.08, cost: 0.08, refill: 0.10, coilRadius: 0.10, coilCooldown: 0.08 },
+  //   power: 두 단계마다 피해 +1 (Lv.3 +1, Lv.5 +2)
+  UPGRADE: { maxLv: 5, costRate: 0.5, minBase: 200, range: 0.10, cost: 0.10, refill: 0.15, coilRadius: 0.10, coilCooldown: 0.08 },
 
   // 뛰어런 (2026-10-20 새 설계, 나이키 런 클럽 방식). 10초를 한 칸으로 묶어 판정한다
   RUN: {

@@ -39,6 +39,8 @@
     s.badges = Array.isArray(s.badges) ? s.badges : [];
     s.history = Array.isArray(s.history) ? s.history : [];
     s.pending = Array.isArray(s.pending) ? s.pending : [];
+    s.kills = Number(s.kills) || 0;
+    s.bestStage = Number(s.bestStage) || 0;
     s.golden = Number(s.golden) || 0;   // 잡은 황금 모기 수
     s.elites = Number(s.elites) || 0;   // 잡은 엘리트 모기 수
     s.bosses = Number(s.bosses) || 0;   // 잡은 보스 모기 수
@@ -171,6 +173,11 @@
       fog: (c) => hiss(c, 0.4, 'lowpass', 1600, 0.3),                                                    // 쉬이익
       coil: (c) => { hiss(c, 0.7, 'lowpass', 700, 0.25); tone(c, 'sine', 320, 180, 0.5, 0.06); },          // 스르륵
       laser: (c) => tone(c, 'sawtooth', 1900, 380, 0.11, 0.12),                                           // 퓽
+      // 무기별 '잡았다' 소리
+      killZap: (c) => { tone(c, 'square', 90, 40, 0.18, 0.25); hiss(c, 0.16, 'highpass', 4000, 0.3); setTimeout(() => hiss(c, 0.06, 'highpass', 5000, 0.2), 60); },   // 지지직
+      killFog: (c) => { tone(c, 'sine', 240, 70, 0.22, 0.35); hiss(c, 0.25, 'lowpass', 900, 0.25); },     // 퍼엉
+      killCoil: (c) => { hiss(c, 0.5, 'bandpass', 1200, 0.18, 0.6); tone(c, 'sine', 600, 250, 0.35, 0.08); },   // 스르륵
+      killLaser: (c) => { tone(c, 'sawtooth', 2400, 900, 0.07, 0.12); hiss(c, 0.18, 'highpass', 6000, 0.22); },  // 치익
       kill: (c) => { tone(c, 'triangle', 520, 90, 0.12, 0.35); hiss(c, 0.05, 'highpass', 2000, 0.2); },   // 퍽
       big: (c) => { tone(c, 'square', 110, 45, 0.18, 0.28); hiss(c, 0.08, 'lowpass', 900, 0.3); },        // 쿵 (엘리트·보스 맞음)
       boom: (c) => { tone(c, 'sine', 90, 28, 0.9, 0.6); hiss(c, 0.9, 'lowpass', 600, 0.5); },             // 쾅 (보스 처치)
@@ -215,6 +222,7 @@
         range: (base.range || 1) * (1 + UP.range * k),
         cost: (base.cost || 1) * Math.max(0.3, 1 - UP.cost * k),
         refill: (base.refill || 1) * (1 + UP.refill * k),
+        power: (base.power || 1) + Math.floor(k / 2),
       });
       if (base.coil) w.coil = Object.assign({}, base.coil, { radius: Math.round(base.coil.radius * (1 + UP.coilRadius * k)), cooldownMs: Math.round(base.coil.cooldownMs * Math.max(0.4, 1 - UP.coilCooldown * k)) });
       return w;
@@ -232,6 +240,15 @@
     const extras = [];
     let baseKills = 0;   // 이 화면에서 잡은 일반 모기 수 (엘리트·보스 등장 기준)
     card.classList.add('spray');
+    // 들고 있는 무기 모양을 마우스 커서로 (PC). 폰은 커서가 없어 누를 때 무기별 효과로 구분한다
+    function setCursor() {
+      const id = (WEAPONS.find((w) => w.id === state.weapon) || WEAPONS[0]).id;
+      const svg = (WEAPON_ICON[id] || '').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+      card.style.cursor = svg ? `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}") 20 20, crosshair` : '';
+      card.dataset.weapon = id;
+    }
+    setCursor();
+    document.addEventListener('game:changed', (e) => { if (e.detail && e.detail.synced) setCursor(); });
 
     // 도전 상태
     const run = { on: false, stage: 0, target: 0, caught: 0, startAt: 0, endAt: 0, timer: null,
@@ -289,6 +306,11 @@
     drawGold();
     function addGold(n) { if (!n) return; state.gold += n; drawGold(); }
 
+    // 무기 성능 한 줄 (강화 단계 반영): 범위 · 약 소모 · 충전 · 위력
+    function statLine(id) {
+      const keep = state.weapon; state.weapon = id; const w = weapon(); state.weapon = keep;
+      return `범위 ×${w.range.toFixed(1)} · 약 ×${(w.cost || 1).toFixed(2)} · 충전 ×${(w.refill || 1).toFixed(1)} · 위력 ${w.power || 1}`;
+    }
     /* --- 상점: 골드로 무기를 사고, 가진 무기를 바꿔 든다 --- */
     function openShop() {
       const rows = WEAPONS.map((w) => {
@@ -300,14 +322,14 @@
         // 가진 무기는 강화 버튼 (Lv.5 까지)
         const up = !owned ? '' : max ? '<span class="shop-max">최고 단계</span>'
           : `<button type="button" class="btn-sub shop-up" data-up="${w.id}" ${state.gold < cost ? 'disabled' : ''}>강화 🪙 ${cost.toLocaleString('ko-KR')}</button>`;
-        return `<li class="shop-item${equipped ? ' is-on' : ''}"><span class="shop-ic" aria-hidden="true">${WEAPON_ICON[w.id] || ''}</span><span class="shop-txt"><b>${w.name}${owned ? ` <em class="shop-lv">Lv.${lv}</em>` : ''}</b><small>${w.text}</small></span><span class="shop-btns">${btn}${up}</span></li>`;
+        return `<li class="shop-item${equipped ? ' is-on' : ''}"><span class="shop-ic" aria-hidden="true">${WEAPON_ICON[w.id] || ''}</span><span class="shop-txt"><b>${w.name}${owned ? ` <em class="shop-lv">Lv.${lv}</em>` : ''}</b><small>${w.text}</small><small class="shop-stat">${statLine(w.id)}</small></span><span class="shop-btns">${btn}${up}</span></li>`;
       }).join('');
-      const box = overlay(`<p class="egg-k">모기 잡기 상점</p><p class="egg-t">🪙 ${state.gold.toLocaleString('ko-KR')} 골드</p><p class="egg-p">강화 한 단계마다 범위 +${Math.round(UP.range * 100)}% · 약 ${Math.round(UP.cost * 100)}% 덜 씀 · 충전 ${Math.round(UP.refill * 100)}% 빠름</p><ul class="shop-list">${rows}</ul>`, [['닫기', null]], 'egg-shop');
+      const box = overlay(`<p class="egg-k">모기 잡기 상점</p><p class="egg-t">🪙 ${state.gold.toLocaleString('ko-KR')} 골드</p><p class="egg-p">강화 한 단계마다 범위 +${Math.round(UP.range * 100)}% · 약 ${Math.round(UP.cost * 100)}% 덜 씀 · 충전 ${Math.round(UP.refill * 100)}% 빠름 · 2단계마다 위력 +1</p><ul class="shop-list">${rows}</ul>`, [['닫기', null]], 'egg-shop');
       box.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
         const w = WEAPONS.find((x) => x.id === b.dataset.buy);
         if (!w || state.gold < w.price) return;
         state.gold -= w.price; state.weapons.push(w.id); state.weapon = w.id;
-        save(); drawGold(); Sound.play('coin');
+        save(); drawGold(); setCursor(); Sound.play('coin');
         openShop();
       }));
       box.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => {
@@ -320,7 +342,7 @@
         openShop();
       }));
       box.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', () => {
-        state.weapon = b.dataset.equip; save(); Sound.play(weapon().sound); openShop();
+        state.weapon = b.dataset.equip; save(); setCursor(); Sound.play(weapon().sound); openShop();
       }));
     }
     // HUD·카드 위에서는 스프레이가 나가지 않게 (버튼이 먹게)
@@ -694,7 +716,7 @@
       }
       tank -= cost;
       if (tank < cost) tankLockUntil = now + SPRAY.lockMs;
-      puff(px, py, w.id);
+      puff(px, py, w.id, BASE_HIT * (diff.hit || 1) * (w.range || 1));
       Sound.play(w.sound, 90);
       // 모기향: 누른 자리에 연기 (쿨타임마다 한 번)
       if (w.coil && now >= coilReadyAt) { coilReadyAt = now + w.coil.cooldownMs; dropCoil(px, py, w.coil, now); }
@@ -725,7 +747,7 @@
         }
         if (f.cloakUntil > now) { popAt(f.x, f.y - 30, '안 보여요!', 'is-empty'); return; }   // 투명할 땐 맞지 않는다
         if (f.kind === 'decoy') { puff(f.x, f.y); popAt(f.x, f.y - 30, '가짜!', 'is-empty'); removeExtra(f); return; }
-        f.hp -= 1;
+        f.hp -= weapon().power || 1;   // 비싼 무기·강화할수록 엘리트·보스에게 더 세게
         if (f.hp <= 0) { kill(f); return; }
         Sound.play('big', 60);
         const a = Math.random() * Math.PI * 2;
@@ -783,13 +805,68 @@
           extras.slice().forEach((f) => {
             if (f.dead || !extras.includes(f) || Math.hypot(f.x - z.x, f.y - z.y) > z.r) return;
             if (f.kind === 'decoy') { removeExtra(f); return; }
-            if (now >= z.bigAt) { f.hp -= 1; if (f.hp <= 0) kill(f); else { Sound.play('big', 60); if (f.kind === 'boss') updateBossBar(f); } }
+            if (now >= z.bigAt) { f.hp -= weapon().power || 1; if (f.hp <= 0) kill(f); else { Sound.play('big', 60); if (f.kind === 'boss') updateBossBar(f); } }
           });
           if (now >= z.bigAt) z.bigAt = now + 1000;
         }
       }
     }
-    function puff(px, py, wid) {
+    // 무기별 효과: 스프레이 안개 · 전기채 번개와 그물 · 분무기 큰 구름 · 모기향 연기 · 레이저 빔 (r = 잡는 범위)
+    const NS = 'http://www.w3.org/2000/svg';
+    function puff(px, py, wid, r) {
+      const R = Math.round(r || 46);
+      if (wid === 'racket') {
+        // 전기 모기채: 범위만 한 그물 테두리가 번쩍 + 번개 4갈래
+        const p = document.createElement('div');
+        p.className = 'fx fx-racket'; p.style.left = px + 'px'; p.style.top = py + 'px';
+        let bolts = '';
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + Math.random() * 0.8;
+          let d = 'M0 0', x = 0, y = 0;
+          for (let k = 1; k <= 4; k++) { const t = (R * k) / 4; x = Math.cos(a) * t + (Math.random() - 0.5) * 10; y = Math.sin(a) * t + (Math.random() - 0.5) * 10; d += ` L${x.toFixed(1)} ${y.toFixed(1)}`; }
+          bolts += `<path d="${d}"/>`;
+        }
+        p.innerHTML = `<svg width="${R * 2 + 20}" height="${R * 2 + 20}" viewBox="${-R - 10} ${-R - 10} ${R * 2 + 20} ${R * 2 + 20}" aria-hidden="true"><ellipse class="net" rx="${R}" ry="${R * 1.08}"/><path class="mesh" d="M${-R} 0H${R}M0 ${-R}V${R}M${-R * 0.7} ${-R * 0.7}L${R * 0.7} ${R * 0.7}M${R * 0.7} ${-R * 0.7}L${-R * 0.7} ${R * 0.7}"/><g class="bolt">${bolts}</g></svg>`;
+        card.appendChild(p); setTimeout(() => p.remove(), 380); return;
+      }
+      if (wid === 'laser') {
+        // 레이저: 카드 오른쪽 아래(퇴치기 자리)에서 누른 곳까지 빔 + 맞은 자리 빨간 점
+        const W = card.clientWidth, H = card.clientHeight, ox = W - 24, oy = H - 24;
+        const len = Math.hypot(px - ox, py - oy), ang = Math.atan2(py - oy, px - ox) * 180 / Math.PI;
+        const beam = document.createElement('div');
+        beam.className = 'fx fx-beam'; beam.style.left = ox + 'px'; beam.style.top = oy + 'px';
+        beam.style.width = len + 'px'; beam.style.transform = `rotate(${ang}deg)`;
+        const dot = document.createElement('div');
+        dot.className = 'fx fx-laserdot'; dot.style.left = px + 'px'; dot.style.top = py + 'px';
+        dot.style.setProperty('--r', R * 2 + 'px');
+        card.appendChild(beam); card.appendChild(dot);
+        setTimeout(() => { beam.remove(); dot.remove(); }, 320); return;
+      }
+      if (wid === 'fogger') {
+        // 대형 분무기: 범위만 한 초록빛 구름이 크게 퍼진다
+        const p = document.createElement('div');
+        p.className = 'fx fx-fog'; p.style.left = px + 'px'; p.style.top = py + 'px';
+        for (let i = 0; i < 4; i++) {
+          const b = document.createElement('i');
+          b.style.setProperty('--s', Math.round(R * (1.1 + Math.random() * 0.6)) + 'px');
+          b.style.setProperty('--dx', Math.round((Math.random() - 0.5) * R * 0.8) + 'px');
+          b.style.setProperty('--dy', Math.round((Math.random() - 0.5) * R * 0.8) + 'px');
+          p.appendChild(b);
+        }
+        card.appendChild(p); setTimeout(() => p.remove(), 1100); return;
+      }
+      if (wid === 'coil') {
+        // 모기향: 회색 연기가 꼬불꼬불 위로 올라간다
+        const p = document.createElement('div');
+        p.className = 'fx fx-smoke'; p.style.left = px + 'px'; p.style.top = py + 'px';
+        for (let i = 0; i < 5; i++) {
+          const b = document.createElement('i');
+          b.style.setProperty('--dx', Math.round((Math.random() - 0.5) * 40) + 'px');
+          b.style.setProperty('--d', (i * 0.08).toFixed(2) + 's');
+          p.appendChild(b);
+        }
+        card.appendChild(p); setTimeout(() => p.remove(), 1300); return;
+      }
       const p = document.createElement('div');
       p.className = 'puff' + (wid ? ' w-' + wid : '');
       p.style.left = px + 'px'; p.style.top = py + 'px';
@@ -803,6 +880,15 @@
       card.appendChild(p);
       setTimeout(() => p.remove(), 800);
     }
+    // 잡은 자리 자국: 무기마다 다르게 (스프레이 물방울 · 전기채 불꽃 · 분무기 초록 방울 · 모기향 재 · 레이저 탄 자국)
+    function hitMark(x, y, wid) {
+      const m = document.createElement('div');
+      m.className = 'fx fx-hit hit-' + (wid || 'spray');
+      m.style.left = x + 'px'; m.style.top = y + 'px';
+      for (let i = 0; i < 8; i++) { const b = document.createElement('i'); b.style.setProperty('--a', (i * 45 + Math.random() * 20) + 'deg'); m.appendChild(b); }
+      card.appendChild(m);
+      setTimeout(() => m.remove(), 700);
+    }
     function kill(f) {
       const now = performance.now();
       const wasGolden = f.golden, wasQueen = f.queen > 0, special = f.kind === 'elite' || f.kind === 'boss' ? f.kind : null;
@@ -814,7 +900,7 @@
       if (special === 'boss') { state.bosses += 1; updateBossBar(null); }
       // 골드: 일반 1 · 황금 5 · 엘리트 10 · 보스 50
       addGold(special ? (GOLD[special] || 0) : (wasGolden ? GOLD.golden : GOLD.normal));
-      Sound.play(special === 'boss' ? 'boom' : (special || wasGolden ? 'coin' : 'kill'), special === 'boss' ? 0 : 40);
+      Sound.play(special === 'boss' ? 'boom' : (special || wasGolden ? 'coin' : (weapon().killSound || 'kill')), special === 'boss' ? 0 : 40);
       if (special === 'elite') Sound.play('kill');
       // 엘리트·보스가 죽으면 남은 분신도 사라진다
       if (special) extras.filter((x) => x.kind === 'decoy').forEach((x) => { puff(x.x, x.y); removeExtra(x); });
@@ -828,7 +914,9 @@
       // 연속 잡기
       combo = now - lastKillAt <= ((EV.combo && EV.combo.withinMs) || 1300) ? combo + 1 : 1;
       lastKillAt = now;
-      let text = run.on ? `${run.caught}/${run.target}` : (state.kills === 1 ? '잡았다!' : `잡았다! ${state.kills.toLocaleString('ko-KR')}마리째`);
+      const hw = weapon();
+      hitMark(f.x, f.y, hw.id);
+      let text = run.on ? `${run.caught}/${run.target}` : (state.kills === 1 ? (hw.hitWord || '잡았다!') : `${hw.hitWord || '잡았다!'} ${state.kills.toLocaleString('ko-KR')}마리째`);
       let cls = '';
       if (special) {
         const conf = SP[special];
