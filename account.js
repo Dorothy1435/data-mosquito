@@ -227,6 +227,7 @@
         ${row('rowContact', '이름 · 휴대폰', '상품 받을 때 연락처', `<form class="ax-form" id="contactForm" novalidate>${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required')}${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required')}<p class="ax-note">본인만 볼 수 있고, 랭킹에는 보이지 않아요.</p>${errLine}<button type="submit" class="ax-btn">저장</button></form>`)}
         ${A.hasPassword() ? row('rowPw', '비밀번호 바꾸기', '', `<form class="ax-form" id="pwForm" novalidate>${field('current', '지금 비밀번호', 'password', 'autocomplete="current-password" required')}${field('password', '새 비밀번호', 'password', 'autocomplete="new-password" minlength="8" required placeholder="8자 이상, 영문과 숫자"')}${field('password2', '새 비밀번호 확인', 'password', 'autocomplete="new-password" minlength="8" required')}<div class="ax-cap" id="capPw"></div>${errLine}<button type="submit" class="ax-btn">바꾸기</button></form>`) : ''}
         ${row('rowConsent', '선택 동의', '위치정보 · 움직임 센서', `<div class="ax-form"><label class="ax-switch"><span><b>위치정보 이용</b><small>제보 위치, 뛰어런 거리</small></span><input type="checkbox" role="switch" data-consent="location"></label><label class="ax-switch"><span><b>움직임 센서 이용</b><small>뛰어런 걸음 세기</small></span><input type="checkbox" role="switch" data-consent="motion"></label><p class="ax-err" id="consentErr" role="alert"></p><p class="ax-note">끄면 그 기능을 쓸 때 다시 물어봐요. <a href="privacy.html">개인정보 처리방침</a> · <a href="terms.html">이용약관</a></p></div>`)}
+        ${A.isAdmin() ? row('rowAdmin', '직원 권한 관리', '최고 관리자만 보여요', `<div class="ax-form"><div class="ax-adm-search">${field('admQ', '닉네임으로 찾기', 'search', 'maxlength="12" placeholder="비워 두면 최근 가입 순"')}<button type="button" class="ax-btn sub" id="admFind">찾기</button></div><p class="ax-err" id="admErr" role="alert"></p><ul class="ax-adm" id="admList" aria-live="polite"></ul></div>`) : ''}
         ${row('rowData', '내 정보 내려받기', '서버에 있는 내 정보 전부', `<div class="ax-form"><p class="ax-note">이메일, 닉네임, 모기 잡기·뛰어런 기록, 동의 기록을 파일 하나로 받아요.</p><button type="button" class="ax-btn sub" id="exportBtn">파일로 받기</button>${errLine}</div>`)}
       </div>
       <div class="ax-foot">
@@ -241,7 +242,32 @@
           ${errLine}<button type="submit" class="ax-btn danger">계정 삭제</button>
         </form></div></details>`;
   }
+  // 직원 권한 관리 (최고 관리자만): 닉네임으로 찾아 직원 ↔ 일반을 바꾼다
+  function wireAdmin(A) {
+    const list = $('admList'); if (!list) return;
+    const err = $('admErr');
+    const ROLE = { staff: '직원', citizen: '일반' };
+    async function load() {
+      err.textContent = ''; list.innerHTML = '<li class="ax-adm-msg">불러오는 중이에요…</li>';
+      try {
+        const rows = await A.adminListMembers($('f_admQ').value);
+        if (!rows.length) { list.innerHTML = '<li class="ax-adm-msg">찾는 회원이 없어요.</li>'; return; }
+        list.innerHTML = rows.map((r) => `<li><span><b>${esc(r.nickname)}</b><small>${r.is_admin ? '최고 관리자' : ROLE[r.role] || r.role} · ${new Date(r.joined_at).toLocaleDateString('ko-KR')} 가입</small></span>${r.is_admin ? '<em class="ax-adm-tag">최고 관리자</em>' : `<button type="button" class="ax-adm-btn${r.role === 'staff' ? ' on' : ''}" data-nick="${esc(r.nickname)}" data-to="${r.role === 'staff' ? 'citizen' : 'staff'}">${r.role === 'staff' ? '직원 해제' : '직원으로'}</button>`}</li>`).join('');
+        list.querySelectorAll('[data-nick]').forEach((b) => b.addEventListener('click', async () => {
+          const to = b.dataset.to, nick = b.dataset.nick;
+          if (!confirm(`${nick} 님을 ${to === 'staff' ? '직원으로 지정' : '일반 회원으로 변경'}할까요?`)) return;
+          b.disabled = true;
+          try { await A.adminSetRole(nick, to); await load(); } catch (ex) { err.textContent = ex.message; b.disabled = false; }
+        }));
+      } catch (ex) { list.innerHTML = ''; err.textContent = ex.message; }
+    }
+    $('admFind').addEventListener('click', load);
+    $('f_admQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); load(); } });
+    const det = $('rowAdmin');
+    if (det) det.addEventListener('toggle', () => { if (det.open && !list.children.length) load(); });
+  }
   function wireAccount(A) {
+    wireAdmin(A);
     // 이름·휴대폰: 저장된 값을 채우고(가려서 보여 줌), 바꾸면 저장
     A.myContact().then((c) => {
       const f = $('contactForm'); if (!f) return;

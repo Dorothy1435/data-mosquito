@@ -91,7 +91,7 @@
   }
   async function loadProfile() {
     const u = user(); if (!u || !client) { profile = null; return; }
-    const { data } = await client.from('profiles').select('id, nickname, role, onboarded_at, nickname_changed_at').eq('id', u.id).maybeSingle();
+    const { data } = await client.from('profiles').select('*').eq('id', u.id).maybeSingle();
     profile = data || null;
   }
 
@@ -258,6 +258,23 @@
     const { data, error } = await client.rpc('find_my_login', { p_name: String(name).trim(), p_phone: String(phone).replace(/[^0-9]/g, '') });
     if (error) throw new Error(/too many/i.test(error.message) ? '너무 여러 번 찾았어요. 1시간 뒤에 다시 해 주세요.' : koError(error));
     return data || null;
+  }
+  // ---------- 최고 관리자: 직원 권한 관리 (supabase/admin-schema.sql) ----------
+  // 최고 관리자(is_admin)만 쓸 수 있다. 서버 함수가 다시 확인하므로 화면을 고쳐도 남이 권한을 바꿀 수 없다
+  async function adminListMembers(query) {
+    need(); needUser();
+    const { data, error } = await client.rpc('admin_list_members', { p_query: String(query || '').trim() });
+    if (error) throw new Error(/admin only/.test(error.message) ? '최고 관리자만 쓸 수 있어요.' : koError(error));
+    return data || [];
+  }
+  async function adminSetRole(nickname, role) {
+    need(); needUser();
+    const { error } = await client.rpc('admin_set_role', { p_nickname: nickname, p_role: role });
+    if (error) {
+      if (/cannot change admin/.test(error.message)) throw new Error('최고 관리자 계정의 권한은 바꿀 수 없어요.');
+      if (/admin only/.test(error.message)) throw new Error('최고 관리자만 쓸 수 있어요.');
+      throw new Error(koError(error));
+    }
   }
   // 비밀번호 바꾸기. 로그인 상태에서 바꿀 때는 지금 비밀번호를 한 번 더 확인한다(남이 잠깐 폰을 잡았을 때 대비)
   async function changePassword(currentPassword, newPassword, captchaToken) {
@@ -448,7 +465,9 @@
     get recovering() { return recovering; },
     POLICY_VERSION,
     ready, user, profile: () => profile,
-    isStaff: () => !!(profile && profile.role === 'staff'),
+    isStaff: () => !!(profile && (profile.role === 'staff' || profile.is_admin)),
+    isAdmin: () => !!(profile && profile.is_admin),
+    adminListMembers, adminSetRole,
     // 직원 전용 서버 함수(api/reports-admin.js)에 보낼 접속 토큰
     accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signInWith, signOut,
