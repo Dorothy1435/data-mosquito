@@ -149,6 +149,8 @@
     setAutoLogin(true);   // 가입하면 자동 로그인
     const nick = String(nickname || '').trim();
     if (!validNickname(nick)) throw new Error('닉네임은 2~12자 한글·영문·숫자로 적어 주세요.');
+    // 계정을 만들기 전에 닉네임 중복부터 본다 (만든 뒤에 막히면 가입이 반쯤 된 계정이 남는다)
+    if ((await checkNickname(nick)) === 'taken') throw new Error('이미 쓰는 닉네임이에요.');
     const { data, error } = await client.auth.signUp({ email, password, options: { data: { nickname: nick }, captchaToken } });
     if (error) throw new Error(koError(error));
     session = data.session || null;
@@ -506,6 +508,17 @@
     return data || null;
   }
 
+  // 닉네임 중복 확인: 'ok' · 'taken' · 'invalid' · 'unknown'(서버 함수가 없거나 연결 안 됨)
+  async function checkNickname(nick) {
+    const n = String(nick || '').trim();
+    if (!validNickname(n)) return 'invalid';
+    if (!client) return 'unknown';
+    try {
+      const { data, error } = await client.rpc('nickname_available', { p_nickname: n });
+      return error ? 'unknown' : data;
+    } catch (e) { return 'unknown'; }
+  }
+
   // ---------- 검사 · 오류 문구 ----------
   function validNickname(n) {
     return /^[가-힣A-Za-z0-9_]{2,12}$/.test(n) && !/(관리자|운영자|보건소|admin|staff|모기제로)/i.test(n);
@@ -556,7 +569,7 @@
     accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signInWith, signOut,
     finishOnboarding, needsOnboarding, myConsents, setConsent,
-    hasPassword, loginMethods, myContact, setContact, sendPasswordReset, findLogin, changePassword, changeNickname, deleteAccount, exportMyData,
+    hasPassword, loginMethods, myContact, setContact, sendPasswordReset, findLogin, checkNickname, changePassword, changeNickname, deleteAccount, exportMyData,
     submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking, photoRanking,
     donatePhoto, pendingPhotos, photoCounts, reviewPhoto, deletePhoto,
     validNickname, checkPassword,

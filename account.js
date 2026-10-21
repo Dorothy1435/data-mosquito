@@ -185,6 +185,24 @@
       i.value = d.length < 4 ? d : d.length < 8 ? `${d.slice(0, 3)}-${d.slice(3)}` : `${d.slice(0, 3)}-${d.slice(3, d.length - 4)}-${d.slice(-4)}`;
     }));
     $('axBody').querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
+    // 닉네임 칸: 적는 동안 중복 여부를 바로 알려 준다 (0.4초 멈추면 확인)
+    $('axBody').querySelectorAll('input[name="nickname"]').forEach((i) => {
+      const hint = document.createElement('p'); hint.className = 'ax-hint'; hint.setAttribute('aria-live', 'polite');
+      i.closest('.ax-field').appendChild(hint);
+      const first = i.value.trim();
+      let t = null, seq = 0;
+      i.addEventListener('input', () => {
+        clearTimeout(t); hint.textContent = ''; hint.className = 'ax-hint';
+        const v = i.value.trim();
+        if (!v || v === first) return;
+        t = setTimeout(async () => {
+          const my = ++seq, r = await window.MZAuth.checkNickname(v);
+          if (my !== seq) return;
+          const msg = { ok: ['쓸 수 있는 닉네임이에요.', 'ok'], taken: ['이미 쓰는 닉네임이에요.', 'bad'], invalid: ['2~12자 한글·영문·숫자로 적어 주세요.', 'bad'] }[r];
+          if (msg) { hint.textContent = msg[0]; hint.className = 'ax-hint ' + msg[1]; }
+        }, 400);
+      });
+    });
     $('axBody').querySelectorAll('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
       b.disabled = true;
       try { await window.MZAuth.signInWith(b.dataset.oauth); lastSet(b.dataset.oauth); } catch (ex) { const e = $('axBody').querySelector('.ax-err'); if (e) e.textContent = ex.message; b.disabled = false; }

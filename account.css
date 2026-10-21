@@ -145,3 +145,7 @@
 /* 이름·휴대폰 (바꿀 수 없음, 보기만) */
 .ax-locked p:not(.ax-note) { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 12px 0; border-bottom: 1px solid var(--g100); font-size: 16px; }
 .ax-locked p span { color: var(--g600); } .ax-locked p b { font-weight: 600; color: var(--g900); }
+/* 닉네임 중복 확인 안내 */
+.ax-hint { margin: 0; font-size: 14px; color: var(--g600); }
+.ax-hint:empty { display: none; }
+.ax-hint.ok { color: #0B7A55; } .ax-hint.bad { color: #D92D20; }
