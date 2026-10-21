@@ -1427,3 +1427,22 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .shop-lv { margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--blue-50); color: var(--blue-ink); font-size: 13px; font-style: normal; font-weight: 700; vertical-align: 1px; }
 .shop-item .shop-up[disabled] { opacity: .45; cursor: not-allowed; }
 .shop-max { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; font-size: 14px; font-weight: 600; color: var(--g600); }
+/* 랭킹: 뛰어런 기간 고르기 */
+.rk-period { display: flex; gap: 4px; margin-top: 12px; padding: 4px; border-radius: 12px; background: var(--g100); width: fit-content; }
+.rk-period[hidden] { display: none; }
+.rk-period button { min-height: 40px; padding: 0 14px; border: 0; border-radius: 9px; background: none; color: var(--g600); font: 600 15px var(--sans); cursor: pointer; }
+.rk-period button[aria-pressed="true"] { background: #fff; color: var(--g900); box-shadow: 0 1px 3px rgba(0, 20, 60, .12); }
+.rk-period button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+/* 첫 화면: 랭킹 상품 안내 카드 */
+.prize-card { display: flex; align-items: center; gap: 14px; margin: 16px 0 0; padding: 16px 18px; border-radius: 18px; background: #FFF8E6; color: var(--g900); text-decoration: none; transition: background .2s, transform .15s; }
+.prize-card:hover { background: #FFF1CC; } .prize-card:active { transform: scale(.99); }
+.prize-card:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.prize-ic { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #FFE58A; color: #6B4E00; }
+.prize-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.prize-txt b { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.prize-txt small { font-size: 14px; color: var(--g600); }
+.prize-go { flex: none; font-size: 26px; color: var(--g500); line-height: 1; }
+/* 우리 동네: 자세히 보기 링크 (위쪽 메뉴에서 옮김) */
+.head-link { margin-top: 8px; } .head-link a { display: inline-block; padding: 8px 0; font-size: 16px; font-weight: 600; color: var(--blue-ink); text-decoration: none; }
+.head-link a:hover { text-decoration: underline; }
+.rk-period + .acct-note { margin-top: 16px; }

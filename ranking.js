@@ -13,11 +13,14 @@
   const CFG = window.MZ_GAME_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   const n = (v) => Number(v || 0).toLocaleString('ko-KR');
-  let kind = 'game';   // game · week · season
+  let kind = 'game';   // game · run · photo
+  let period = 'week'; // 뛰어런 기간: week · month · season
   const TEXT = {
     game: { title: '모기를 가장 많이 잡은 사람', lead: '닉네임만 보여요. 시즌 누적 잡은 수로 순위를 매겨요.' },
-    week: { title: '이번 주 가장 많이 뛴 사람', lead: '월요일부터 지금까지, 땀 걸음이 있는 달리기의 거리 합이에요. GPS 를 켜고 뛴 기록만 올라가요.' },
-    season: { title: '올해 가장 많이 뛴 사람', lead: '올해 누적 거리예요. 땀 걸음이 있는 달리기만 세요.' },
+    week: { title: '이번 주 가장 많이 뛴 사람', lead: '월요일부터 지금까지 뛴 거리예요. GPS 를 켜고 뛴 기록만 올라가요.' },
+    month: { title: '이번 달 가장 많이 뛴 사람', lead: '1일부터 지금까지 뛴 거리예요. GPS 를 켜고 뛴 기록만 올라가요.' },
+    season: { title: '올해 가장 많이 뛴 사람', lead: '올해 누적 거리예요.' },
+    photo: { title: '희귀 모기를 가장 많이 찍은 사람', lead: '얼룩날개모기·빨간집모기류 사진을 기증하면, 보건소가 확인한 사진만 세요.' },
   };
 
   const SHOW = CFG.RANK_SHOW || 10;
@@ -41,8 +44,10 @@
   async function render() {
     const A = window.MZAuth, note = $('rkNote'), list = $('rkList');
     $('rkSeason').textContent = `${CFG.SEASON || new Date().getFullYear()} 시즌 랭킹`;
-    $('rkTitle').textContent = TEXT[kind].title;
-    $('rkLead').textContent = TEXT[kind].lead;
+    const key = kind === 'run' ? period : kind;
+    $('rkTitle').textContent = TEXT[key].title;
+    $('rkLead').textContent = TEXT[key].lead;
+    $('rkPeriod').hidden = kind !== 'run';
     if (!A || A.status === 'loading') return;
     if (A.status !== 'ready') {
       const mine = window.MZGame ? window.MZGame.state() : { kills: 0 };
@@ -53,13 +58,14 @@
     }
     try {
       const me = A.profile();
-      const rows = kind === 'game' ? await A.ranking(SHOW) : await A.runRanking(kind, SHOW);
+      const rows = kind === 'game' ? await A.ranking(SHOW) : kind === 'photo' ? await A.photoRanking(SHOW) : await A.runRanking(period, SHOW);
       note.className = 'acct-note';
       const who = A.user() ? (me ? `<b>${esc(me.nickname)}</b>님으로 로그인 중.` : '로그인 중.') : '회원가입한 사람만 랭킹에 올라가요. <a href="account.html?next=ranking.html">로그인</a>';
       note.innerHTML = rows.length ? `${who}<br>10등까지 상품을 드려요. 10초마다 갱신돼요.` : `${who}<br>아직 기록이 없어요. 첫 번째로 이름을 올려 보세요.`;
       list.innerHTML = rows.slice(0, SHOW).map((r) => {
         const mine = me && r.nickname === me.nickname ? ' class="me"' : '';
         if (kind === 'game') return `<li${mine}>${rankCell(r.rank)}<span><span class="who">${esc(r.nickname)}</span><br><span class="rk-sub">최고 ${r.best_stage || 0}단계 · 배지 ${r.badge_count || 0}개</span></span><span class="sc">${n(r.total_kills)}<small>마리</small></span></li>`;
+        if (kind === 'photo') return `<li${mine}>${rankCell(r.rank)}<span><span class="who">${esc(r.nickname)}</span><br><span class="rk-sub">${esc(r.kinds || '')}</span></span><span class="sc">${n(r.photos)}<small>장</small></span></li>`;
         return `<li${mine}>${rankCell(r.rank)}<span><span class="who">${esc(r.nickname)}</span><br><span class="rk-sub">${r.runs}회 · 땀 걸음 ${n(r.sweat_steps)}</span></span><span class="sc">${Number(r.distance_km || 0).toFixed(1)}<small>km</small></span></li>`;
       }).join('') + emptyRows(rows.length + 1);
     } catch (e) {
@@ -78,8 +84,14 @@
   document.addEventListener('DOMContentLoaded', () => {
     renderRewards();
     document.querySelectorAll('.rk-tabs [data-rk]').forEach((b) => b.addEventListener('click', () => select(b.dataset.rk)));
+    document.querySelectorAll('#rkPeriod [data-period]').forEach((b) => b.addEventListener('click', () => {
+      period = b.dataset.period;
+      document.querySelectorAll('#rkPeriod [data-period]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      render();
+    }));
     const h = location.hash.replace('#', '');
-    if (h === 'week' || h === 'season') kind = h;
+    if (h === 'week' || h === 'month' || h === 'season') { kind = 'run'; period = h; document.querySelectorAll('#rkPeriod [data-period]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.period === h))); }
+    if (h === 'run' || h === 'photo') kind = h;
     select(kind);
     document.addEventListener('auth:changed', render);
     if (window.MZAuth) window.MZAuth.ready.then(render);

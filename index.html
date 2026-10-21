@@ -43,7 +43,6 @@
         <a href="run.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14.5" cy="4.5" r="2"/><path d="M8 21l3-6 3 2.5V21"/><path d="M6.5 11.5 9 8.5h5l2.5 3.5 3 1"/><path d="M11 15l-1-6.5"/></svg>뛰어런</a>
         <a href="ranking.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M16 6h3v1.5A3.5 3.5 0 0 1 15.6 11M8 6H5v1.5A3.5 3.5 0 0 0 8.4 11"/><path d="M12 13v4M8.5 20.5h7M10 17h4l.5 3.5h-5Z"/></svg>랭킹</a>
         <a href="me.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/></svg>내 기록</a>
-        <a href="gimhae.html" class="lk-pro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5h16"/><path d="M6 16V10M10.5 16V6M15 16v-4M19.5 16V8"/></svg>자세히 보기</a>
         <a href="expert.html" class="lk-pro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6Z"/></svg>전문가용</a>
       </nav>
       <div class="where">
@@ -102,13 +101,18 @@
       </section>
       <p class="meta">
         <span>참고용 예상값이에요.</span>
-
         <span id="locationText">위치를 확인하는 중</span>
         <span id="updatedText">갱신 -</span>
         <span id="locationSourceBadge">지역 선택</span>
         <span id="confidenceBadge" title="계산 신뢰도">신뢰도 -</span>
         <button id="retryButton" class="link" type="button" hidden>날씨 다시 불러오기</button>
       </p>
+      <!-- 랭킹 상품 안내: 10등까지 키트 (ranking.html). 숫자는 game-config.js 와 같게 -->
+      <a class="prize-card" href="ranking.html">
+        <span class="prize-ic" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M16 6h3v1.5A3.5 3.5 0 0 1 15.6 11M8 6H5v1.5A3.5 3.5 0 0 0 8.4 11"/><path d="M12 13v4M8.5 20.5h7M10 17h4l.5 3.5h-5Z"/></svg></span>
+        <span class="prize-txt"><b>랭킹 10등 안에 들면 상품</b><small>모기 잡기 · 뛰어런 · 희귀 모기 사진, 3~5만 원 상당 키트</small></span>
+        <span class="prize-go" aria-hidden="true">›</span>
+      </a>
       <p class="sr-only" id="adviceText"></p>
       <p class="sr-only" id="statusText"></p>
       <p class="sr-only" id="heroSummary"></p>
@@ -199,6 +203,7 @@
         <div class="head rv">
           <h2 id="twT">우리 동네는<br>김해에서 몇 번째일까요</h2>
           <p>17개 읍·면·동을 발생원 자료와 실제 날씨로 비교했어요.</p>
+          <p class="head-link"><a href="gimhae.html">동네별 자세히 보기 ›</a></p>
         </div>
         <div class="map-wrap rv" id="map-section">
           <div id="map" class="map" aria-label="모기 위험 지도"></div>

@@ -494,6 +494,12 @@
     const { data } = await client.from('run_ranking_public').select('rank, nickname, distance_km, sweat_steps, runs').eq('period', period || 'week').order('rank', { ascending: true }).limit(limit || 100);
     return data || [];
   }
+  // 희귀 모기 사진 랭킹: 직원이 확인한 희귀 모기(얼룩날개모기·빨간집모기류) 기증 사진 수 (supabase/rank3-schema.sql)
+  async function photoRanking(limit) {
+    if (!client) return [];
+    const { data } = await client.from('photo_ranking_public').select('rank, nickname, photos, kinds').order('rank', { ascending: true }).limit(limit || 100);
+    return data || [];
+  }
   async function myRank() {
     if (!client || !user() || !profile) return null;
     const { data } = await client.from('ranking_public').select('rank, total_kills').eq('season', CFG.SEASON || new Date().getFullYear()).eq('nickname', profile.nickname).maybeSingle();
@@ -551,7 +557,7 @@
     signUp, signIn, signInWith, signOut,
     finishOnboarding, needsOnboarding, myConsents, setConsent,
     hasPassword, loginMethods, myContact, setContact, sendPasswordReset, findLogin, changePassword, changeNickname, deleteAccount, exportMyData,
-    submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking,
+    submitRuns, myScore, myBadges, ranking, myRank, submitRun, runRanking, photoRanking,
     donatePhoto, pendingPhotos, photoCounts, reviewPhoto, deletePhoto,
     validNickname, checkPassword,
   };
