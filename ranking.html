@@ -46,22 +46,31 @@
 
   <main id="main" class="wrap doc me">
     <p class="kicker" id="rkSeason">시즌 랭킹</p>
-    <h1 id="rkTitle">모기를 가장 많이 잡은 사람</h1>
-    <p class="lead" id="rkLead">닉네임만 보여요. 시즌 누적 잡은 수로 순위를 매겨요.</p>
-    <div class="rk-tabs" role="tablist" aria-label="랭킹 종류">
-      <button type="button" role="tab" id="tabGame" aria-selected="true" data-rk="game">모기 잡기</button>
-      <button type="button" role="tab" id="tabRun" aria-selected="false" data-rk="run">뛰어런</button>
-      <button type="button" role="tab" id="tabPhoto" aria-selected="false" data-rk="photo">희귀 모기 사진</button>
-    </div>
-    <!-- 뛰어런 기간 (주 · 달 · 시즌) -->
-    <div class="rk-period" id="rkPeriod" role="group" aria-label="뛰어런 기간" hidden>
-      <button type="button" data-period="week" aria-pressed="true">이번 주</button>
-      <button type="button" data-period="month" aria-pressed="false">이번 달</button>
-      <button type="button" data-period="season" aria-pressed="false">올해</button>
-    </div>
-
+    <h1>랭킹</h1>
     <div class="acct-note" id="rkNote">랭킹을 불러오는 중이에요.</div>
-    <ol class="rk" id="rkList" aria-label="랭킹"></ol>
+
+    <!-- 랭킹 3개를 한 화면에 (PC 3칸, 폰은 위아래). 각 10등까지 -->
+    <div class="rk3">
+      <section class="rk-board" aria-labelledby="rkGameT">
+        <h2 id="rkGameT">모기 잡기</h2>
+        <p class="rk-desc">올해 잡은 모기 수</p>
+        <ol class="rk" id="rkGame" aria-label="모기 잡기 랭킹"></ol>
+      </section>
+      <section class="rk-board" aria-labelledby="rkRunT">
+        <h2 id="rkRunT">뛰어런</h2>
+        <div class="rk-period" id="rkPeriod" role="group" aria-label="뛰어런 기간">
+          <button type="button" data-period="week" aria-pressed="true">이번 주</button>
+          <button type="button" data-period="month" aria-pressed="false">이번 달</button>
+          <button type="button" data-period="season" aria-pressed="false">올해</button>
+        </div>
+        <ol class="rk" id="rkRun" aria-label="뛰어런 랭킹"></ol>
+      </section>
+      <section class="rk-board" aria-labelledby="rkPhotoT">
+        <h2 id="rkPhotoT">희귀 모기 사진</h2>
+        <p class="rk-desc">보건소가 확인한 얼룩날개모기·빨간집모기류 사진</p>
+        <ol class="rk" id="rkPhoto" aria-label="희귀 모기 사진 랭킹"></ol>
+      </section>
+    </div>
 
     <div class="h-row"><h2>연말 상품 (10등까지)</h2><a href="me.html">내 기록 보기</a></div>
     <table class="rwd" aria-label="연말 상품 (10등까지)">

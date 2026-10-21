@@ -868,6 +868,7 @@
     }
     // 무기별 효과: 스프레이 안개 · 전기채 번개와 그물 · 분무기 큰 구름 · 모기향 연기 · 레이저 빔 (r = 잡는 범위)
     const NS = 'http://www.w3.org/2000/svg';
+    const laser = { beam: null, muzzle: null, off: null };   // 레이저 빔은 하나를 계속 다시 쓴다
     function puff(px, py, wid, r) {
       const R = Math.round(r || 46);
       if (wid === 'racket') {
@@ -885,22 +886,27 @@
         card.appendChild(p); setTimeout(() => p.remove(), 380); return;
       }
       if (wid === 'laser') {
-        // 레이저: 카드 오른쪽 아래(퇴치기 자리)에서 누른 곳까지 빔 + 맞은 자리 빨간 점
+        // 레이저: 총구에서 화면 끝까지 빔. 꾹 누르고 있으면 끊기지 않고 계속 나간다(연사마다 같은 빔을 다시 겨눔)
         const W = card.clientWidth;
         const ang = aimGun(px, py), g = gunOrigin(), rad = ang * Math.PI / 180;
         const dx = Math.cos(rad), dy = Math.sin(rad);
         const ox = g.x + dx * GUN_LEN, oy = g.y + dy * GUN_LEN;   // 총구에서 나간다
         const tx = dx > 0 ? (W - ox) / dx : dx < 0 ? -ox / dx : Infinity, ty = dy < 0 ? -oy / dy : Infinity;
         const len = Math.min(tx, ty);
-        gun.classList.remove('kick'); void gun.offsetWidth; gun.classList.add('kick');   // 반동
-        const beam = document.createElement('div');
-        beam.className = 'fx fx-beam'; beam.style.left = ox + 'px'; beam.style.top = oy + 'px';
-        beam.style.width = len + 'px'; beam.style.transform = `rotate(${ang}deg)`;
-        beam.style.setProperty('--w', Math.max(6, Math.round(R * 0.4)) + 'px');   // 빛줄기 (판정은 이보다 조금 넓다)
-        const muzzle = document.createElement('div');
-        muzzle.className = 'fx fx-muzzle'; muzzle.style.left = ox + 'px'; muzzle.style.top = oy + 'px';
-        card.appendChild(beam); card.appendChild(muzzle);
-        setTimeout(() => { beam.remove(); muzzle.remove(); }, 340); return;
+        if (!laser.beam) {
+          laser.beam = document.createElement('div'); laser.beam.className = 'fx fx-beam-live';
+          laser.muzzle = document.createElement('div'); laser.muzzle.className = 'fx fx-muzzle-live';
+          card.appendChild(laser.beam); card.appendChild(laser.muzzle);
+        }
+        if (!laser.beam.classList.contains('on')) { gun.classList.remove('kick'); void gun.offsetWidth; gun.classList.add('kick'); }   // 처음 쏠 때만 반동
+        laser.beam.style.left = ox + 'px'; laser.beam.style.top = oy + 'px';
+        laser.beam.style.width = len + 'px'; laser.beam.style.transform = `rotate(${ang}deg)`;
+        laser.beam.style.setProperty('--w', Math.max(6, Math.round(R * 0.4)) + 'px');   // 빛줄기 (판정은 이보다 조금 넓다)
+        laser.muzzle.style.left = ox + 'px'; laser.muzzle.style.top = oy + 'px';
+        laser.beam.classList.add('on'); laser.muzzle.classList.add('on');
+        clearTimeout(laser.off);
+        laser.off = setTimeout(() => { laser.beam.classList.remove('on'); laser.muzzle.classList.remove('on'); }, 170);   // 연사(0.12초)보다 길게 → 누르는 동안 이어짐
+        return;
       }
       if (wid === 'fogger') {
         // 대형 분무기: 범위만 한 초록빛 구름이 크게 퍼진다
