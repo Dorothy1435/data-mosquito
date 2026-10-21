@@ -35,6 +35,23 @@
     // 오래된 달리기는 지도 좌표를 지워 용량을 줄인다(최근 20개만 지도 보관, 최대 200개)
     const trimmed = list.slice(0, 200).map((r, i) => (i < 20 ? r : Object.assign({}, r, { route: [] })));
     if (!writeJSON(KEY, trimmed)) writeJSON(KEY, trimmed.map((r, i) => (i < 5 ? r : Object.assign({}, r, { route: [] }))));
+    if (window.MZAuth && window.MZAuth.touch) window.MZAuth.touch('runs');   // 로그인했으면 계정에도 보관
+  }
+  // 계정 보관 (auth.js bindSync): 달리기 기록(거리·시간·걸음·구간)과 지운 기록 번호. 달린 길(좌표)은 보내지 않는다
+  const DEL_KEY = 'mz-runs-deleted';
+  function runsSnapshot() {
+    return { runs: runs.slice(0, 200).map((r) => Object.assign({}, r, { route: [] })), deleted: readJSON(DEL_KEY, []).slice(-500) };
+  }
+  function applyRuns(d) {
+    d = d || {};
+    const del = new Set(readJSON(DEL_KEY, []).concat(Array.isArray(d.deleted) ? d.deleted : []));
+    writeJSON(DEL_KEY, Array.from(del).slice(-500));
+    const byId = new Map();
+    (Array.isArray(d.runs) ? d.runs : []).forEach((r) => { if (r && r.id != null) byId.set(String(r.id), r); });
+    runs.forEach((r) => byId.set(String(r.id), r));   // 이 기기 기록이 있으면 그것(달린 길 포함)을 쓴다
+    runs = Array.from(byId.values()).filter((r) => !del.has(String(r.id))).sort((a, b) => b.start - a.start);
+    writeJSON(KEY, runs.slice(0, 200));
+    if (typeof drawHome === 'function') drawHome();
   }
   let runs = loadRuns();
   // 예전 판(날짜별 합계 'mz-run')은 지난 기록으로 한 번만 옮긴다
@@ -370,6 +387,7 @@
   function saveOpts() { writeJSON(OPT_KEY, opts); }
 
   document.addEventListener('DOMContentLoaded', () => {
+    if (window.MZAuth && window.MZAuth.bindSync) window.MZAuth.bindSync('runs', runsSnapshot, applyRuns);
     if (!$('vHome')) return;
     $('optGps').checked = opts.gps; $('optVoice').checked = opts.voice;
     $('optGps').addEventListener('change', (e) => { opts.gps = e.target.checked; saveOpts(); });
@@ -382,6 +400,7 @@
       if (!shown) return;
       const b = $('sumDelete');
       if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = '한 번 더 누르면 지워요'; setTimeout(() => { b.dataset.sure = ''; b.textContent = '이 기록 지우기'; }, 3000); return; }
+      writeJSON(DEL_KEY, readJSON(DEL_KEY, []).concat(String(shown.id)).slice(-500));   // 다른 폰에서도 지워지게
       runs = runs.filter((r) => r.id !== shown.id); saveRuns(runs);
       b.dataset.sure = ''; b.textContent = '이 기록 지우기';
       drawHome(); show('vHome');

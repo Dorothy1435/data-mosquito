@@ -27,6 +27,32 @@
     }).join('');
   }
 
+  // 한눈에: 뛰어런 거리와 사진 횟수는 그 화면(runner.js · citizen.js)이 이 기기에 남긴 값 + 계정에 보관된 값
+  const readLocal = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+  let srvRuns = null, srvPhoto = null;
+  function renderSummary() {
+    const g = window.MZGame ? window.MZGame.state() : { kills: 0 };
+    const byId = new Map();
+    (srvRuns && Array.isArray(srvRuns.runs) ? srvRuns.runs : []).forEach((r) => { if (r && r.id != null) byId.set(String(r.id), r); });
+    (readLocal('mz-runs', []) || []).forEach((r) => { if (r && r.id != null) byId.set(String(r.id), r); });
+    const del = new Set(readLocal('mz-runs-deleted', []).concat(srvRuns && srvRuns.deleted ? srvRuns.deleted : []).map(String));
+    const m = Array.from(byId.values()).filter((r) => !del.has(String(r.id))).reduce((a, r) => a + (Number(r.m) || 0), 0);
+    const p = readLocal('mz-photo-stats', {}) || {};
+    const judged = Math.max(Number(p.judged) || 0, srvPhoto ? Number(srvPhoto.judged) || 0 : 0);
+    const donated = Math.max(Number(p.donated) || 0, srvPhoto ? Number(srvPhoto.donated) || 0 : 0);
+    $('sumKills').innerHTML = `${n(g.kills)}<small>마리</small>`;
+    $('sumKm').innerHTML = `${(m / 1000).toFixed(1)}<small>km</small>`;
+    $('sumPhoto').innerHTML = `${n(judged)}<small>장</small>`;
+    $('sumDonate').innerHTML = `${n(donated)}<small>장</small>`;
+  }
+  async function loadSummary() {
+    const A = window.MZAuth;
+    if (A && A.loadUserData && A.user && A.user()) {
+      try { [srvRuns, srvPhoto] = await Promise.all([A.loadUserData('runs'), A.loadUserData('photo')]); } catch (e) { /* 이 기기 값만 */ }
+    } else { srvRuns = null; srvPhoto = null; }
+    renderSummary();
+  }
+
   function renderRewards() {
     $('rewardNote').textContent = CFG.REWARD_NOTE || '';
     $('rewardBody').innerHTML = (CFG.REWARD_TIERS || []).map((t) => `<tr><td>${t.from === t.to ? `${t.from}위` : `${t.from}~${t.to}위`}</td><td>${t.prize}</td></tr>`).join('') || '<tr><td colspan="2">보상은 아직 정해지지 않았어요.</td></tr>';
@@ -43,9 +69,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    renderStats(); renderRewards();
-    document.addEventListener('game:changed', renderStats);
-    document.addEventListener('auth:changed', mergeServer);
-    if (window.MZAuth) window.MZAuth.ready.then(mergeServer);
+    renderStats(); renderRewards(); renderSummary();
+    document.addEventListener('game:changed', () => { renderStats(); renderSummary(); });
+    document.addEventListener('auth:changed', () => { mergeServer(); loadSummary(); });
+    if (window.MZAuth) window.MZAuth.ready.then(() => { mergeServer(); loadSummary(); });
   });
 }());

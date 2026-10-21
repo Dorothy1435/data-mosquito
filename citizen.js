@@ -17,7 +17,32 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // 사진 기록: 판별한 횟수, 종류별 횟수, 기증한 횟수 (이 기기 + 로그인하면 계정에 보관, auth.js bindSync)
+  const PHOTO_KEY = 'mz-photo-stats';
+  function photoStats() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(PHOTO_KEY) || 'null'); } catch (e) { s = null; }
+    s = s && typeof s === 'object' ? s : {};
+    return { judged: Number(s.judged) || 0, donated: Number(s.donated) || 0, byLabel: s.byLabel && typeof s.byLabel === 'object' ? s.byLabel : {} };
+  }
+  function savePhotoStats(s, quiet) {
+    try { localStorage.setItem(PHOTO_KEY, JSON.stringify(s)); } catch (e) { /* 무시 */ }
+    document.dispatchEvent(new CustomEvent('photo:stats', { detail: s }));
+    if (!quiet && window.MZAuth && window.MZAuth.touch) window.MZAuth.touch('photo');
+  }
+  function applyPhoto(d, merge) {
+    d = d || {};
+    const s = merge ? photoStats() : { judged: 0, donated: 0, byLabel: {} };
+    s.judged = Math.max(s.judged, Number(d.judged) || 0);
+    s.donated = Math.max(s.donated, Number(d.donated) || 0);
+    Object.entries(d.byLabel || {}).forEach(([k, v]) => { s.byLabel[k] = Math.max(s.byLabel[k] || 0, Number(v) || 0); });
+    savePhotoStats(s, true);
+  }
+  window.MZPhotoStats = { get: photoStats };
+  document.addEventListener('photo:donated', () => { const s = photoStats(); s.donated += 1; savePhotoStats(s); });
+
   document.addEventListener('DOMContentLoaded', () => {
+    if (window.MZAuth && window.MZAuth.bindSync) window.MZAuth.bindSync('photo', photoStats, applyPhoto);
     setupPhoto();
     setupReport();
   });
@@ -171,6 +196,7 @@
 
   function showError(message) {
     $('photoBox').dataset.state = 'done';
+    { const st = photoStats(); st.judged += 1; st.byLabel[r.label] = (st.byLabel[r.label] || 0) + 1; savePhotoStats(st); }
     $('photoResult').innerHTML = `<p class="pr-err">${escapeHtml(message)}</p>`;
   }
 

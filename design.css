@@ -1415,3 +1415,10 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 }
 /* 폰: 일반 화면(랭킹·내 기록·뛰어런·도감 등) 위 빈 공간 줄이기 */
 @media (max-width: 900px) { .doc { padding-top: 24px; } }
+/* 내 기록 한눈에 (잡은 모기 · 뛰어런 · 사진 판별 · 사진 기증) */
+.me-sum { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 20px; }
+.me-sum > div { padding: 18px 16px; border-radius: 18px; background: var(--g50); }
+.me-sum .k { font-size: 14px; font-weight: 600; color: var(--g600); }
+.me-sum .v { margin-top: 4px; font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: var(--g900); font-variant-numeric: tabular-nums; }
+.me-sum .v small { font-size: 15px; font-weight: 600; color: var(--g600); margin-left: 2px; }
+@media (min-width: 720px) { .me-sum { grid-template-columns: repeat(4, 1fr); } }

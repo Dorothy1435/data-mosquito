@@ -47,12 +47,18 @@
   </header>
 
   <main id="main" class="wrap doc me">
-    <p class="kicker">모기 잡기 · 배지</p>
     <h1>내 기록</h1>
-    <p class="lead">첫 화면에서 잡은 모기와 배지가 쌓여요.</p>
-
-    <div class="h-row run-first"><h2>모기 잡기</h2><a href="index.html#flow">모기 잡으러 가기</a></div>
     <p class="login-note" data-login-note hidden></p>
+
+    <!-- 한눈에: 잡은 모기 · 뛰어런 거리 · 사진 (로그인하면 계정에 보관, 다른 폰에서도 이어짐) -->
+    <div class="me-sum" aria-label="내 기록 한눈에">
+      <div><p class="k">잡은 모기</p><p class="v" id="sumKills">0<small>마리</small></p></div>
+      <div><p class="k">뛰어런</p><p class="v" id="sumKm">0.0<small>km</small></p></div>
+      <div><p class="k">사진 판별</p><p class="v" id="sumPhoto">0<small>장</small></p></div>
+      <div><p class="k">사진 기증</p><p class="v" id="sumDonate">0<small>장</small></p></div>
+    </div>
+
+    <div class="h-row"><h2>모기 잡기</h2><a href="index.html#flow">모기 잡으러 가기</a></div>
 
     <!-- 내 기록 숫자 3개 -->
     <div class="stat3" aria-label="내 기록">

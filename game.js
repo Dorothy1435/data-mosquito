@@ -48,9 +48,37 @@
     return s;
   }
   const state = loadState();
-  function save() {
+  function writeLocal() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem('mz-kills', String(state.kills)); } catch (e) { /* 저장 못 해도 게임은 된다 */ }
+  }
+  function save() {
+    writeLocal();
     document.dispatchEvent(new CustomEvent('game:changed', { detail: { kills: state.kills } }));
+    if (window.MZAuth && window.MZAuth.touch) window.MZAuth.touch('game');   // 로그인했으면 3초 뒤 계정에도 보관
+  }
+  // 계정 보관 (auth.js bindSync): 잡은 수·골드·무기·특별 모기 수·최고 단계·배지·최근 도전 50판
+  //   랭킹은 이 값을 쓰지 않는다(서버가 검사한 도전 기록으로만). 다른 폰에서 로그인해도 이어 하게 하는 용도
+  const NUM_FIELDS = ['kills', 'bestStage', 'golden', 'elites', 'bosses', 'gold'];
+  function gameSnapshot() {
+    const o = {};
+    NUM_FIELDS.forEach((k) => { o[k] = state[k]; });
+    return Object.assign(o, { weapons: state.weapons, weapon: state.weapon, badges: state.badges, history: state.history.slice(0, 50) });
+  }
+  function applyGame(d, merge) {
+    d = d || {};
+    NUM_FIELDS.forEach((k) => { const v = Math.max(0, Number(d[k]) || 0); state[k] = merge ? Math.max(Number(state[k]) || 0, v) : v; });
+    const w = Array.isArray(d.weapons) ? d.weapons.filter((x) => typeof x === 'string') : [];
+    state.weapons = merge ? Array.from(new Set(state.weapons.concat(w))) : w.slice();
+    if (!state.weapons.includes('spray')) state.weapons.unshift('spray');
+    if (!merge && typeof d.weapon === 'string') state.weapon = d.weapon;
+    if (!state.weapons.includes(state.weapon)) state.weapon = 'spray';
+    const b = Array.isArray(d.badges) ? d.badges.filter((x) => typeof x === 'string') : [];
+    state.badges = merge ? Array.from(new Set(state.badges.concat(b))) : b;
+    const h = (Array.isArray(d.history) ? d.history : []).filter((r) => r && r.at);
+    const all = merge ? h.concat(state.history) : h;
+    state.history = all.filter((r, i) => all.findIndex((x) => x.at === r.at) === i).sort((x, y) => String(y.at).localeCompare(String(x.at))).slice(0, 50);
+    writeLocal();
+    document.dispatchEvent(new CustomEvent('game:changed', { detail: { kills: state.kills, synced: true } }));
   }
   // 받을 수 있는데 아직 안 받은 배지 (누적 수 기준)
   function dueBadges() { return BADGES.filter((b) => state.kills >= b.need && !state.badges.includes(b.id)); }
@@ -224,6 +252,8 @@
     soundBtn.addEventListener('click', () => { Sound.toggle(); drawSound(); });
     hud.querySelector('#gameShop').addEventListener('click', () => openShop());
     function drawGold() { goldEl.textContent = state.gold.toLocaleString('ko-KR'); }
+    // 계정에서 기록을 받아 오면 골드 숫자를 다시 그린다
+    document.addEventListener('game:changed', (e) => { if (e.detail && e.detail.synced) drawGold(); });
     drawGold();
     function addGold(n) { if (!n) return; state.gold += n; drawGold(); }
 
@@ -916,4 +946,6 @@
     },
   };
   document.addEventListener('DOMContentLoaded', setupGame);
+  // auth.js 가 game.js 뒤에 불러와지므로 화면이 준비된 뒤 등록한다
+  document.addEventListener('DOMContentLoaded', () => { if (window.MZAuth && window.MZAuth.bindSync) window.MZAuth.bindSync('game', gameSnapshot, applyGame); });
 }());

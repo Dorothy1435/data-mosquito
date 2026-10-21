@@ -37,7 +37,7 @@
     // 직원 계정이면 <html class="is-staff"> — 전문가용 버튼·화면은 이 표시가 있을 때만 보인다 (design.css)
     // 다른 화면에서도 바로 쓰게 이 기기에 기억한다(mz-staff). 로그아웃·직원 아님이면 지운다
     if (status !== 'loading') {
-      const staff = !!(profile && profile.role === 'staff');
+      const staff = !!(profile && (profile.role === 'staff' || profile.is_admin));
       document.documentElement.classList.toggle('is-staff', staff);
       try { if (staff) localStorage.setItem('mz-staff', '1'); else localStorage.removeItem('mz-staff'); } catch (e) { /* 무시 */ }
     }
@@ -46,7 +46,7 @@
   // 직원 계정으로 로그인하면 상단 메뉴에 '전문가용' 버튼이 생긴다 (메뉴에 이미 있으면 그대로)
   function markStaffNav() {
     const nav = document.getElementById('primaryNav'); if (!nav) return;
-    const staff = !!(profile && profile.role === 'staff');
+    const staff = !!(profile && (profile.role === 'staff' || profile.is_admin));
     if (nav.querySelector('a[href="expert.html"]:not([data-staff-link])')) return;
     let a = nav.querySelector('a[data-staff-link]');
     if (staff && !a) {
@@ -259,6 +259,62 @@
     if (error) throw new Error(/too many/i.test(error.message) ? '너무 여러 번 찾았어요. 1시간 뒤에 다시 해 주세요.' : koError(error));
     return data || null;
   }
+  // ---------- 내 기록 서버 보관 (supabase/user-data-schema.sql) ----------
+  // 로그인하면 이 기기에만 있던 기록(모기 잡기·골드·무기, 뛰어런, 사진 판별 횟수)을 계정에 보관한다.
+  //   · 화면 파일(game.js 등)이 bindSync(종류, 지금 값 읽기, 서버 값 넣기)로 등록하고, 바뀔 때마다 touch(종류)를 부른다
+  //   · 바뀐 뒤 3초 모아서 보낸다. 화면을 떠날 때도 보낸다
+  //   · 합치기 규칙 (이 기기의 마지막 연결 기록 mz-sync-<종류> 로 판단)
+  //       처음 연결(로그인 안 하고 쌓은 기록) → 서버 값과 합쳐(큰 값·합집합) 보낸다
+  //       같은 계정, 안 보낸 변경 있음 → 합쳐서 보낸다
+  //       같은 계정, 서버가 더 새것(다른 폰에서 바뀜) → 서버 값으로 바꾼다
+  //       다른 계정이 쓰던 기기 → 그 계정 값으로 바꾼다(앞사람 기록이 섞이지 않게)
+  const syncers = {};
+  const metaKey = (k) => 'mz-sync-' + k;
+  const metaGet = (k) => { try { return JSON.parse(localStorage.getItem(metaKey(k)) || 'null') || {}; } catch (e) { return {}; } };
+  const metaSet = (k, v) => { try { localStorage.setItem(metaKey(k), JSON.stringify(v)); } catch (e) { /* 무시 */ } };
+  const canSync = () => Boolean(client && user() && profile && !needsOnboarding());
+  async function pushData(kind) {
+    const s = syncers[kind]; if (!s || !canSync()) return;
+    clearTimeout(s.timer); s.timer = null;
+    const { data, error } = await client.rpc('save_user_data', { p_kind: kind, p_data: s.get() });
+    if (error) return;   // 표가 아직 없거나 실패하면 다음 기회에
+    metaSet(kind, { uid: user().id, at: data, dirty: false });
+  }
+  async function pullData(kind) {
+    const s = syncers[kind]; if (!s || !canSync() || s.busy) return;
+    s.busy = true;
+    try {
+      const uid = user().id, meta = metaGet(kind);
+      const { data, error } = await client.from('user_data').select('data, updated_at').eq('user_id', uid).eq('kind', kind).maybeSingle();
+      if (error) return;
+      const other = meta.uid && meta.uid !== uid;
+      if (!data) { if (other) s.apply({}, false); await pushData(kind); return; }
+      if (other) { s.apply(data.data, false); metaSet(kind, { uid, at: data.updated_at, dirty: false }); return; }
+      if (!meta.uid || meta.dirty) { s.apply(data.data, true); await pushData(kind); return; }
+      if (!meta.at || new Date(data.updated_at) > new Date(meta.at)) { s.apply(data.data, false); metaSet(kind, { uid, at: data.updated_at, dirty: false }); }
+    } finally { s.busy = false; }
+  }
+  // 계정에 보관된 기록 한 종류 읽기 (내 기록 화면에서 다른 화면의 기록을 볼 때)
+  async function loadUserData(kind) {
+    if (!canSync()) return null;
+    const { data } = await client.from('user_data').select('data, updated_at').eq('user_id', user().id).eq('kind', kind).maybeSingle();
+    return data ? data.data : null;
+  }
+  function bindSync(kind, get, apply) {
+    syncers[kind] = { get, apply, timer: null, busy: false };
+    ready.then(() => pullData(kind));
+  }
+  function touch(kind) {
+    const s = syncers[kind]; if (!s) return;
+    const m = metaGet(kind); m.dirty = true; metaSet(kind, m);
+    if (!canSync()) return;   // 로그인 안 했으면 이 기기에만. 로그인하면 합쳐서 보낸다
+    clearTimeout(s.timer); s.timer = setTimeout(() => pushData(kind), 3000);
+  }
+  document.addEventListener('auth:changed', () => { if (canSync()) Object.keys(syncers).forEach(pullData); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') Object.keys(syncers).forEach((k) => { if (syncers[k].timer) pushData(k); });
+  });
+
   // ---------- 최고 관리자: 직원 권한 관리 (supabase/admin-schema.sql) ----------
   // 최고 관리자(is_admin)만 쓸 수 있다. 서버 함수가 다시 확인하므로 화면을 고쳐도 남이 권한을 바꿀 수 없다
   async function adminListMembers(query) {
@@ -314,7 +370,7 @@
   async function exportMyData() {
     needUser();
     const uid = user().id;
-    const [p, scores, runs, badges, consents, jogs, photos, contact] = await Promise.all([
+    const [p, scores, runs, badges, consents, jogs, photos, contact, saved] = await Promise.all([
       client.from('profiles').select('nickname, role, created_at, onboarded_at, nickname_changed_at').eq('id', uid).maybeSingle(),
       client.from('game_scores').select('*').eq('user_id', uid),
       client.from('game_runs').select('stage, kills, duration_ms, success, played_at, received_at').eq('user_id', uid).order('played_at', { ascending: false }).limit(5000),
@@ -323,11 +379,12 @@
       client.from('run_sessions').select('started_at, duration_s, distance_m, sweat_steps, total_steps, received_at').eq('user_id', uid).order('started_at', { ascending: false }).limit(5000),
       client.from('photo_donations').select('created_at, ai_label, ai_conf, district, review, label').eq('user_id', uid).order('created_at', { ascending: false }).limit(5000),
       client.from('member_contacts').select('real_name, phone, verified, updated_at').eq('user_id', uid).maybeSingle(),
+      client.from('user_data').select('kind, data, updated_at').eq('user_id', uid),
     ]);
     return {
       exported_at: new Date().toISOString(),
       account: { email: user().email, login_methods: loginMethods(), created_at: user().created_at },
-      profile: p.data || null, contact: contact.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [], photo_donations: photos.data || [],
+      profile: p.data || null, contact: contact.data || null, game_scores: scores.data || [], game_runs: runs.data || [], badges: badges.data || [], consents: consents.data || [], run_sessions: jogs.data || [], photo_donations: photos.data || [], saved_records: saved.data || [],
     };
   }
 
@@ -467,7 +524,7 @@
     ready, user, profile: () => profile,
     isStaff: () => !!(profile && (profile.role === 'staff' || profile.is_admin)),
     isAdmin: () => !!(profile && profile.is_admin),
-    adminListMembers, adminSetRole,
+    adminListMembers, adminSetRole, bindSync, touch, loadUserData,
     // 직원 전용 서버 함수(api/reports-admin.js)에 보낼 접속 토큰
     accessToken: () => (session && session.access_token) || '',
     signUp, signIn, signInWith, signOut,

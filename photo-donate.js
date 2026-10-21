@@ -96,6 +96,7 @@
         btn.textContent = '보내는 중…';
         const res = await A.donatePhoto(blob, { ai_label: r.label, ai_conf: Math.round(prob * 1000) / 1000, phash: dhash(img), width, height });   // ③ 같은 사진은 서버가 막음
         btn.textContent = '기증했어요';
+        document.dispatchEvent(new CustomEvent('photo:donated'));   // 내 기록의 기증 횟수 (citizen.js)
         msg.className = 'dn-msg ok';
         msg.textContent = `고마워요. 보건소가 확인하면 학습에 쓰여요. (오늘 ${res.today}/20장)`;
       } catch (e) {
