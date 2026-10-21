@@ -499,6 +499,7 @@
     if (/password/i.test(m) && /6|8|short|weak|pwned|leaked/i.test(m)) return '더 안전한 비밀번호로 정해 주세요 (8자 이상, 영문과 숫자).';
     if (/email not confirmed/i.test(m)) return '이메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러 주세요.';
     if (/phone duplicate/i.test(m)) return '이미 다른 계정에 등록된 휴대폰 번호예요.';
+    if (/contact locked/i.test(m)) return '이름·휴대폰은 이미 저장돼 있어 바꿀 수 없어요.';
     if (/phone invalid/i.test(m)) return '휴대폰 번호를 정확히 적어 주세요.';
     if (/name invalid/i.test(m)) return '이름을 정확히 적어 주세요.';
     if (/nickname duplicate|unique|duplicate/i.test(m)) return '이미 쓰는 닉네임이에요.';

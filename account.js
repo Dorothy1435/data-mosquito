@@ -271,11 +271,15 @@
     // 이름·휴대폰: 저장된 값을 채우고(가려서 보여 줌), 바꾸면 저장
     A.myContact().then((c) => {
       const f = $('contactForm'); if (!f) return;
-      if (c) { f.real_name.value = c.real_name; f.phone.value = c.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3'); }
+      // 한 번 저장한 이름·휴대폰은 바꿀 수 없다(상품 대상 확인용). 보여 주기만 한다
+      if (c) {
+        const tel = c.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+        f.outerHTML = `<div class="ax-form ax-locked"><p><span>이름</span><b>${esc(c.real_name)}</b></p><p><span>휴대폰</span><b>${esc(tel)}</b></p><p class="ax-note">이름·휴대폰은 바꿀 수 없어요. 잘못 적었다면 운영 기관에 알려 주세요. 본인만 볼 수 있고 랭킹에는 보이지 않아요.</p></div>`;
+      }
       const sub = document.querySelector('#rowContact small');
       if (sub) sub.textContent = c ? `${c.real_name.slice(0, 1)}${'*'.repeat(Math.max(1, c.real_name.length - 1))} · ${c.phone.slice(0, 3)}-****-${c.phone.slice(-4)}${c.verified ? ' · 본인인증 완료' : ''}` : '아직 없어요 · 상품을 받으려면 필요해요';
     });
-    onSubmit($('contactForm'), null, async (f) => { await A.setContact(f.real_name.value, f.phone.value); return '저장했어요.'; });
+    onSubmit($('contactForm'), null, async (f) => { await A.setContact(f.real_name.value, f.phone.value); return '저장했어요. 이제 바꿀 수 없어요.'; });
     onSubmit($('nickForm'), null, async (f) => { await A.changeNickname(f.nickname.value); return '바꿨어요. 랭킹에는 10초 안에 반영돼요.'; });
     if ($('pwForm')) {
       const cap = captcha($('capPw'));
