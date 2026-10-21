@@ -115,6 +115,14 @@
       });
       const { data } = await client.auth.getSession();
       session = data.session || null;
+      // 자동 로그인을 끄고 로그인했으면: 브라우저(앱)를 껐다 켠 뒤에는 로그아웃 상태로 시작한다
+      //   'mz-auto-login' = '0' 이고, 이 탭의 sessionStorage 에 'mz-alive' 표시가 없으면 = 새로 연 것
+      try {
+        if (session && localStorage.getItem('mz-auto-login') === '0' && !sessionStorage.getItem('mz-alive')) {
+          await client.auth.signOut({ scope: 'local' }); session = null;
+        }
+        if (session) sessionStorage.setItem('mz-alive', '1');
+      } catch (e) { /* 저장소를 못 쓰면 그냥 로그인 상태 유지 */ }
       await loadProfile();
       status = 'ready';
     } catch (e) { status = 'error'; lastError = String(e && e.message || e); }
@@ -127,6 +135,7 @@
     need();
     checkPassword(password);
     checkContact(name, phone);
+    try { localStorage.setItem('mz-auto-login', '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }   // 가입하면 자동 로그인
     const nick = String(nickname || '').trim();
     if (!validNickname(nick)) throw new Error('닉네임은 2~12자 한글·영문·숫자로 적어 주세요.');
     const { data, error } = await client.auth.signUp({ email, password, options: { data: { nickname: nick }, captchaToken } });
@@ -138,8 +147,11 @@
     await loadProfile(); emit();
     return { needsConfirm: !data.session };   // 대시보드에서 이메일 확인을 켜 두면 세션이 바로 안 생긴다
   }
-  async function signIn({ email, password, captchaToken }) {
+  // autoLogin: false 면 브라우저(앱)를 껐다 켜면 다시 로그인해야 한다. 기본은 자동 로그인
+  async function signIn({ email, password, captchaToken, autoLogin }) {
     need();
+    // 로그인 직전에 적어 둔다 (로그인 완료 신호가 먼저 와서 화면이 바뀌어도 설정이 맞게)
+    try { localStorage.setItem('mz-auto-login', autoLogin === false ? '0' : '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }
     const { data, error } = await client.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) throw new Error(koError(error));
     session = data.session; await loadProfile(); emit();
@@ -148,6 +160,7 @@
   async function signInWith(provider) {
     need();
     if (!(conf.enabled || []).includes(provider)) throw new Error('카카오 로그인은 곧 열려요. 지금은 이메일로 가입해 주세요.');
+    try { localStorage.setItem('mz-auto-login', '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }   // 카카오는 자동 로그인
     const back = location.origin + location.pathname;
     const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: back } });
     if (error) throw new Error(koError(error));

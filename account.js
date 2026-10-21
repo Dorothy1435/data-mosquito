@@ -113,6 +113,7 @@
       body: `<form class="ax-form" id="axForm" novalidate>
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
         ${field('password', '비밀번호', 'password', 'autocomplete="current-password" required')}
+        <div class="ax-keep"><label class="ax-check sm"><input type="checkbox" name="saveId"><i>${CHECK}</i><span>아이디 저장</span></label><label class="ax-check sm"><input type="checkbox" name="autoLogin" checked><i>${CHECK}</i><span>자동 로그인</span></label></div>
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">로그인</button>
         <p class="ax-links"><button type="button" data-mode="forgot">비밀번호 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="signup">회원가입</button></p>
@@ -331,7 +332,14 @@
     } else if (mode === 'forgot') {
       onSubmit($('axForm'), cap, async (f, token) => { await A.sendPasswordReset(f.email.value, token); return '메일을 보냈어요. 받은 편지함(스팸함도)을 확인해 주세요.'; });
     } else if (mode === 'email') {
-      onSubmit($('axForm'), cap, async (f, token) => { await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token }); lastSet('email'); goNext(); });
+      // 아이디 저장: 이메일을 이 기기에 기억해 다음에 미리 채운다. 자동 로그인: 끄면 앱·브라우저를 껐다 켜면 로그아웃 (auth.js)
+      const fm = $('axForm'), SAVE_KEY = 'mz-saved-email';
+      try { const saved = localStorage.getItem(SAVE_KEY); if (saved) { fm.email.value = saved; fm.saveId.checked = true; } fm.autoLogin.checked = localStorage.getItem('mz-auto-login') !== '0'; } catch (e) { /* 무시 */ }
+      onSubmit(fm, cap, async (f, token) => {
+        await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token, autoLogin: f.autoLogin.checked });
+        try { if (f.saveId.checked) localStorage.setItem(SAVE_KEY, f.email.value.trim()); else localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
+        lastSet('email'); goNext();
+      });
     }
   }
 
