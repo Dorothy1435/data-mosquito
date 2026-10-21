@@ -101,3 +101,25 @@
 @media (min-width: 901px) { .ax-page { padding-block: 72px 120px; } .ax-wrap h1 { font-size: 32px; } }
 @media (prefers-reduced-motion: reduce) { .ax-btn, .ax-sns-btn, .ax-switch input, .ax-switch input::after { transition: none; } }
 .ax-go.plain { margin-top: 40px; border-top: 1px solid var(--g100); border-bottom: 1px solid var(--g100); }
+
+/* 로그인·가입 첫 화면: 방법 고르기 버튼만 (2026-10-21, 미리캠퍼스 방식) */
+.ax-wrap.is-pick { width: min(380px, 100%); text-align: center; }
+.ax-wrap.is-pick h1 { font-size: 26px; font-weight: 700; }
+.ax-wrap.is-pick #axBody { margin-top: 36px; }
+.ax-pick { display: grid; gap: 12px; }
+.ax-pick .ax-sns-btn { height: 54px; border-radius: 999px; font-size: 16px; }
+.ax-pick .ax-sns-btn svg { left: 22px; }
+.ax-sns-btn.mail { background: var(--g100); color: var(--g900); border: 0; }
+.ax-sns-btn.mail svg { color: var(--g600); }
+/* '최근 사용' 말풍선: 버튼 오른쪽 위에 걸친다 */
+.ax-recent { position: absolute; right: -6px; top: -12px; padding: 5px 11px; border-radius: 999px; background: var(--g900); color: #fff; font: 600 13px/1.2 var(--sans); font-style: normal; white-space: nowrap; pointer-events: none; }
+.ax-recent::after { content: ""; position: absolute; left: 12px; bottom: -4px; width: 8px; height: 8px; background: var(--g900); transform: rotate(45deg); border-radius: 1px; }
+.is-pick .ax-err { margin: 16px 0 0; }
+.ax-join { margin: 28px 0 0; font-size: 15px; color: var(--g600); }
+.ax-join button { border: 0; background: none; padding: 8px 4px; color: var(--blue-ink); font: 700 15px var(--sans); cursor: pointer; }
+.ax-join button:focus-visible, .ax-back button:focus-visible, .ax-skip a:focus-visible { outline: 2px solid var(--blue); border-radius: 6px; }
+.ax-skip { margin: 8px 0 0; }
+.ax-skip a { display: inline-block; padding: 8px 4px; font-size: 14px; color: var(--g500); text-decoration: underline; text-underline-offset: 3px; }
+.ax-back { margin: 24px 0 0; text-align: center; }
+.ax-back button { border: 0; background: none; padding: 8px 4px; color: var(--g600); font: 600 15px var(--sans); cursor: pointer; }
+.ax-back button::before { content: "‹ "; }

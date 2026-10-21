@@ -99,3 +99,15 @@ body.rn-running .tabbar, body.rn-running .nav, body.rn-running .mz-chat { displa
 }
 @media (prefers-reduced-motion: reduce) { .rn-start { transition: none; } }
 .run-app #runRule { margin-top: 16px; }
+
+/* 이번 주 랭킹 TOP 3 */
+.run-app .rn-top { display: grid; gap: 0; margin: 16px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--g100); }
+.run-app .rn-top li { display: flex; align-items: center; gap: 14px; min-height: 60px; border-bottom: 1px solid var(--g100); font-size: 17px; color: var(--g900); }
+.run-app .rn-top b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.run-app .rn-top-no { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--g100); color: var(--g700); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.run-app .rn-top-no.n1 { background: #FFE58A; color: #6B4E00; }
+.run-app .rn-top-no.n2 { background: #E5E8EB; color: #333D4B; }
+.run-app .rn-top-no.n3 { background: #F6D3B5; color: #6E3B12; }
+.run-app .rn-top-km { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.run-app .rn-top-km small { margin-left: 2px; font-size: 14px; font-weight: 600; color: var(--g500); }
+.run-app .rn-top li.rn-top-msg { justify-content: center; font-size: 15px; color: var(--g600); }

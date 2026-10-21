@@ -19,7 +19,20 @@
   // 공식 로고 (카카오 말풍선) — 각 회사 로그인 버튼 가이드의 색을 따른다
   const KAKAO_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#000" d="M12 3.2c-5.3 0-9.6 3.4-9.6 7.6 0 2.7 1.8 5.1 4.5 6.4-.2.7-.7 2.6-.8 3-.1.5.2.5.4.3.2-.1 2.6-1.8 3.7-2.5.6.1 1.2.1 1.8.1 5.3 0 9.6-3.4 9.6-7.6S17.3 3.2 12 3.2z"/></svg>';
   const EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
-  const CHECK = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+  const MAIL_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>';
+  // 마지막으로 쓴 로그인 방법 (이 기기에만). '최근 사용' 말풍선에 쓴다
+  const LAST_KEY = 'mz-last-login';
+  const lastGet = () => { try { return localStorage.getItem(LAST_KEY) || ''; } catch (e) { return ''; } };
+  const lastSet = (m) => { try { localStorage.setItem(LAST_KEY, m); } catch (e) { /* 저장 못 해도 괜찮다 */ } };
+  const recent = (m) => (lastGet() === m ? '<em class="ax-recent">최근 사용</em>' : '');
+  // 방법 고르기 버튼 두 개 (카카오 · 이메일). verb: '로그인' 또는 '가입'
+  function pick(verb, emailMode, withRecent) {
+    return `<div class="ax-pick">
+        <button type="button" class="ax-sns-btn kakao" data-oauth="kakao">${KAKAO_SVG}<span>카카오로 ${verb}</span>${withRecent ? recent('kakao') : ''}</button>
+        <button type="button" class="ax-sns-btn mail" data-mode="${emailMode}">${MAIL_SVG}<span>이메일로 ${verb}</span>${withRecent ? recent('email') : ''}</button>
+      </div>`;
+  }
+  const CHECK ='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
 
   /* ---------- 캡차 (Cloudflare Turnstile) ---------- */
   let tsLoading = null;
@@ -52,13 +65,7 @@
     return `<div class="ax-field"><label for="f_${name}">${label}</label>
       <div class="ax-input${pw ? ' has-eye' : ''}"><input id="f_${name}" name="${name}" type="${type}" ${attrs || ''}>${pw ? `<button type="button" class="ax-eye" aria-label="비밀번호 보기" data-eye="f_${name}">${EYE}</button>` : ''}</div></div>`;
   }
-  function social() {
-    const P = window.MZAuth.providers;
-    if (!P.length) return '';
-    return `<div class="ax-sns">
-      ${P.includes('kakao') ? `<button type="button" class="ax-sns-btn kakao" data-oauth="kakao">${KAKAO_SVG}<span>카카오로 계속하기</span></button>` : ''}
-    </div><p class="ax-or"><span>또는 이메일로</span></p>`;
-  }
+
   // 동의: 토스처럼 '전체 동의' 한 줄 + 항목 목록. 필수 항목의 수집 내용은 항목 바로 아래 회색 글로
   function consents() {
     const row = (name, req, text, link) => `<li><label class="ax-check"><input type="checkbox" name="${name}"${req ? ' data-req' : ''}><i>${CHECK}</i><span><b class="${req ? 'req' : 'opt'}">${req ? '필수' : '선택'}</b> ${text}</span></label>${link ? `<a href="${link}" target="_blank" rel="noopener" class="ax-view">보기</a>` : ''}</li>`;
@@ -85,22 +92,37 @@
   const errLine = '<p class="ax-err" role="alert"></p>';
 
   const VIEWS = {
+    // 로그인 첫 화면: 버튼만. 이메일을 누르면 그때 입력칸이 열린다 (미리캠퍼스 방식)
     login: () => ({
       title: '로그인',
-      lead: '랭킹에 참여하고, 기록을 다른 기기에서도 이어 볼 수 있어요.',
-      body: `${social()}<form class="ax-form" id="axForm" novalidate>
+      lead: '',
+      body: `${pick('로그인', 'email', true)}${errLine}
+      <p class="ax-join">아직 회원이 아니신가요? <button type="button" data-mode="signup">회원가입</button></p>
+      <p class="ax-skip"><a href="me.html">로그인 없이 내 기록 보기</a></p>`,
+    }),
+    // 회원가입 첫 화면: 버튼만
+    signup: () => ({
+      title: '가입하고 랭킹에 참여하세요',
+      lead: '',
+      body: `${pick('가입', 'signupEmail', false)}${errLine}
+      <p class="ax-join">이미 회원이신가요? <button type="button" data-mode="login">로그인하기</button></p>`,
+    }),
+    email: () => ({
+      title: '이메일로 로그인',
+      lead: '',
+      body: `<form class="ax-form" id="axForm" novalidate>
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
         ${field('password', '비밀번호', 'password', 'autocomplete="current-password" required')}
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">로그인</button>
         <p class="ax-links"><button type="button" data-mode="forgot">비밀번호 찾기</button><span aria-hidden="true">|</span><button type="button" data-mode="signup">회원가입</button></p>
       </form>
-      <a class="ax-go plain" href="me.html"><span><b>로그인 없이 내 기록 보기</b><small>이 기기에 쌓인 잡은 수 · 배지</small></span></a>`,
+      <p class="ax-back"><button type="button" data-mode="login">다른 방법으로 로그인</button></p>`,
     }),
-    signup: () => ({
-      title: '회원가입',
+    signupEmail: () => ({
+      title: '이메일로 가입',
       lead: '',
-      body: `${social()}<form class="ax-form" id="axForm" novalidate>
+      body: `<form class="ax-form" id="axForm" novalidate>
         ${field('nickname', '닉네임 (랭킹에 보여요)', 'text', 'maxlength="12" autocomplete="nickname" required placeholder="2~12자 한글·영문·숫자"')}
         ${field('real_name', '이름', 'text', 'maxlength="20" autocomplete="name" required placeholder="실명 (상품 받을 때 확인해요)"')}
         ${field('phone', '휴대폰 번호', 'tel', 'maxlength="13" autocomplete="tel" inputmode="numeric" required placeholder="010-1234-5678"')}
@@ -110,7 +132,7 @@
         ${consents()}
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">가입하기</button>
-        <p class="ax-links">이미 계정이 있나요? <button type="button" data-mode="login">로그인</button></p>
+        <p class="ax-links"><button type="button" data-mode="signup">다른 방법으로 가입</button></p>
       </form>`,
     }),
     forgot: () => ({
@@ -120,7 +142,7 @@
         ${field('email', '이메일', 'email', 'autocomplete="email" required inputmode="email"')}
         <div class="ax-cap" id="capBox"></div>${errLine}
         <button type="submit" class="ax-btn">메일 받기</button>
-        <p class="ax-links"><button type="button" data-mode="login">로그인으로 돌아가기</button></p>
+        <p class="ax-links"><button type="button" data-mode="email">로그인으로 돌아가기</button></p>
       </form>`,
     }),
   };
@@ -130,6 +152,7 @@
     $('axLead').textContent = lead;
     $('axLead').hidden = !lead;   // 설명이 없는 화면은 빈 줄을 남기지 않는다
     $('axBody').innerHTML = body;
+    document.querySelector('.ax-wrap').classList.toggle('is-pick', Boolean($('axBody').querySelector('.ax-pick')));
     document.title = `모기제로 | ${title}`;
     // 비밀번호 보기 버튼
     $('axBody').querySelectorAll('[data-eye]').forEach((b) => b.addEventListener('click', () => {
@@ -143,7 +166,7 @@
     $('axBody').querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode; render(); }));
     $('axBody').querySelectorAll('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
       b.disabled = true;
-      try { await window.MZAuth.signInWith(b.dataset.oauth); } catch (ex) { const e = $('axBody').querySelector('.ax-err'); if (e) e.textContent = ex.message; b.disabled = false; }
+      try { await window.MZAuth.signInWith(b.dataset.oauth); lastSet(b.dataset.oauth); } catch (ex) { const e = $('axBody').querySelector('.ax-err'); if (e) e.textContent = ex.message; b.disabled = false; }
     }));
   }
   // 폼 제출: 버튼 잠그기, 오류 문구, 캡차 다시 받기
@@ -292,22 +315,23 @@
     const v = VIEWS[mode]();
     paint(v.title, v.lead, v.body);
     const cap = captcha($('capBox'));
-    if (mode === 'signup') {
+    if (mode === 'signupEmail') {
       const get = wireConsent($('axBody'));
       onSubmit($('axForm'), cap, async (f, token) => {
         if (f.password.value !== f.password2.value) throw new Error('비밀번호 두 칸이 서로 달라요.');
         const c = get();
         if (!c.age14 || !c.terms || !c.privacy) throw new Error('필수 항목 3가지에 동의해 주세요.');
         const r = await A.signUp({ email: f.email.value.trim(), password: f.password.value, nickname: f.nickname.value, consents: c, captchaToken: token, name: f.real_name.value, phone: f.phone.value });
+        lastSet('email');
         if (window.MZConsent) { window.MZConsent.set('location', !!c.location, { skipServer: true }); window.MZConsent.set('motion', !!c.motion, { skipServer: true }); }
-        if (r.needsConfirm) { mode = 'login'; return '가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'; }
+        if (r.needsConfirm) { mode = 'email'; return '가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.'; }
         goNext();
         return '';
       });
     } else if (mode === 'forgot') {
       onSubmit($('axForm'), cap, async (f, token) => { await A.sendPasswordReset(f.email.value, token); return '메일을 보냈어요. 받은 편지함(스팸함도)을 확인해 주세요.'; });
-    } else {
-      onSubmit($('axForm'), cap, async (f, token) => { await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token }); goNext(); });
+    } else if (mode === 'email') {
+      onSubmit($('axForm'), cap, async (f, token) => { await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token }); lastSet('email'); goNext(); });
     }
   }
 

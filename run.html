@@ -76,6 +76,10 @@
         <label class="rn-sw"><input type="checkbox" id="optVoice" checked><span><b>음성 안내</b><small>1km마다 거리·페이스를 알려 줘요</small></span></label>
       </div>
 
+      <!-- 이번 주 뛰어런 랭킹 TOP 3 (runner.js 가 서버에서 읽어 채운다) -->
+      <div class="h-row"><h2 id="rkTopT">이번 주 랭킹</h2><a href="ranking.html">전체 보기</a></div>
+      <ol class="rn-top" id="runTop" aria-labelledby="rkTopT"><li class="rn-top-msg">불러오는 중이에요…</li></ol>
+
       <div class="h-row"><h2 id="bestT">내 최고 기록</h2></div>
       <div class="rn-best" aria-labelledby="bestT">
         <div><p class="k">가장 긴 거리</p><p class="v" id="bestKm">-</p></div>

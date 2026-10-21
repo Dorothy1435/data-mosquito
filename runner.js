@@ -397,3 +397,32 @@
     week: () => { const ws = weekStart(); return runs.filter((r) => r.start >= ws).reduce((x, r) => ({ m: x.m + r.m, sweat: x.sweat + (r.sweat || 0), sec: x.sec + r.sec }), { m: 0, sweat: 0, sec: 0 }); },
   };
 }());
+
+/* -------------------------------------------------------------
+   이번 주 뛰어런 랭킹 TOP 3 (run.html 의 #runTop)
+   · 서버(run_ranking_public)에서 1~3등만 읽는다. 전체는 ranking.html.
+   · 서버가 꺼져 있거나 못 읽으면 안내 문구만 보인다 (페이지는 멈추지 않는다)
+   ------------------------------------------------------------- */
+(function () {
+  'use strict';
+  const MEDAL = ['1', '2', '3'];
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function drawTop() {
+    const box = document.getElementById('runTop');
+    const A = window.MZAuth;
+    if (!box) return;
+    if (!A || A.status !== 'ready') { box.innerHTML = '<li class="rn-top-msg">랭킹은 서버가 연결되면 보여요.</li>'; return; }
+    try {
+      const rows = await A.runRanking('week', 3);
+      if (!rows.length) { box.innerHTML = '<li class="rn-top-msg">이번 주 첫 기록의 주인공이 되어 보세요.</li>'; return; }
+      box.innerHTML = rows.map((r, i) => `<li><span class="rn-top-no n${i + 1}" aria-label="${r.rank}등">${MEDAL[i] || r.rank}</span><b>${esc(r.nickname)}</b><span class="rn-top-km">${Number(r.distance_km || 0).toFixed(1)}<small>km</small></span></li>`).join('');
+    } catch (e) {
+      box.innerHTML = '<li class="rn-top-msg">랭킹을 불러오지 못했어요.</li>';
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('runTop')) return;
+    if (window.MZAuth && window.MZAuth.ready) window.MZAuth.ready.then(drawTop, drawTop); else drawTop();
+    setInterval(() => { if (!document.hidden) drawTop(); }, 30000);   // 30초마다 새로
+  });
+}());
