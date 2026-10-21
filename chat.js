@@ -446,7 +446,7 @@
     if (M && snap.length) {
       const hit = snap.find((d) => q.includes(d.name) || q.includes(d.name.replace(/(동|면|읍)$/, '')));
       if (hit) {
-        return R(`${hit.name}의 오늘 모기지수는 ${hit.index}점(${hit.grade})이에요. 주요 발생원은 ${srcOf(hit)} 등입니다. 참고용 예상값이에요.`, ['모기지수가 가장 높은 동네는?', '모기지수가 가장 낮은 동네는?', '모기 예방법 알려줘']);
+        return R(`${hit.name}의 오늘 모기지수는 ${hit.index}점(${hit.grade})이에요. 주요 발생원은 ${srcOf(hit)} 등입니다.`, ['모기지수가 가장 높은 동네는?', '모기지수가 가장 낮은 동네는?', '모기 예방법 알려줘']);
       }
     }
 
