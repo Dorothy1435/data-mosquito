@@ -24,6 +24,14 @@
   const LAST_KEY = 'mz-last-login';
   const lastGet = () => { try { return localStorage.getItem(LAST_KEY) || ''; } catch (e) { return ''; } };
   const lastSet = (m) => { try { localStorage.setItem(LAST_KEY, m); } catch (e) { /* 저장 못 해도 괜찮다 */ } };
+  // 아이디 저장 (이메일을 이 기기에 기억)
+  const SAVE_KEY = 'mz-saved-email';
+  const savedGet = () => { try { return localStorage.getItem(SAVE_KEY) || ''; } catch (e) { return ''; } };
+  const savedSet = (v) => { try { if (v) localStorage.setItem(SAVE_KEY, v); else localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ } };
+  // 비밀번호를 5번 틀리면 '사람 확인(캡차)'을 거쳐야 다시 시도할 수 있다. 캡차 키가 아직 없으면 1분 동안 잠근다
+  const FAIL_KEY = 'mz-login-fail', FAIL_LIMIT = 5, LOCK_MS = 60 * 1000;
+  const failGet = () => { try { return JSON.parse(localStorage.getItem(FAIL_KEY) || 'null') || { n: 0, t: 0 }; } catch (e) { return { n: 0, t: 0 }; } };
+  const failSet = (v) => { try { if (v) localStorage.setItem(FAIL_KEY, JSON.stringify(v)); else localStorage.removeItem(FAIL_KEY); } catch (e) { /* 무시 */ } };
   const recent = (m) => (lastGet() === m ? '<em class="ax-recent">최근 사용</em>' : '');
   // 방법 고르기 버튼 두 개 (카카오 · 이메일). verb: '로그인' 또는 '가입'
   function pick(verb, emailMode, withRecent) {
@@ -315,7 +323,7 @@
     $('axLead').hidden = false;
     const v = VIEWS[mode]();
     paint(v.title, v.lead, v.body);
-    const cap = captcha($('capBox'));
+    const cap = mode === 'email' ? null : captcha($('capBox'));
     if (mode === 'signupEmail') {
       const get = wireConsent($('axBody'));
       onSubmit($('axForm'), cap, async (f, token) => {
@@ -332,12 +340,35 @@
     } else if (mode === 'forgot') {
       onSubmit($('axForm'), cap, async (f, token) => { await A.sendPasswordReset(f.email.value, token); return '메일을 보냈어요. 받은 편지함(스팸함도)을 확인해 주세요.'; });
     } else if (mode === 'email') {
-      // 아이디 저장: 이메일을 이 기기에 기억해 다음에 미리 채운다. 자동 로그인: 끄면 앱·브라우저를 껐다 켜면 로그아웃 (auth.js)
-      const fm = $('axForm'), SAVE_KEY = 'mz-saved-email';
-      try { const saved = localStorage.getItem(SAVE_KEY); if (saved) { fm.email.value = saved; fm.saveId.checked = true; } fm.autoLogin.checked = localStorage.getItem('mz-auto-login') !== '0'; } catch (e) { /* 무시 */ }
-      onSubmit(fm, cap, async (f, token) => {
-        await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token, autoLogin: f.autoLogin.checked });
-        try { if (f.saveId.checked) localStorage.setItem(SAVE_KEY, f.email.value.trim()); else localStorage.removeItem(SAVE_KEY); } catch (e) { /* 무시 */ }
+      // 아이디 저장: 저장한 이메일을 미리 채운다. 자동 로그인: 끄면 이 창을 닫거나 앱을 끄면 로그아웃 (auth.js)
+      const fm = $('axForm');
+      const saved = savedGet();
+      if (saved) { fm.email.value = saved; fm.saveId.checked = true; }
+      fm.autoLogin.checked = A.autoLogin;
+      // 5번 틀린 뒤에만 캡차를 붙인다
+      let capE = failGet().n >= FAIL_LIMIT ? captcha($('capBox')) : null;
+      const capProxy = { get needed() { return Boolean(capE && capE.needed); }, token: () => (capE ? capE.token() : undefined), reset() { if (capE) capE.reset(); } };
+      onSubmit(fm, capProxy, async (f, token) => {
+        const fl = failGet();
+        if (fl.n >= FAIL_LIMIT && !capProxy.needed && Date.now() - fl.t < LOCK_MS) {
+          throw new Error(`비밀번호를 ${FAIL_LIMIT}번 틀렸어요. ${Math.ceil((LOCK_MS - (Date.now() - fl.t)) / 1000)}초 뒤에 다시 해 주세요.`);
+        }
+        try {
+          await A.signIn({ email: f.email.value.trim(), password: f.password.value, captchaToken: token, autoLogin: f.autoLogin.checked });
+        } catch (ex) {
+          if (/맞지 않아요/.test(ex.message)) {
+            const n = fl.n + 1;
+            failSet({ n, t: Date.now() });
+            if (n >= FAIL_LIMIT) {
+              if (!capE) capE = captcha($('capBox'));
+              throw new Error(capE.needed ? `비밀번호를 ${n}번 틀렸어요. 아래에서 사람인지 확인한 뒤 다시 해 주세요.` : `비밀번호를 ${n}번 틀렸어요. 1분 뒤에 다시 해 주세요.`);
+            }
+            throw new Error(`${ex.message} (${n}/${FAIL_LIMIT}번)`);
+          }
+          throw ex;
+        }
+        failSet(null);
+        savedSet(f.saveId.checked ? f.email.value.trim() : '');
         lastSet('email'); goNext();
       });
     }

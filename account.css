@@ -125,5 +125,5 @@
 .ax-back button::before { content: "‹ "; }
 /* 아이디 저장 · 자동 로그인 */
 .ax-keep { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: -4px; }
-.ax-check.sm { font-size: 15px; gap: 8px; min-height: 32px; }
+.ax-check.sm { font-size: 15px; gap: 8px; min-height: 44px; padding-right: 4px; }   /* 손가락으로 누르기 쉬운 높이 44px */
 .ax-check.sm i { width: 22px; height: 22px; }

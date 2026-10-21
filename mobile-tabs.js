@@ -77,18 +77,22 @@
    계정 바로가기 (2026-10-20) — 모든 화면 위쪽에 로그인 버튼
    · PC: 메뉴 오른쪽 끝에 '로그인' (로그인한 뒤엔 '내 계정'). 누르면 내 기록 화면의 계정 칸으로 간다.
    · 폰: 오른쪽 위 별 아이콘을 사람(계정) 아이콘으로 바꾼다.
-   · 로그인 여부는 Supabase 가 이 브라우저에 남긴 로그인 정보(sb-…-auth-token)가 있는지로만 본다(서버에 묻지 않음).
+   · 로그인 여부는 Supabase 가 이 브라우저에 남긴 로그인 정보(sb-…-auth-token, localStorage 또는 sessionStorage)가 있는지로만 본다(서버에 묻지 않음).
    ============================================================= */
 (function () {
   'use strict';
   const PERSON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.6 4.2-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></svg>';
   function loggedIn() {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (/^sb-.+-auth-token$/.test(k)) { const v = JSON.parse(localStorage.getItem(k) || 'null'); if (v && (v.access_token || (v.currentSession && v.currentSession.access_token))) return true; }
-      }
-    } catch (e) { /* 저장소를 못 읽으면 로그인 안 한 것으로 */ }
+    // 자동 로그인을 끄면 로그인 정보가 sessionStorage 에 있다 (auth.js) → 두 곳 다 본다
+    for (const name of ['localStorage', 'sessionStorage']) {
+      try {
+        const st = window[name];
+        for (let i = 0; i < st.length; i++) {
+          const k = st.key(i);
+          if (/^sb-.+-auth-token$/.test(k)) { const v = JSON.parse(st.getItem(k) || 'null'); if (v && (v.access_token || (v.currentSession && v.currentSession.access_token))) return true; }
+        }
+      } catch (e) { /* 저장소를 못 읽으면 로그인 안 한 것으로 */ }
+    }
     return false;
   }
   try { if (localStorage.getItem('mz-staff') === '1') document.documentElement.classList.add('is-staff'); } catch (e) { /* 무시 */ }

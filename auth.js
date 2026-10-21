@@ -95,12 +95,31 @@
     profile = data || null;
   }
 
+  // ---------- 자동 로그인 ----------
+  // 로그인 정보를 어디에 둘지로 정한다.
+  //   켜짐(기본): localStorage → 앱·브라우저를 껐다 켜도 유지
+  //   꺼짐: sessionStorage → 이 창(탭)을 닫거나 앱을 끄면 사라진다. 다른 창의 로그인은 건드리지 않는다
+  const AUTO_KEY = 'mz-auto-login';
+  function autoLoginOn() { try { return localStorage.getItem(AUTO_KEY) !== '0'; } catch (e) { return true; } }
+  function setAutoLogin(on) { try { localStorage.setItem(AUTO_KEY, on ? '1' : '0'); } catch (e) { /* 저장 못 하면 기본(켜짐) */ } }
+  function box(kind) { try { return window[kind]; } catch (e) { return null; } }
+  const authStore = {
+    // 읽을 때는 두 곳 다 본다 (설정을 바꾼 직후에도 이미 받은 로그인을 잃지 않게)
+    getItem(k) { const a = box('sessionStorage'), b = box('localStorage'); return (a && a.getItem(k)) || (b && b.getItem(k)) || null; },
+    setItem(k, v) {
+      const keep = autoLoginOn() ? box('localStorage') : box('sessionStorage');
+      const other = autoLoginOn() ? box('sessionStorage') : box('localStorage');
+      try { if (other) other.removeItem(k); if (keep) keep.setItem(k, v); } catch (e) { /* 저장소가 막혀 있으면 이번 화면에서만 로그인 */ }
+    },
+    removeItem(k) { ['sessionStorage', 'localStorage'].forEach((n) => { try { const b = box(n); if (b) b.removeItem(k); } catch (e) { /* 무시 */ } }); },
+  };
+
   const ready = (async () => {
     conf = await loadConfig();
     if (!conf) { status = 'off'; emit(); return; }
     try {
       await loadSdk();
-      client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+      client = window.supabase.createClient(conf.url, conf.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: authStore } });
       // 소셜 로그인 버튼은 항상 보인다(카카오만). Supabase 에서 켜졌는지는 conf.enabled 에 따로 적어 둔다
       conf.providers = SOCIAL.slice();
       conf.enabled = [];
@@ -115,14 +134,6 @@
       });
       const { data } = await client.auth.getSession();
       session = data.session || null;
-      // 자동 로그인을 끄고 로그인했으면: 브라우저(앱)를 껐다 켠 뒤에는 로그아웃 상태로 시작한다
-      //   'mz-auto-login' = '0' 이고, 이 탭의 sessionStorage 에 'mz-alive' 표시가 없으면 = 새로 연 것
-      try {
-        if (session && localStorage.getItem('mz-auto-login') === '0' && !sessionStorage.getItem('mz-alive')) {
-          await client.auth.signOut({ scope: 'local' }); session = null;
-        }
-        if (session) sessionStorage.setItem('mz-alive', '1');
-      } catch (e) { /* 저장소를 못 쓰면 그냥 로그인 상태 유지 */ }
       await loadProfile();
       status = 'ready';
     } catch (e) { status = 'error'; lastError = String(e && e.message || e); }
@@ -135,7 +146,7 @@
     need();
     checkPassword(password);
     checkContact(name, phone);
-    try { localStorage.setItem('mz-auto-login', '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }   // 가입하면 자동 로그인
+    setAutoLogin(true);   // 가입하면 자동 로그인
     const nick = String(nickname || '').trim();
     if (!validNickname(nick)) throw new Error('닉네임은 2~12자 한글·영문·숫자로 적어 주세요.');
     const { data, error } = await client.auth.signUp({ email, password, options: { data: { nickname: nick }, captchaToken } });
@@ -150,17 +161,18 @@
   // autoLogin: false 면 브라우저(앱)를 껐다 켜면 다시 로그인해야 한다. 기본은 자동 로그인
   async function signIn({ email, password, captchaToken, autoLogin }) {
     need();
-    // 로그인 직전에 적어 둔다 (로그인 완료 신호가 먼저 와서 화면이 바뀌어도 설정이 맞게)
-    try { localStorage.setItem('mz-auto-login', autoLogin === false ? '0' : '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }
+    // 로그인 정보가 저장되기 전에 저장 위치를 정해 둔다. 로그인이 실패하면 전 설정으로 되돌린다
+    const before = autoLoginOn();
+    setAutoLogin(autoLogin !== false);
     const { data, error } = await client.auth.signInWithPassword({ email, password, options: { captchaToken } });
-    if (error) throw new Error(koError(error));
+    if (error) { setAutoLogin(before); throw new Error(koError(error)); }
     session = data.session; await loadProfile(); emit();
   }
   // 카카오: 그 회사 로그인 화면으로 갔다가 돌아온다. 돌아온 주소의 정보는 라이브러리가 읽는다(detectSessionInUrl)
   async function signInWith(provider) {
     need();
     if (!(conf.enabled || []).includes(provider)) throw new Error('카카오 로그인은 곧 열려요. 지금은 이메일로 가입해 주세요.');
-    try { localStorage.setItem('mz-auto-login', '1'); sessionStorage.setItem('mz-alive', '1'); } catch (e) { /* 무시 */ }   // 카카오는 자동 로그인
+    setAutoLogin(true);   // 카카오는 자동 로그인
     const back = location.origin + location.pathname;
     const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: back } });
     if (error) throw new Error(koError(error));
@@ -422,6 +434,7 @@
     get status() { return status; },
     get lastError() { return lastError; },
     get turnstileSiteKey() { return (conf && conf.turnstile) || ''; },
+    get autoLogin() { return autoLoginOn(); },
     get providers() { return (conf && conf.providers) || []; },
     get recovering() { return recovering; },
     POLICY_VERSION,
