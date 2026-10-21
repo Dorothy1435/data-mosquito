@@ -1384,3 +1384,19 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
   body.tabs { padding-bottom: calc(126px + env(safe-area-inset-bottom)); }
   body.rn-running .tabbar > .tab-bite { display: none; }
 }
+
+/* 랭킹 (2026-10-21): 탭과 안내 사이 여백, 10등까지, 1~3등 금·은·동 왕관 */
+.rk-tabs + .acct-note { margin-top: 24px; }
+.acct-note + .rk { margin-top: 24px; }
+.rk { gap: 8px; }
+.rk li { min-height: 64px; padding: 0 20px; }
+.rk .n { display: flex; align-items: center; justify-content: center; font-size: 17px; }
+.rk .n.top { position: relative; flex-direction: column; gap: 0; line-height: 1; }
+.rk .n.top b { font-size: 14px; color: var(--g700); margin-top: -2px; }
+.rk li:nth-child(-n+3) .n { color: var(--g600); }
+.rk li:nth-child(1):not(.empty) { background: #FFF9E6; border-color: #F2D27A; }
+.rk li:nth-child(2):not(.empty) { background: #F5F7F9; border-color: #D5DAE0; }
+.rk li:nth-child(3):not(.empty) { background: #FCF3EC; border-color: #E8C4A2; }
+.rk li.empty { background: var(--g50); border-style: dashed; }
+.rk li.empty .who, .rk li.empty .sc { color: var(--g500); font-weight: 500; }
+.rk li.empty .rk-crown { opacity: .45; }
