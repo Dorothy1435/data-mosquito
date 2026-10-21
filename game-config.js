@@ -76,6 +76,10 @@ window.MZ_GAME_CONFIG = {
     { id: 'laser', name: '레이저 퇴치기', price: 2000, range: 0.75, cost: 0.35, refill: 2, sound: 'laser', text: '범위는 좁지만 거의 끝없이 쏠 수 있어요.' },
   ],
 
+  // 무기 강화 (2026-10-21): 가진 무기를 골드로 Lv.1 → Lv.5 까지 올린다. 한 단계마다 아래만큼 좋아진다
+  //   비용 = max(무기 값, 200) × 0.5 × 지금 단계 (예: 스프레이 100·200·300·400, 레이저 1000·2000·3000·4000)
+  UPGRADE: { maxLv: 5, costRate: 0.5, minBase: 200, range: 0.08, cost: 0.08, refill: 0.10, coilRadius: 0.10, coilCooldown: 0.08 },
+
   // 뛰어런 (2026-10-20 새 설계, 나이키 런 클럽 방식). 10초를 한 칸으로 묶어 판정한다
   RUN: {
     windowSec: 10,        // 판정 한 칸의 길이(초)

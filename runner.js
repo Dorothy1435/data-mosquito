@@ -42,8 +42,16 @@
   function runsSnapshot() {
     return { runs: runs.slice(0, 200).map((r) => Object.assign({}, r, { route: [] })), deleted: readJSON(DEL_KEY, []).slice(-500) };
   }
-  function applyRuns(d) {
+  function applyRuns(d, merge, why) {
     d = d || {};
+    // 계정이 바뀌면(로그인·로그아웃·다른 계정) 이 기기 기록과 섞지 않고 그 계정 기록으로 바꾼다
+    if (why === 'link' || why === 'switch' || why === 'logout') {
+      runs = (Array.isArray(d.runs) ? d.runs : []).slice().sort((a, b) => b.start - a.start);
+      writeJSON(DEL_KEY, Array.isArray(d.deleted) ? d.deleted : []);
+      writeJSON(KEY, runs.slice(0, 200));
+      if (typeof drawHome === 'function') drawHome();
+      return;
+    }
     const del = new Set(readJSON(DEL_KEY, []).concat(Array.isArray(d.deleted) ? d.deleted : []));
     writeJSON(DEL_KEY, Array.from(del).slice(-500));
     const byId = new Map();

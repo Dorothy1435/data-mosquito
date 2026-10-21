@@ -274,7 +274,7 @@
       // 한 번 저장한 이름·휴대폰은 바꿀 수 없다(상품 대상 확인용). 보여 주기만 한다
       if (c) {
         const tel = c.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
-        f.outerHTML = `<div class="ax-form ax-locked"><p><span>이름</span><b>${esc(c.real_name)}</b></p><p><span>휴대폰</span><b>${esc(tel)}</b></p><p class="ax-note">이름·휴대폰은 바꿀 수 없어요. 잘못 적었다면 운영 기관에 알려 주세요. 본인만 볼 수 있고 랭킹에는 보이지 않아요.</p></div>`;
+        f.outerHTML = `<div class="ax-form ax-locked"><p><span>이름</span><b>${esc(c.real_name)}</b></p><p><span>휴대폰</span><b>${esc(tel)}</b></p></div>`;
       }
       const sub = document.querySelector('#rowContact small');
       if (sub) sub.textContent = c ? `${c.real_name.slice(0, 1)}${'*'.repeat(Math.max(1, c.real_name.length - 1))} · ${c.phone.slice(0, 3)}-****-${c.phone.slice(-4)}${c.verified ? ' · 본인인증 완료' : ''}` : '아직 없어요 · 상품을 받으려면 필요해요';

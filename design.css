@@ -1422,3 +1422,8 @@ html:not(.is-staff) main[data-staff-page] > .staff-gate { display: grid; gap: 16
 .me-sum .v { margin-top: 4px; font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: var(--g900); font-variant-numeric: tabular-nums; }
 .me-sum .v small { font-size: 15px; font-weight: 600; color: var(--g600); margin-left: 2px; }
 @media (min-width: 720px) { .me-sum { grid-template-columns: repeat(4, 1fr); } }
+/* 상점: 무기 강화 (Lv, 강화 버튼) */
+.shop-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.shop-lv { margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--blue-50); color: var(--blue-ink); font-size: 13px; font-style: normal; font-weight: 700; vertical-align: 1px; }
+.shop-item .shop-up[disabled] { opacity: .45; cursor: not-allowed; }
+.shop-max { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; font-size: 14px; font-weight: 600; color: var(--g600); }

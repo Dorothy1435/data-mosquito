@@ -45,6 +45,7 @@
     s.gold = Number(s.gold) || 0;       // 골드 (상점에서 무기 사기)
     s.weapons = Array.isArray(s.weapons) && s.weapons.length ? s.weapons : ['spray'];   // 가진 무기
     if (!s.weapons.includes(s.weapon)) s.weapon = 'spray';                              // 들고 있는 무기
+    s.weaponLv = s.weaponLv && typeof s.weaponLv === 'object' ? s.weaponLv : {};          // 무기 강화 단계 { 무기: 1~5 }
     return s;
   }
   const state = loadState();
@@ -62,16 +63,21 @@
   function gameSnapshot() {
     const o = {};
     NUM_FIELDS.forEach((k) => { o[k] = state[k]; });
-    return Object.assign(o, { weapons: state.weapons, weapon: state.weapon, badges: state.badges, history: state.history.slice(0, 50) });
+    return Object.assign(o, { weapons: state.weapons, weapon: state.weapon, weaponLv: state.weaponLv, badges: state.badges, history: state.history.slice(0, 50) });
   }
-  function applyGame(d, merge) {
+  function applyGame(d, merge, why) {
     d = d || {};
     NUM_FIELDS.forEach((k) => { const v = Math.max(0, Number(d[k]) || 0); state[k] = merge ? Math.max(Number(state[k]) || 0, v) : v; });
+    // 계정이 바뀌면(로그인·로그아웃·다른 계정) 이 기기에 밀린 기록은 버린다 — 손님 기록이 계정 랭킹으로 가지 않게
+    if (why === 'link' || why === 'switch' || why === 'logout') { state.pending = []; state.today = { date: todayKey(), runs: 0 }; }
     const w = Array.isArray(d.weapons) ? d.weapons.filter((x) => typeof x === 'string') : [];
     state.weapons = merge ? Array.from(new Set(state.weapons.concat(w))) : w.slice();
     if (!state.weapons.includes('spray')) state.weapons.unshift('spray');
     if (!merge && typeof d.weapon === 'string') state.weapon = d.weapon;
     if (!state.weapons.includes(state.weapon)) state.weapon = 'spray';
+    const lv = d.weaponLv && typeof d.weaponLv === 'object' ? d.weaponLv : {};
+    if (!merge) state.weaponLv = {};
+    Object.keys(lv).forEach((k) => { const v = Math.min(9, Math.max(1, Number(lv[k]) || 1)); state.weaponLv[k] = merge ? Math.max(state.weaponLv[k] || 1, v) : v; });
     const b = Array.isArray(d.badges) ? d.badges.filter((x) => typeof x === 'string') : [];
     state.badges = merge ? Array.from(new Set(state.badges.concat(b))) : b;
     const h = (Array.isArray(d.history) ? d.history : []).filter((r) => r && r.at);
@@ -79,6 +85,17 @@
     state.history = all.filter((r, i) => all.findIndex((x) => x.at === r.at) === i).sort((x, y) => String(y.at).localeCompare(String(x.at))).slice(0, 50);
     writeLocal();
     document.dispatchEvent(new CustomEvent('game:changed', { detail: { kills: state.kills, synced: true } }));
+    // 로그인한 계정의 잡은 수·최고 단계·배지는 서버가 검사한 값으로 맞춘다
+    const A = window.MZAuth;
+    if ((why === 'link' || why === 'switch' || why === 'newer') && A && A.myScore) {
+      Promise.all([A.myScore(), A.myBadges()]).then(([sc, bd]) => {
+        state.kills = sc ? sc.total_kills : 0;
+        state.bestStage = sc ? sc.best_stage : 0;
+        state.badges = (bd || []).map((x) => x.badge_id);
+        writeLocal();
+        document.dispatchEvent(new CustomEvent('game:changed', { detail: { kills: state.kills, synced: true } }));
+      }).catch(() => { /* 다음에 */ });
+    }
   }
   // 받을 수 있는데 아직 안 받은 배지 (누적 수 기준)
   function dueBadges() { return BADGES.filter((b) => state.kills >= b.need && !state.badges.includes(b.id)); }
@@ -186,7 +203,22 @@
     const SPRAY = CFG.SPRAY || { cost: 12, refill: 32, lockMs: 1000 };
     const WEAPONS = CFG.WEAPONS || [{ id: 'spray', name: '모기약 스프레이', price: 0, range: 1, cost: 1, refill: 1, sound: 'spray', text: '' }];
     const GOLD = CFG.GOLD || { normal: 1, golden: 5, elite: 10, boss: 50, stageClear: 10 };
-    const weapon = () => WEAPONS.find((w) => w.id === state.weapon) || WEAPONS[0];
+    // 무기 강화: 단계(Lv)에 따라 범위·약 소모·충전·모기향을 좋게 한 값을 쓴다 (game-config.js UPGRADE)
+    const UP = CFG.UPGRADE || { maxLv: 5, costRate: 0.5, minBase: 200, range: 0.08, cost: 0.08, refill: 0.1, coilRadius: 0.1, coilCooldown: 0.08 };
+    const lvOf = (id) => Math.min(UP.maxLv, Math.max(1, Number(state.weaponLv[id]) || 1));
+    const upCost = (w) => Math.round(Math.max(w.price || 0, UP.minBase) * UP.costRate * lvOf(w.id) / 10) * 10;
+    const weapon = () => {
+      const base = WEAPONS.find((w) => w.id === state.weapon) || WEAPONS[0];
+      const k = lvOf(base.id) - 1;
+      if (!k) return base;
+      const w = Object.assign({}, base, {
+        range: (base.range || 1) * (1 + UP.range * k),
+        cost: (base.cost || 1) * Math.max(0.3, 1 - UP.cost * k),
+        refill: (base.refill || 1) * (1 + UP.refill * k),
+      });
+      if (base.coil) w.coil = Object.assign({}, base.coil, { radius: Math.round(base.coil.radius * (1 + UP.coilRadius * k)), cooldownMs: Math.round(base.coil.cooldownMs * Math.max(0.4, 1 - UP.coilCooldown * k)) });
+      return w;
+    };
     const coils = [];        // 모기향 연기 { x, y, until, r, el, nextAt }
     let coilReadyAt = 0;
     const EV = CFG.EVENTS || {};
@@ -261,16 +293,29 @@
     function openShop() {
       const rows = WEAPONS.map((w) => {
         const owned = state.weapons.includes(w.id), equipped = state.weapon === w.id;
+        const lv = lvOf(w.id), max = lv >= UP.maxLv, cost = upCost(w);
         const btn = equipped ? '<span class="shop-on">들고 있어요</span>'
           : owned ? `<button type="button" class="btn-sub" data-equip="${w.id}">들기</button>`
           : `<button type="button" class="btn-main" data-buy="${w.id}" ${state.gold < w.price ? 'disabled' : ''}>🪙 ${w.price.toLocaleString('ko-KR')}</button>`;
-        return `<li class="shop-item${equipped ? ' is-on' : ''}"><span class="shop-ic" aria-hidden="true">${WEAPON_ICON[w.id] || ''}</span><span class="shop-txt"><b>${w.name}</b><small>${w.text}</small></span>${btn}</li>`;
+        // 가진 무기는 강화 버튼 (Lv.5 까지)
+        const up = !owned ? '' : max ? '<span class="shop-max">최고 단계</span>'
+          : `<button type="button" class="btn-sub shop-up" data-up="${w.id}" ${state.gold < cost ? 'disabled' : ''}>강화 🪙 ${cost.toLocaleString('ko-KR')}</button>`;
+        return `<li class="shop-item${equipped ? ' is-on' : ''}"><span class="shop-ic" aria-hidden="true">${WEAPON_ICON[w.id] || ''}</span><span class="shop-txt"><b>${w.name}${owned ? ` <em class="shop-lv">Lv.${lv}</em>` : ''}</b><small>${w.text}</small></span><span class="shop-btns">${btn}${up}</span></li>`;
       }).join('');
-      const box = overlay(`<p class="egg-k">모기 잡기 상점</p><p class="egg-t">🪙 ${state.gold.toLocaleString('ko-KR')} 골드</p><p class="egg-p">모기 1마리 1골드 · 황금 5 · 엘리트 10 · 보스 50 · 도전 성공 시 단계 × 10</p><ul class="shop-list">${rows}</ul>`, [['닫기', null]], 'egg-shop');
+      const box = overlay(`<p class="egg-k">모기 잡기 상점</p><p class="egg-t">🪙 ${state.gold.toLocaleString('ko-KR')} 골드</p><p class="egg-p">강화 한 단계마다 범위 +${Math.round(UP.range * 100)}% · 약 ${Math.round(UP.cost * 100)}% 덜 씀 · 충전 ${Math.round(UP.refill * 100)}% 빠름</p><ul class="shop-list">${rows}</ul>`, [['닫기', null]], 'egg-shop');
       box.querySelectorAll('[data-buy]').forEach((b) => b.addEventListener('click', () => {
         const w = WEAPONS.find((x) => x.id === b.dataset.buy);
         if (!w || state.gold < w.price) return;
         state.gold -= w.price; state.weapons.push(w.id); state.weapon = w.id;
+        save(); drawGold(); Sound.play('coin');
+        openShop();
+      }));
+      box.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => {
+        const w = WEAPONS.find((x) => x.id === b.dataset.up);
+        if (!w || !state.weapons.includes(w.id) || lvOf(w.id) >= UP.maxLv) return;
+        const cost = upCost(w);
+        if (state.gold < cost) return;
+        state.gold -= cost; state.weaponLv[w.id] = lvOf(w.id) + 1;
         save(); drawGold(); Sound.play('coin');
         openShop();
       }));
@@ -338,7 +383,7 @@
       if (success) { state.bestStage = Math.max(state.bestStage, run.stage); addGold(run.stage * (GOLD.stageClear || 10)); }
       const rec = { stage: run.stage, kills: run.caught, ms, ok: !!success, at: new Date().toISOString() };
       state.history.unshift(rec); state.history = state.history.slice(0, 50);
-      if (!quit) state.pending.push(rec);
+      if (!quit && myUid()) state.pending.push(Object.assign({ uid: myUid() }, rec));   // 로그인했을 때만 서버로 보낼 기록에 넣는다
       save();
       if (!quit) syncPending();
       diff = FREE; applyFreeCount();
@@ -360,27 +405,36 @@
     // 그냥 잡기(도전 밖): 잡은 수를 모았다가 20초마다 또는 40마리마다 한 묶음(stage 0)으로 보낸다
     //   걸린 시간도 같이 보내서 서버가 '사람이 잡을 수 있는 속도'(분당 상한)와 하루 상한으로 다시 자른다
     let freeK = 0, freeStart = 0;
+    // 지금 로그인한 계정 (손님이면 null). 보낼 기록에는 누구 기록인지 적어 둔다 — 손님 기록이 계정으로 가지 않게
+    function myUid() { const A = window.MZAuth; const u = A && A.enabled && A.user && A.user(); return u ? u.id : null; }
     function addFree() {
       if (!freeK) freeStart = Date.now();
       freeK += 1;
-      if (freeK >= 40) flushFree();
+      if (freeK >= 20) flushFree();
     }
     function flushFree() {
       if (!freeK) return;
-      state.pending.push({ stage: 0, kills: freeK, ms: Math.max(Date.now() - freeStart, 1000), ok: false, at: new Date().toISOString() });
+      if (!myUid()) { freeK = 0; return; }   // 손님은 이 기기에만 쌓는다
+      state.pending.push({ uid: myUid(), stage: 0, kills: freeK, ms: Math.max(Date.now() - freeStart, 1000), ok: false, at: new Date().toISOString() });
       freeK = 0; save(); syncPending();
     }
-    setInterval(flushFree, 20000);
+    setInterval(flushFree, 10000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushFree(); });
     // 서버로 보내기: 로그인 상태면 도전 기록을 보낸다. 안 되면 pending 에 남겨 다음에 다시
+    let syncing = false;
     async function syncPending() {
-      const A = window.MZAuth;
-      if (!A || !A.enabled || !A.user() || !state.pending.length) return;
+      const A = window.MZAuth, uid = myUid();
+      if (!A || !uid || syncing) return;
+      // 다른 계정·손님 때 기록은 버린다. 지금 계정 것만 보낸다
+      state.pending = state.pending.filter((r) => r.uid === uid);
+      if (!state.pending.length) return;
+      syncing = true;
       const batch = state.pending.slice(0, 10);
       try {
         const r = await A.submitRuns(batch);
-        if (r && r.ok) { state.pending = state.pending.slice(batch.length); save(); }
+        if (r && r.ok) { state.pending = state.pending.filter((x) => !batch.includes(x)); save(); syncing = false; if (state.pending.length) setTimeout(syncPending, 1000); return; }
       } catch (e) { /* 다음 기회에 */ }
+      syncing = false;
     }
     document.addEventListener('auth:changed', syncPending);
 

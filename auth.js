@@ -263,11 +263,13 @@
   // 로그인하면 이 기기에만 있던 기록(모기 잡기·골드·무기, 뛰어런, 사진 판별 횟수)을 계정에 보관한다.
   //   · 화면 파일(game.js 등)이 bindSync(종류, 지금 값 읽기, 서버 값 넣기)로 등록하고, 바뀔 때마다 touch(종류)를 부른다
   //   · 바뀐 뒤 3초 모아서 보낸다. 화면을 떠날 때도 보낸다
-  //   · 합치기 규칙 (이 기기의 마지막 연결 기록 mz-sync-<종류> 로 판단)
-  //       처음 연결(로그인 안 하고 쌓은 기록) → 서버 값과 합쳐(큰 값·합집합) 보낸다
+  //   · 로그인 안 하고 쌓은 기록(손님 기록)과 계정 기록은 섞지 않는다 (2026-10-21)
+  //       로그인하면: 손님 기록은 이 기기에 따로 넣어 두고(mz-guest-<종류>) 계정 기록으로 바꾼다. 새 계정이면 0부터
+  //       로그아웃하면: 넣어 둔 손님 기록으로 되돌린다
   //       같은 계정, 안 보낸 변경 있음 → 합쳐서 보낸다
   //       같은 계정, 서버가 더 새것(다른 폰에서 바뀜) → 서버 값으로 바꾼다
   //       다른 계정이 쓰던 기기 → 그 계정 값으로 바꾼다(앞사람 기록이 섞이지 않게)
+  //     apply(값, 합치기?, 까닭) — 까닭: 'link'(로그인) · 'switch'(다른 계정) · 'newer'(다른 폰) · 'logout'
   const syncers = {};
   const metaKey = (k) => 'mz-sync-' + k;
   const metaGet = (k) => { try { return JSON.parse(localStorage.getItem(metaKey(k)) || 'null') || {}; } catch (e) { return {}; } };
@@ -287,11 +289,16 @@
       const uid = user().id, meta = metaGet(kind);
       const { data, error } = await client.from('user_data').select('data, updated_at').eq('user_id', uid).eq('kind', kind).maybeSingle();
       if (error) return;
-      const other = meta.uid && meta.uid !== uid;
-      if (!data) { if (other) s.apply({}, false); await pushData(kind); return; }
-      if (other) { s.apply(data.data, false); metaSet(kind, { uid, at: data.updated_at, dirty: false }); return; }
-      if (!meta.uid || meta.dirty) { s.apply(data.data, true); await pushData(kind); return; }
-      if (!meta.at || new Date(data.updated_at) > new Date(meta.at)) { s.apply(data.data, false); metaSet(kind, { uid, at: data.updated_at, dirty: false }); }
+      if (!meta.uid || meta.uid !== uid) {
+        // 손님 기록이면 따로 넣어 두고(로그아웃하면 되돌림), 계정 기록(없으면 빈 기록)으로 바꾼다
+        if (!meta.uid) { try { localStorage.setItem('mz-guest-' + kind, JSON.stringify(s.get())); } catch (e) { /* 무시 */ } }
+        s.apply(data ? data.data : {}, false, meta.uid ? 'switch' : 'link');
+        metaSet(kind, { uid, at: data ? data.updated_at : null, dirty: false });
+        return;
+      }
+      if (!data) { await pushData(kind); return; }
+      if (meta.dirty) { s.apply(data.data, true, 'dirty'); await pushData(kind); return; }
+      if (!meta.at || new Date(data.updated_at) > new Date(meta.at)) { s.apply(data.data, false, 'newer'); metaSet(kind, { uid, at: data.updated_at, dirty: false }); }
     } finally { s.busy = false; }
   }
   // 계정에 보관된 기록 한 종류 읽기 (내 기록 화면에서 다른 화면의 기록을 볼 때)
@@ -306,11 +313,24 @@
   }
   function touch(kind) {
     const s = syncers[kind]; if (!s) return;
-    const m = metaGet(kind); m.dirty = true; metaSet(kind, m);
+    const m = metaGet(kind);
+    if (m.uid) { m.dirty = true; metaSet(kind, m); }   // 손님 기록은 계정에 보내지 않는다
     if (!canSync()) return;   // 로그인 안 했으면 이 기기에만. 로그인하면 합쳐서 보낸다
     clearTimeout(s.timer); s.timer = setTimeout(() => pushData(kind), 3000);
   }
-  document.addEventListener('auth:changed', () => { if (canSync()) Object.keys(syncers).forEach(pullData); });
+  document.addEventListener('auth:changed', () => {
+    if (canSync()) { Object.keys(syncers).forEach(pullData); return; }
+    // 로그아웃: 계정 기록을 걷어 내고 손님 기록으로 되돌린다
+    if (status === 'ready' && !user()) {
+      Object.keys(syncers).forEach((k) => {
+        if (!metaGet(k).uid) return;
+        let g = null;
+        try { g = JSON.parse(localStorage.getItem('mz-guest-' + k) || 'null'); } catch (e) { g = null; }
+        syncers[k].apply(g || {}, false, 'logout');
+        metaSet(k, {});
+      });
+    }
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') Object.keys(syncers).forEach((k) => { if (syncers[k].timer) pushData(k); });
   });
